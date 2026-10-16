@@ -65,6 +65,7 @@ lazy val root = (project in file("."))
     formatModule,
     intonationModule,
     scMidiModule,
+    scMidiJavamidiModule,
     experimentsModule,
   )
   .disablePlugins(AssemblyPlugin)
@@ -88,6 +89,7 @@ lazy val appModule = (project in file("app/app"))
     formatModule,
     rigModule,
     scMidiModule,
+    scMidiJavamidiModule,
     tunerModule,
     uiModule,
   )
@@ -100,7 +102,6 @@ lazy val appModule = (project in file("app/app"))
     buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
     buildInfoPackage := "org.calinburloiu.music.microtonalist",
     libraryDependencies ++= Seq(
-      coreMidi4j,
       guava,
       playJson,
     ),
@@ -130,6 +131,7 @@ lazy val cliModule = (project in file("app/cli"))
   .withId("cli")
   .dependsOn(
     scMidiModule,
+    scMidiJavamidiModule,
   )
   .settings(
     name := "microtonalist-cli",
@@ -282,11 +284,28 @@ lazy val scMidiModule = (project in file("midi/sc-midi"))
   .dependsOn(
     businessyncModule,
     commonModule,
-    commonTestUtilsModule % Test,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "sc-midi",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      jsr305,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val scMidiJavamidiModule = (project in file("midi/sc-midi-javamidi"))
+  .withId("sc-midi-javamidi")
+  .dependsOn(
+    businessyncModule,
+    commonModule,
+    commonTestUtilsModule % Test,
+    scMidiModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "sc-midi-javamidi",
     commonSettings,
     libraryDependencies ++= Seq(
       coreMidi4j,
