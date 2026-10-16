@@ -39,9 +39,8 @@ command framework.
 `cli` declares two application dependencies: `sc-midi`, for the `MidiManager` trait and the `MidiDeviceInfo` /
 `MidiConnectionLimit` value types, and `sc-midi-javamidi`, for the `JavaMidiManager` implementation. `businessync` and
 Guava's `EventBus` are pulled in transitively (referenced directly only to build the `Businessync` that
-`JavaMidiManager`'s constructor takes). The module imports nothing from
-`javax.sound.midi` (#282). Nothing depends on `cli`; it is aggregated by `root` for building/testing but
-packaged as its own fat JAR.
+`JavaMidiManager`'s constructor takes). The module imports nothing from `javax.sound.midi` (#282). Nothing depends on
+`cli`; it is aggregated by `root` for building/testing but packaged as its own fat JAR.
 
 ## Future / planned changes
 

@@ -99,6 +99,5 @@ design; treat it as planned and subject to change. The headline elements:
 Modules that depend on it: `sc-midi` (defines `MidiEvent`), `sc-midi-javamidi` (publishes `MidiEvent`s), `tuner`
 (publishes `TuningEvent`), `rig` (publishes `RigEvent`, subscribes to `TuningEvent` and `MidiEvent`), `app` (constructs
 the instance and wires it in), `cli` (constructs one for `JavaMidiManager`), and transitively `format` (publishes
-`ScaleLossyConversionEvent`) and `ui`
-(subscribes to `TuningIndexUpdatedEvent`). The instance is created once in `MicrotonalistApp.run` and injected
-everywhere, so a single bus/threading context is shared across the running app.
+`ScaleLossyConversionEvent`) and `ui` (subscribes to `TuningIndexUpdatedEvent`). The instance is created once in
+`MicrotonalistApp.run` and injected everywhere, so a single bus/threading context is shared across the running app.
