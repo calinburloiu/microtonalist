@@ -21,9 +21,9 @@ this module turns that sequence into the concrete `Tuning`s that `tuner` and `ri
   — via the `TuningReducer` plugin family, producing a `TuningList`.
 - Resolve a `Composition` into a final `TuningList` through `TuningList.fromComposition`.
 
-The module is pure domain logic: it knows nothing about file formats (that is `format`), MIDI transport, or the GUI. It
-manipulates intervals and produces `Tuning` values; deciding when/how those reach an instrument is the job of `tuner`
-and `rig`.
+The module is pure domain logic: it knows nothing about file formats (that is
+[`composition-format`](../../composition-format/docs/ARCHITECTURE.md)), MIDI transport, or the GUI. It manipulates
+intervals and produces `Tuning` values; deciding when/how those reach an instrument is the job of `tuner` and `rig`.
 
 ## Key types
 
@@ -47,8 +47,8 @@ and `rig`.
 
 `TuningMapper`, `TuningReducer`, `TuningReference` (and the `SoftChromaticGenusMapping` helper) all extend the `Plugin`
 trait from `common`: each carries a `familyName` (the extension point) and a `typeName` (the concrete variant), which
-`format` uses to select the right Play-JSON (de)serializer. The `*.Default` value in each companion is the variant
-chosen when a composition does not specify one.
+`composition-format` uses to select the right Play-JSON (de)serializer. The `*.Default` value in each companion is the
+variant chosen when a composition does not specify one.
 
 **`TuningMapper`** (family `"tuningMapper"`) maps a `Scale` to a `Tuning`, leaving unused keys `None`. A *conflict* (two
 scale pitches on the same key) throws `TuningMapperConflictException`; an out-of-range offset throws
@@ -95,6 +95,6 @@ after loading the `Composition`, and the resulting `TuningList` feeds the `Tunin
   `Tuning.Standard`), and not on the tuning engine of `tuner`: this module produces `Tuning`s but does not perform MIDI
   tuning. It also uses `sc-midi`'s `PitchClass` and `MidiNote`, and `common`'s `Plugin` trait.
 
-Depended on by **`format`** (which serializes every type here) and **`app`** (which loads a `Composition` and calls
-`TuningList.fromComposition`). Its coverage floor is set high (statement and branch both 80%), reflecting its status as
-a core, logic-heavy domain module.
+Depended on by **`composition-format`** (which serializes every type here) and **`app`** (which loads a `Composition`
+and calls `TuningList.fromComposition`). Its coverage floor is set high (statement and branch both 80%), reflecting its
+status as a core, logic-heavy domain module.

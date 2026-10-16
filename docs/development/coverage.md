@@ -53,11 +53,11 @@ There is also `bin/mtlist-coverage-check`, which runs CI's `coverageCheck` comma
 with only the XML reports.
 
 Each module's report counts only the module's own tests, never those of other modules that exercise its code. To check
-it, `common`'s coverage must be the same in both of these runs, although `format`'s tests exercise `common`:
+it, `common`'s coverage must be the same in both of these runs, although `format-core`'s tests exercise `common`:
 
 ```bash
 bin/mtlist-coverage-modules common
-bin/mtlist-coverage-modules common format
+bin/mtlist-coverage-modules common format-core
 ```
 
 For that, the commands test and report the modules one at a time, dependencies first. They stop at the first module

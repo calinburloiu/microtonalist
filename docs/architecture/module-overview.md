@@ -4,20 +4,29 @@ The project uses a layered module structure; dependency direction flows from `ap
 
 ```
 app
-├── ui                   (GUI, depends on tuner)
-├── composition          (domain model, depends on intonation + tuning)
-├── format               (JSON/file I/O, depends on composition + rig + tuner + tuning-changer-pedal)
-├── rig                  (setup of per-instrument MIDI tracks, depends on tuner + tuning-changer)
-├── tuning-changer-pedal (pedal tuning changer, depends on tuning-changer)
-├── tuning-changer       (contract of the tuning changers, depends on tuning + sc-midi)
-├── tuner                (MIDI tuning, depends on tuning + sc-midi + businessync)
-├── tuning               (Tuning and TuningChange values, depends on sc-midi)
-├── sc-midi-javamidi     (Java Sound implementation of sc-midi, with CoreMIDI4J, depends on sc-midi + businessync)
-├── sc-midi              (Scala-idiomatic MIDI API, depends on businessync)
-├── intonation           (interval math, no application deps)
-├── businessync          (event bus + threading, no application deps)
-├── common               (shared utilities)
-└── config               (HOCON config, depends on common)
+├── ui                    (GUI, depends on tuner + tuning)
+├── format                (wiring of the format modules, depends on them + rig + businessync)
+├── composition-format    (composition formats, depends on composition + intonation-format)
+├── rig-format            (rig formats, depends on rig + tuner + tuning-changer + format-core)
+├── tuner-format          (tuner plugin formats, depends on the tuner modules + format-core)
+├── tuning-changer-format (tuning changer plugin formats, depends on tuning-changer-pedal + format-core)
+├── intonation-format     (scale formats, depends on intonation + format-core)
+├── format-core           (format infrastructure and MIDI value formats, depends on sc-midi)
+├── composition           (domain model, depends on intonation + tuning)
+├── rig                   (setup of per-instrument MIDI tracks, depends on tuner + tuning-changer)
+├── tuner-mpe             (MPE tuner, depends on tuner)
+├── tuner-mts             (MTS tuners, depends on tuner)
+├── tuner-mpb             (Monophonic Pitch Bend tuner, depends on tuner)
+├── tuning-changer-pedal  (pedal tuning changer, depends on tuning-changer)
+├── tuning-changer        (contract of the tuning changers, depends on tuning + sc-midi)
+├── tuner                 (MIDI tuning, depends on tuning + sc-midi + businessync)
+├── tuning                (Tuning and TuningChange values, depends on sc-midi)
+├── sc-midi-javamidi      (Java Sound implementation of sc-midi, with CoreMIDI4J, depends on sc-midi + businessync)
+├── sc-midi               (Scala-idiomatic MIDI API, depends on businessync)
+├── intonation            (interval math, no application deps)
+├── businessync           (event bus + threading, no application deps)
+├── common                (shared utilities)
+└── config                (HOCON config, depends on common)
 ```
 
 `cli` is a separate executable (a utility tool, e.g. listing MIDI devices) that depends only on `sc-midi` and
@@ -36,18 +45,33 @@ build convention; see [`../development/build.md`](../development/build.md)), dir
 | `ui` | `ui/ui` | `org.calinburloiu.music.microtonalist.ui` |
 | `common` | `base/common` | `org.calinburloiu.music.microtonalist.common` |
 | `composition` | `theory/composition` | `org.calinburloiu.music.microtonalist.composition` |
+| `composition-format` | `theory/composition-format` | `org.calinburloiu.music.microtonalist.composition.format` |
 | `config` | `app/config` | `org.calinburloiu.music.microtonalist.config` |
 | `tuner` | `tuner/tuner` | `org.calinburloiu.music.microtonalist.tuner` |
 | `tuning` | `tuner/tuning` | `org.calinburloiu.music.microtonalist.tuner` |
 | `tuning-changer` | `tuner/tuning-changer` | `org.calinburloiu.music.microtonalist.tuner.changer` |
 | `tuning-changer-pedal` | `tuner/tuning-changer-pedal` | `org.calinburloiu.music.microtonalist.tuner.changer.pedal` |
+| `tuner-mpe` | `tuner/tuner-mpe` | `org.calinburloiu.music.microtonalist.tuner.mpe` |
+| `tuner-mts` | `tuner/tuner-mts` | `org.calinburloiu.music.microtonalist.tuner.mts` |
+| `tuner-mpb` | `tuner/tuner-mpb` | `org.calinburloiu.music.microtonalist.tuner.mpb` |
+| `tuner-format` | `tuner/tuner-format` | `org.calinburloiu.music.microtonalist.tuner.format` |
+| `tuning-changer-format` | `tuner/tuning-changer-format` | `org.calinburloiu.music.microtonalist.tuner.changer.format` |
 | `rig` | `rig/rig` | `org.calinburloiu.music.microtonalist.rig` |
+| `rig-format` | `rig/rig-format` | `org.calinburloiu.music.microtonalist.rig.format` |
 | `format` | `format/format` | `org.calinburloiu.music.microtonalist.format` |
+| `format-core` | `format/format-core` | `org.calinburloiu.music.microtonalist.format` |
 | `businessync` | `base/businessync` | `org.calinburloiu.businessync` |
 | `intonation` | `theory/intonation` | `org.calinburloiu.music.intonation` |
+| `intonation-format` | `theory/intonation-format` | `org.calinburloiu.music.intonation.format` |
 | `sc-midi` | `midi/sc-midi` | `org.calinburloiu.music.scmidi` |
 | `sc-midi-javamidi` | `midi/sc-midi-javamidi` | `org.calinburloiu.music.scmidi.javamidi` |
 | `experiments` | `app/experiments` | `org.calinburloiu.music.microtonalist.experiments` |
 
 `tuning` and `tuner` share the `org.calinburloiu.music.microtonalist.tuner` package: `tuning` holds `Tuning`,
 `DefaultCentsTolerance` and the `TuningChange` ADT, and `tuner` the rest of the package.
+
+`format-core`, `format-test-utils` and `format` share the `org.calinburloiu.music.microtonalist.format` package:
+`format` holds `FormatModule`, `format-test-utils` the `JsonFormatTestUtils` test helpers, and `format-core` the rest of
+the package. A plugin's format is in a `format` subpackage of the plugin's package, e.g.
+`org.calinburloiu.music.microtonalist.tuner.mpe.format`, which `tuner-format` holds for the tuners and
+`tuning-changer-format` for the tuning changers.
