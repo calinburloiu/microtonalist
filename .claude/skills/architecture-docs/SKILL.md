@@ -21,9 +21,9 @@ details. The documentation conventions (`docs/development/doc-conventions.md`) a
 | A doc that spans modules | `docs/architecture/<topic>.md` |
 | The index | `docs/architecture/README.md` |
 
-Each module also has a `README.md` for humans and a `CLAUDE.md` for agents, both a title and one line: the README links
-to `docs/ARCHITECTURE.md`, and `CLAUDE.md` `@import`s it. Keep content out of both. A new module gets all three files,
-like the other modules, and a row in the index's *Module index*.
+Each module, save test-utility modules, also has a `README.md` for humans and a `CLAUDE.md` for agents, both a title
+and one line: the README links to `docs/ARCHITECTURE.md`, and `CLAUDE.md` `@import`s it. Keep content out of both. A
+new module gets all three files, like the other modules, and a row in the index's *Module index*.
 
 ## What goes where
 
