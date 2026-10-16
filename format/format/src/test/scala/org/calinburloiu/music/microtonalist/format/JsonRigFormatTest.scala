@@ -22,19 +22,31 @@ import org.calinburloiu.music.microtonalist.rig.*
 import org.calinburloiu.music.microtonalist.tuner.mpb.MonophonicPitchBendTuner
 import org.calinburloiu.music.microtonalist.tuner.mts.MtsOctave1ByteNonRealTimeTuner
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
+import org.calinburloiu.music.microtonalist.tuner.Tuner
+import org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
+import play.api.libs.json.{Format, JsString, Json, Reads, Writes}
 
 import java.net.URI
 
 class JsonRigFormatTest extends AnyWordSpec with Matchers {
-  private val rigFormat: RigFormat = new JsonRigFormat(NoJsonPreprocessor)
+  private val rigFormat: RigFormat = new JsonRigFormat(NoJsonPreprocessor, JsonTunerPluginFormat.format,
+    JsonTuningChangerPluginFormat.format)
   private val rigRepo: RigRepo = {
     val fileRigRepo = new FileRigRepo(rigFormat)
 
     new DefaultRigRepo(Some(fileRigRepo), None, None)
   }
+
+  private val givenTuner: Tuner = MonophonicPitchBendTuner(outputChannel = 5)
+  private val givenTuningChanger: TuningChanger = PedalTuningChanger(threshold = 42)
+  private val rigFormatWithGivenFormats: JsonRigFormat = JsonRigFormat(
+    NoJsonPreprocessor,
+    Format[Tuner](Reads.pure(givenTuner), Writes(_ => JsString("givenTuner"))),
+    Format[TuningChanger](Reads.pure(givenTuningChanger), Writes(_ => JsString("givenTuningChanger")))
+  )
 
   "JsonRigFormat" should {
     "read a basic tracks file" in {
@@ -156,6 +168,32 @@ class JsonRigFormatTest extends AnyWordSpec with Matchers {
 
     "fail to read a file from an unsupported scheme" in assertThrows[BadRigRequestException] {
       rigRepo.readRig(new URI("xyz://example.com/file.mtlist.tracks"))
+    }
+
+    "read a track's tuner and tuning changers with the formats it is given" in {
+      // Given
+      val json = Json.obj("id" -> "piano", "name" -> "Piano", "tuner" -> "unknownTuner",
+        "tuningChangers" -> Json.arr("unknownTuningChanger"))
+
+      // When
+      val trackSpec = rigFormatWithGivenFormats.readTrack(json, None)
+
+      // Then
+      trackSpec.tuner shouldEqual Some(givenTuner)
+      trackSpec.tuningChangers shouldEqual Seq(givenTuningChanger)
+    }
+
+    "write a track's tuner and tuning changers with the formats it is given" in {
+      // Given
+      val trackSpec = TrackSpec(id = "piano", name = "Piano", tuningChangers = Seq(PedalTuningChanger()),
+        tuner = Some(MtsOctave1ByteNonRealTimeTuner()))
+
+      // When
+      val json = rigFormatWithGivenFormats.writeTrackAsJsValue(trackSpec)
+
+      // Then
+      (json \ "tuner").get shouldEqual JsString("givenTuner")
+      (json \ "tuningChangers").get shouldEqual Json.arr("givenTuningChanger")
     }
   }
 }

@@ -1,0 +1,10 @@
+{
+    "tracks": [
+        {
+            "id": "piano",
+            "name": "Piano",
+            "tuningChangers": ["pedal"],
+            "tuner": "mtsOctave1ByteNonRealTime"
+        }
+    ]
+}

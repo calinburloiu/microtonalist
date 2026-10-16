@@ -31,15 +31,29 @@ import scala.concurrent.{Await, Future}
  * A tracks file format implementation used for serialization/deserialization in JSON format.
  *
  * @param jsonPreprocessor A preprocessor instance that can replace JSON references.
+ * @param tunerFormat The format of a track's tuner, which knows every tuner type that a rig file may hold.
+ * @param tuningChangerFormat The format of a track's tuning changers, which knows every tuning changer type that a rig
+ *   file may hold.
  * @param synchronousAwaitTimeout Duration used as the timeout for synchronous operations.
  */
 class JsonRigFormat(jsonPreprocessor: JsonPreprocessor,
+                    tunerFormat: Format[Tuner],
+                    tuningChangerFormat: Format[TuningChanger],
                     synchronousAwaitTimeout: FiniteDuration = 1 minute) extends RigFormat {
+
+  import JsonRigFormat.{trackInputSpecFormat, trackOutputSpecFormat}
+
+  private implicit val trackSpecFormat: Format[TrackSpec] = {
+    implicit val implicitTunerFormat: Format[Tuner] = tunerFormat
+    implicit val implicitTuningChangerFormat: Format[TuningChanger] = tuningChangerFormat
+
+    Json.using[Json.WithDefaultValues].format[TrackSpec]
+  }
+  private implicit val rigSpecFormat: Format[RigSpec] = Json.format[RigSpec]
 
   def readTrack(json: JsValue, baseUri: Option[URI]): TrackSpec = {
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-    import JsonRigFormat.trackSpecFormat
     preprocessedJson.validate[TrackSpec] match {
       case JsSuccess(trackSpec, _) => trackSpec
       case error: JsError => throw new InvalidRigFormatException(JsError.toJson(error).toString)
@@ -53,7 +67,6 @@ class JsonRigFormat(jsonPreprocessor: JsonPreprocessor,
   def readRig(json: JsValue, baseUri: Option[URI]): RigSpec = {
     val preprocessedJson = jsonPreprocessor.preprocess(json, baseUri)
 
-    import JsonRigFormat.rigSpecFormat
     preprocessedJson.validate[RigSpec] match {
       case JsSuccess(rigSpec, _) => rigSpec
       case error: JsError => throw new InvalidRigFormatException(JsError.toJson(error).toString)
@@ -67,7 +80,6 @@ class JsonRigFormat(jsonPreprocessor: JsonPreprocessor,
   }
 
   def writeTrackAsJsValue(trackSpec: TrackSpec): JsValue = {
-    import JsonRigFormat.trackSpecFormat
     Json.toJson(trackSpec)
   }
 
@@ -76,7 +88,6 @@ class JsonRigFormat(jsonPreprocessor: JsonPreprocessor,
   }
 
   def writeRigAsJsValue(rigSpec: RigSpec): JsValue = {
-    import JsonRigFormat.rigSpecFormat
     Json.toJson(rigSpec)
   }
 
@@ -90,10 +101,5 @@ class JsonRigFormat(jsonPreprocessor: JsonPreprocessor,
 
 private object JsonRigFormat {
   private implicit val trackInputSpecFormat: Format[TrackInputSpec] = JsonTrackInputSpecPluginFormat.format
-  private implicit val tuningChangerFormat: Format[TuningChanger] = JsonTuningChangerPluginFormat.format
-  private implicit val tunerFormat: Format[Tuner] = JsonTunerPluginFormat.format
   private implicit val trackOutputSpecFormat: Format[TrackOutputSpec] = JsonTrackOutputSpecPluginFormat.format
-
-  private implicit val trackSpecFormat: Format[TrackSpec] = Json.using[Json.WithDefaultValues].format[TrackSpec]
-  private implicit val rigSpecFormat: Format[RigSpec] = Json.format[RigSpec]
 }

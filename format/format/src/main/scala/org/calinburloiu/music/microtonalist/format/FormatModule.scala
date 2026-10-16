@@ -62,7 +62,8 @@ class FormatModule(businessync: Businessync,
   lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(Some(fileCompositionRepo),
     Some(httpCompositionRepo))
 
-  lazy val rigFormat: RigFormat = new JsonRigFormat(jsonPreprocessor, synchronousAwaitTimeout)
+  lazy val rigFormat: RigFormat = new JsonRigFormat(jsonPreprocessor, JsonTunerPluginFormat.format,
+    JsonTuningChangerPluginFormat.format, synchronousAwaitTimeout)
 
   lazy val fileRigRepo: FileRigRepo = new FileRigRepo(rigFormat, synchronousAwaitTimeout)
   lazy val httpRigRepo: HttpRigRepo = new HttpRigRepo(httpClient, rigFormat, synchronousAwaitTimeout)
