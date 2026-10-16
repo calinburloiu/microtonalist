@@ -61,6 +61,7 @@ lazy val root = (project in file("."))
     uiModule,
     compositionModule,
     tunerModule,
+    tuningModule,
     rigModule,
     formatModule,
     intonationModule,
@@ -146,6 +147,7 @@ lazy val uiModule = (project in file("ui/ui"))
   .withId("ui")
   .dependsOn(
     tunerModule,
+    tuningModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -197,8 +199,10 @@ lazy val businessyncModule = (project in file("base/businessync"))
 lazy val compositionModule = (project in file("theory/composition"))
   .withId("composition")
   .dependsOn(
+    commonModule,
     intonationModule,
-    tunerModule,
+    scMidiModule,
+    tuningModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -215,6 +219,7 @@ lazy val tunerModule = (project in file("tuner/tuner"))
     commonModule,
     commonTestUtilsModule % Test,
     scMidiModule,
+    tuningModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -226,6 +231,22 @@ lazy val tunerModule = (project in file("tuner/tuner"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
+lazy val tuningModule = (project in file("tuner/tuning"))
+  .withId("tuning")
+  .dependsOn(
+    scMidiModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuning",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      guava,
+    ),
+    // TODO #377 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 55, branch = 49),
+  )
+
 lazy val rigModule = (project in file("rig/rig"))
   .withId("rig")
   .dependsOn(
@@ -234,6 +255,7 @@ lazy val rigModule = (project in file("rig/rig"))
     commonTestUtilsModule % Test,
     scMidiModule,
     tunerModule,
+    tuningModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -253,6 +275,7 @@ lazy val formatModule = (project in file("format/format"))
     compositionModule,
     rigModule,
     tunerModule,
+    tuningModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
