@@ -23,7 +23,7 @@ the repository root, as the examples below do.
 
 Run the fat JARs built by `sbt assembly` (see
 [`docs/development/build.md`](../docs/development/build.md)) from
-`app/target/scala-<version>/` and `cli/target/scala-<version>/`. The Scala
+`app/app/target/scala-<version>/` and `app/cli/target/scala-<version>/`. The Scala
 version in those paths comes from `project/scala-version`, which `build.sbt`
 reads too, so the scripts follow a Scala upgrade.
 

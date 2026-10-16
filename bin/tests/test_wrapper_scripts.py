@@ -90,7 +90,7 @@ class WrapperScriptTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         _, args = self.recorded_call("java")
         self.assertEqual(args[0], "-jar")
-        self.assert_same_path(args[1], self.repo / "app" / "target" / "scala-3.1.4" / "microtonalist-app.jar")
+        self.assert_same_path(args[1], self.repo / "app" / "app" / "target" / "scala-3.1.4" / "microtonalist-app.jar")
         self.assertEqual(args[2:], ["song.mtlist"])
 
     def test_mtlist_tool_runs_the_cli_jar_built_with_the_scala_version_of_the_build(self):
@@ -101,7 +101,7 @@ class WrapperScriptTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         _, args = self.recorded_call("java")
         self.assertEqual(args[0], "-jar")
-        self.assert_same_path(args[1], self.repo / "cli" / "target" / "scala-3.1.4" / "microtonalist-cli.jar")
+        self.assert_same_path(args[1], self.repo / "app" / "cli" / "target" / "scala-3.1.4" / "microtonalist-cli.jar")
         self.assertEqual(args[2:], ["midi", "devices"])
 
     # --- coverage ---

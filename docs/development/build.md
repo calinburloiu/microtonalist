@@ -149,8 +149,8 @@ Building the fat JAR for the executable application:
 sbtn assembly
 ```
 
-The `bin/mtlist` and `bin/mtlist-tool` launchers run the fat JARs from `app/target/scala-<version>/` and
-`cli/target/scala-<version>/`, which a plain `sbt assembly` builds; `sbtn assembly` builds them under `target-bsp/`
+The `bin/mtlist` and `bin/mtlist-tool` launchers run the fat JARs from `app/app/target/scala-<version>/` and
+`app/cli/target/scala-<version>/`, which a plain `sbt assembly` builds; `sbtn assembly` builds them under `target-bsp/`
 instead (see [Build output directories](#build-output-directories)).
 
 It is recommended to compile, build, or test the whole project before committing changes.
