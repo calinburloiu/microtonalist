@@ -47,7 +47,6 @@ class JsonPreprocessorHttpRefLoader(httpClient: HttpClient) extends JsonPreproce
           case _ => throw new JsonPreprocessorRefLoadException(uri, pathContext,
               s"Referenced JSON from $uri at $pathContext must be a JSON object")
         }
-      case 404 => throw new ScaleNotFoundException(uri)
       case status if status >= 400 && status < 600 =>
         throw new JsonPreprocessorRefLoadException(uri, pathContext,
           s"HTTP request to $uri returned status code $status")

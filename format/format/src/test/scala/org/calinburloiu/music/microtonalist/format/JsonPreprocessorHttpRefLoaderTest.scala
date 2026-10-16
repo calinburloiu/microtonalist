@@ -16,12 +16,13 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import com.sun.net.httpserver.HttpServer
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.JsPath
 
-import java.net.URI
+import java.net.{InetSocketAddress, URI}
 import java.net.http.HttpClient
 
 class JsonPreprocessorHttpRefLoaderTest extends AnyWordSpec with Matchers with MockFactory {
@@ -40,6 +41,33 @@ class JsonPreprocessorHttpRefLoaderTest extends AnyWordSpec with Matchers with M
     "leave a relative URI to another loader, without sending a request" in new Fixture {
       // When / Then
       loader.load(URI("scales/scale.json"), JsPath) shouldBe None
+    }
+
+    "throw a JsonPreprocessorRefLoadException when the URL is not found (404)" in {
+      // Given
+      val server = HttpServer.create(InetSocketAddress("127.0.0.1", 0), 0)
+      server.createContext("/",
+        exchange => {
+          exchange.sendResponseHeaders(404, -1)
+          exchange.close()
+        })
+      server.start()
+      val uri = URI(s"http://127.0.0.1:${server.getAddress.getPort}/refs/missing.json")
+      val pathContext = JsPath \ "tuningReference"
+      val loader = JsonPreprocessorHttpRefLoader(HttpClient.newHttpClient())
+
+      try {
+        // When
+        val exception = intercept[JsonPreprocessorRefLoadException] {
+          loader.load(uri, pathContext)
+        }
+
+        // Then
+        exception.uri shouldEqual uri
+        exception.pathContext shouldEqual pathContext
+      } finally {
+        server.stop(0)
+      }
     }
   }
 }
