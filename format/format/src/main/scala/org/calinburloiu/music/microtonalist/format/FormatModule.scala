@@ -16,6 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.format.{
+  DefaultScaleRepo, FileScaleRepo, HttpScaleRepo, HuygensFokkerScalaScaleFormat, JsonScaleFormat, LibraryScaleRepo,
+  ScaleContextConverter, ScaleFormat, ScaleFormatRegistry, ScaleRepo
+}
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.rig.RigRepo
 

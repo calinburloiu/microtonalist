@@ -72,6 +72,7 @@ lazy val root = (project in file("."))
     formatCoreModule,
     formatTestUtilsModule,
     intonationModule,
+    intonationFormatModule,
     scMidiModule,
     scMidiJavamidiModule,
     experimentsModule,
@@ -360,6 +361,7 @@ lazy val formatModule = (project in file("format/format"))
     compositionModule,
     formatCoreModule,
     formatTestUtilsModule % Test,
+    intonationFormatModule,
     rigModule,
     tunerModule,
     tunerMpbModule,
@@ -422,6 +424,26 @@ lazy val intonationModule = (project in file("theory/intonation"))
     ),
     // * SagittalInterval is a registry of interval constants with no logic to test
     coverageExcludedFiles := ".*/org/calinburloiu/music/intonation/intervals/SagittalInterval",
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val intonationFormatModule = (project in file("theory/intonation-format"))
+  .withId("intonation-format")
+  .dependsOn(
+    businessyncModule,
+    commonTestUtilsModule % Test,
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    intonationModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-intonation-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      guava,
+      playJson,
+    ),
     coverageSettings(stmt = 80, branch = 80),
   )
 

@@ -16,6 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.format.{
+  JsonIntervalFormat, JsonIntonationStandardPluginFormat, JsonScaleFormat, ScaleContextConverter, ScaleFormatContext,
+  ScaleRepo
+}
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.composition.*
 import play.api.libs.functional.syntax.toFunctionalBuilderOps

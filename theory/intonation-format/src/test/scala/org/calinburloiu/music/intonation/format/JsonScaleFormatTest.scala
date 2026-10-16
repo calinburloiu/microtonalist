@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.intonation.format
 
+import org.calinburloiu.music.microtonalist.format.{JsonFormatTestUtils, NoJsonPreprocessor}
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.CentsInterval.PostfixOperator
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator

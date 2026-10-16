@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.intonation.format
 
 import com.google.common.io.Files
 import com.google.common.net.MediaType

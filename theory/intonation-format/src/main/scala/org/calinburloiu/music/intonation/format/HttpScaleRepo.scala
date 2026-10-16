@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.intonation.format
 
+import org.calinburloiu.music.microtonalist.format.UriScheme
 import com.google.common.net.{HttpHeaders as GuavaHttpHeaders, MediaType}
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}

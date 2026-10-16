@@ -1,0 +1,5 @@
+{
+  "name": "Natural Minor",
+  "intonationStandard": "cents",
+  "pitches": [203.91, 315.64, 498.04, 701.96, 813.69, 1017.60, 1200.00]
+}

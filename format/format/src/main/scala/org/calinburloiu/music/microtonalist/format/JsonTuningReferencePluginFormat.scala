@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.format.JsonIntervalFormat
 import org.calinburloiu.music.intonation.{Interval, IntonationStandard}
 import org.calinburloiu.music.microtonalist.composition.{
   ConcertPitchTuningReference, StandardTuningReference, TuningReference

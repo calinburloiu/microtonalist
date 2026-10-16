@@ -14,8 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.intonation.format
 
+import org.calinburloiu.music.microtonalist.format.NoJsonPreprocessor
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator

@@ -16,7 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.intonation.{Interval, Scale}
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.composition.Composition
 import org.calinburloiu.music.microtonalist.rig.{RigRepo, RigSpec}
@@ -32,11 +31,5 @@ object FormatTestUtils {
 
   def readRigFromResources(resourcePathString: String, rigRepo: RigRepo): RigSpec = {
     rigRepo.readRig(CommonTestUtils.uriOfResource(resourcePathString))
-  }
-
-  def readScaleFromResources(resourcePathString: String,
-                             scaleRepo: ScaleRepo,
-                             context: Option[ScaleFormatContext] = None): Scale[Interval] = {
-    scaleRepo.read(CommonTestUtils.uriOfResource(resourcePathString), context)
   }
 }

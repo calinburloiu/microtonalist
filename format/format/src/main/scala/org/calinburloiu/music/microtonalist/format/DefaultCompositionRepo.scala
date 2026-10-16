@@ -27,8 +27,8 @@ import scala.concurrent.Future
  *   - Relative URIs and those with `file` scheme use [[FileCompositionRepo]]
  *   - URIs with `http`/`https` scheme use [[HttpCompositionRepo]]
  *
- * @param fileCompositionRepo a [[FileScaleRepo]] instance
- * @param httpCompositionRepo an [[HttpScaleRepo]] instance
+ * @param fileCompositionRepo a [[FileCompositionRepo]] instance
+ * @param httpCompositionRepo an [[HttpCompositionRepo]] instance
  */
 class DefaultCompositionRepo(fileCompositionRepo: Option[FileCompositionRepo],
                              httpCompositionRepo: Option[HttpCompositionRepo]) extends CompositionRepo {

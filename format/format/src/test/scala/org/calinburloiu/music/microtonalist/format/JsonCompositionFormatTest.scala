@@ -16,6 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.format.{
+  DefaultScaleRepo, FileScaleRepo, HuygensFokkerScalaScaleFormat, IncompatibleIntervalsScaleFormatException,
+  JsonScaleFormat, ScaleContextConverter, ScaleFormatContext, ScaleFormatRegistry, ScaleNotFoundException
+}
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator

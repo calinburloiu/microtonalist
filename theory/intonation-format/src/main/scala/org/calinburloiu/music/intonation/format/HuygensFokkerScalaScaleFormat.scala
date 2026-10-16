@@ -14,7 +14,7 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.format
+package org.calinburloiu.music.intonation.format
 
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.*

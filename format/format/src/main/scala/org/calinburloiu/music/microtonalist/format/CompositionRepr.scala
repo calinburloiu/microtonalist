@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.music.intonation.format.{ScaleFormatContext, ScaleRepo}
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.composition.*
 import play.api.libs.json.{JsNull, JsObject, JsValue}
