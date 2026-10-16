@@ -1,9 +1,8 @@
 # Architecture
 
-This directory documents the architecture of Microtonalist that spans modules. Each module (an SBT project, see
-`build.sbt`) documents its own architecture in `<group>/<module>/docs/ARCHITECTURE.md`. Next to it, the module's
-`README.md` links to it for human readers, and the module's `CLAUDE.md` `@import`s it so the relevant context loads on
-demand when an agent works in that module. All of them are consumed by both humans and coding agents.
+This directory documents what spans modules and indexes the architecture doc of each module,
+`<group>/<module>/docs/ARCHITECTURE.md`; see the
+[`architecture-docs` skill](../../.claude/skills/architecture-docs/SKILL.md) for where each kind of doc lives.
 
 Start with the cross-cutting overview below, then follow the module index into whichever module(s) a task touches. The
 three overview documents are the single source of truth for the basics; coding agents get them always-loaded because
@@ -25,7 +24,7 @@ Those notes are forward-looking; the surrounding text describes the code as it i
 ## Module index
 
 Each module lives in a grouping folder, `<group>/<module>/`, and by build convention its SBT project ID equals the name
-of its own folder (`build.sbt` sets `.withId(<dir>)`).
+of its own folder (`build.sbt` sets `.withId(<dir>)`), so a module's doc is at `<group>/<id>/docs/ARCHITECTURE.md`.
 
 | Module | Architecture doc |
 | ------ | ---------------- |
