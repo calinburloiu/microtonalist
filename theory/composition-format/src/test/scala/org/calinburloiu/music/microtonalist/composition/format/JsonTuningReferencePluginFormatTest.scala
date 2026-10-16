@@ -16,11 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.composition.format
 
-import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, RatioInterval}
 import org.calinburloiu.music.microtonalist.composition.{
   ConcertPitchTuningReference, StandardTuningReference, TuningReference
 }
+import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import play.api.libs.json.*
 

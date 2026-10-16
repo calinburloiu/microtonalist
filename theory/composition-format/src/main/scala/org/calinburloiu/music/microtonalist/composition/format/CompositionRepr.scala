@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.composition.format
 
-import org.calinburloiu.music.microtonalist.format.DeferrableRead
 import org.calinburloiu.music.intonation.format.{ScaleFormatContext, ScaleRepo}
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.composition.*
+import org.calinburloiu.music.microtonalist.format.DeferrableRead
 import play.api.libs.json.{JsNull, JsObject, JsValue}
 
 import java.net.URI

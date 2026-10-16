@@ -16,15 +16,15 @@
 
 package org.calinburloiu.music.microtonalist.composition.format
 
-import org.calinburloiu.music.microtonalist.format.NoJsonPreprocessor
+import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.intonation.*
+import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.format.{
   DefaultScaleRepo, FileScaleRepo, HuygensFokkerScalaScaleFormat, IncompatibleIntervalsScaleFormatException,
   JsonScaleFormat, ScaleContextConverter, ScaleFormatContext, ScaleFormatRegistry, ScaleNotFoundException
 }
-import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.intonation.*
-import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.microtonalist.composition.*
+import org.calinburloiu.music.microtonalist.format.NoJsonPreprocessor
 import org.calinburloiu.music.scmidi.{MidiNote, PitchClass}
 import org.scalamock.scalatest.MockFactory
 import org.scalatest.matchers.should.Matchers

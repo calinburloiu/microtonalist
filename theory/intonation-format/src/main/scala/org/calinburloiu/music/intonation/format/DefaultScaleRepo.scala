@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.intonation.format
 
-import org.calinburloiu.music.microtonalist.format.{DefaultRepoSelector, RepoSelector}
 import com.google.common.net.MediaType
 import com.typesafe.scalalogging.LazyLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.microtonalist.format.{DefaultRepoSelector, RepoSelector}
 
 import java.net.URI
 import scala.concurrent.ExecutionContext.Implicits.global

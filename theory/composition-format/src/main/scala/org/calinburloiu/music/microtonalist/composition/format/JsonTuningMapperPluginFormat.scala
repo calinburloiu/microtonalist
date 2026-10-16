@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.composition.format
 
-import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 import org.calinburloiu.music.microtonalist.composition.*
+import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 import play.api.libs.json.*
 
 object JsonTuningMapperPluginFormat extends JsonPluginFormat[TuningMapper] {

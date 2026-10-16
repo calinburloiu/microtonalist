@@ -17,11 +17,11 @@
 package org.calinburloiu.music.microtonalist.tuner.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
+import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{TypeSpec, TypeSpecs}
+import org.calinburloiu.music.microtonalist.tuner.Tuner
 import org.calinburloiu.music.microtonalist.tuner.mpb.format.JsonMonophonicPitchBendTunerPluginFormating
 import org.calinburloiu.music.microtonalist.tuner.mpe.format.JsonMpeTunerPluginFormating
 import org.calinburloiu.music.microtonalist.tuner.mts.format.JsonMtsTunerPluginFormating
-import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{TypeSpec, TypeSpecs}
-import org.calinburloiu.music.microtonalist.tuner.Tuner
 
 /**
  * JSON format for [[Tuner]] plugins, supporting MPE, Monophonic Pitch Bend, and MTS tuners.

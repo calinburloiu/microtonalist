@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.intonation.format
 
-import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
 import org.calinburloiu.music.intonation.format.JsonIntervalFormat.ErrorExpectedIntervalFor
+import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils
 import org.scalactic.{Equality, TolerantNumerics}
 import play.api.libs.json.*
 

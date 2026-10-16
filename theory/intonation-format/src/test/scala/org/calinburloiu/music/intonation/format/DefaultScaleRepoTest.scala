@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.intonation.format
 
-import org.calinburloiu.music.microtonalist.format.NoJsonPreprocessor
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.intonation.*
 import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
+import org.calinburloiu.music.microtonalist.format.NoJsonPreprocessor
 import org.scalamock.scalatest.AbstractMockFactory
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.tuner.mpe
 
-import org.calinburloiu.music.microtonalist.tuner.Tuning
 import ch.qos.logback.classic.Level
 import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.calinburloiu.music.microtonalist.common.LogCapture.*
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.calinburloiu.music.scmidi.*
 import org.calinburloiu.music.scmidi.message.*
 import org.scalactic.{Equality, TolerantNumerics}

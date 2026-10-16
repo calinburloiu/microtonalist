@@ -16,15 +16,15 @@
 
 package org.calinburloiu.music.microtonalist.composition.format
 
-import org.calinburloiu.music.microtonalist.format.{
-  AlreadyRead, DeferrableRead, JsonPreprocessor, resolveBaseUriWithOverride
-}
 import org.calinburloiu.music.intonation.format.{
   JsonIntervalFormat, JsonIntonationStandardPluginFormat, JsonScaleFormat, ScaleContextConverter, ScaleFormatContext,
   ScaleRepo
 }
 import org.calinburloiu.music.intonation.{CentsIntonationStandard, Interval, IntonationStandard, Scale}
 import org.calinburloiu.music.microtonalist.composition.*
+import org.calinburloiu.music.microtonalist.format.{
+  AlreadyRead, DeferrableRead, JsonPreprocessor, resolveBaseUriWithOverride
+}
 import play.api.libs.functional.syntax.toFunctionalBuilderOps
 import play.api.libs.json.*
 

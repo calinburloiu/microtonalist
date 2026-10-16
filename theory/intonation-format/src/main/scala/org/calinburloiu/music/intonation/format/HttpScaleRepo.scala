@@ -16,10 +16,10 @@
 
 package org.calinburloiu.music.intonation.format
 
-import org.calinburloiu.music.microtonalist.format.UriScheme
 import com.google.common.net.{HttpHeaders as GuavaHttpHeaders, MediaType}
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.intonation.{Interval, Scale}
+import org.calinburloiu.music.microtonalist.format.UriScheme
 
 import java.io.InputStream
 import java.net.URI

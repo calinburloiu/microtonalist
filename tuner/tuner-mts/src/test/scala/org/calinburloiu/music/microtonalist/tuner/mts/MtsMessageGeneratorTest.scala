@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.tuner.mts
 
-import org.calinburloiu.music.microtonalist.tuner.Tuning
 import com.sun.media.sound.SoftTuning
+import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.calinburloiu.music.scmidi.message.SysExMidiMsg
 import org.scalactic.{Equality, TolerantNumerics}
 import org.scalatest.matchers.should.Matchers

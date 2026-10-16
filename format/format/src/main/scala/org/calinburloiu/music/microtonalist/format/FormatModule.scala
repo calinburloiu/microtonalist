@@ -16,21 +16,21 @@
 
 package org.calinburloiu.music.microtonalist.format
 
+import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.intonation.format.{
+  DefaultScaleRepo, FileScaleRepo, HttpScaleRepo, HuygensFokkerScalaScaleFormat, JsonScaleFormat, LibraryScaleRepo,
+  ScaleContextConverter, ScaleFormat, ScaleFormatRegistry, ScaleRepo
+}
+import org.calinburloiu.music.microtonalist.composition.format.{
+  CompositionFormat, CompositionRepo, DefaultCompositionRepo, FileCompositionRepo, HttpCompositionRepo,
+  JsonCompositionFormat
+}
+import org.calinburloiu.music.microtonalist.rig.RigRepo
 import org.calinburloiu.music.microtonalist.rig.format.{
   DefaultRigRepo, FileRigRepo, HttpRigRepo, JsonRigFormat, LibraryRigRepo, RigFormat
 }
 import org.calinburloiu.music.microtonalist.tuner.changer.format.JsonTuningChangerPluginFormat
 import org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat
-import org.calinburloiu.music.microtonalist.composition.format.{
-  CompositionFormat, CompositionRepo, DefaultCompositionRepo, FileCompositionRepo, HttpCompositionRepo,
-  JsonCompositionFormat
-}
-import org.calinburloiu.music.intonation.format.{
-  DefaultScaleRepo, FileScaleRepo, HttpScaleRepo, HuygensFokkerScalaScaleFormat, JsonScaleFormat, LibraryScaleRepo,
-  ScaleContextConverter, ScaleFormat, ScaleFormatRegistry, ScaleRepo
-}
-import org.calinburloiu.businessync.Businessync
-import org.calinburloiu.music.microtonalist.rig.RigRepo
 
 import java.net.URI
 import java.net.http.HttpClient

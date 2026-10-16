@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.composition.format
 
-import org.calinburloiu.music.microtonalist.format.{DefaultRepoSelector, RepoSelector}
 import org.calinburloiu.music.microtonalist.composition.Composition
+import org.calinburloiu.music.microtonalist.format.{DefaultRepoSelector, RepoSelector}
 
 import java.net.URI
 import scala.concurrent.Future

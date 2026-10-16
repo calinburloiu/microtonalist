@@ -16,9 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.composition.format
 
-import org.calinburloiu.music.microtonalist.format.UriScheme
 import com.typesafe.scalalogging.StrictLogging
 import org.calinburloiu.music.microtonalist.composition.Composition
+import org.calinburloiu.music.microtonalist.format.UriScheme
 
 import java.io.InputStream
 import java.net.URI

@@ -16,8 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.composition.format
 
-import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 import org.calinburloiu.music.microtonalist.composition.SoftChromaticGenusMapping
+import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 
 object JsonSoftChromaticGenusMappingPluginFormat extends JsonPluginFormat[SoftChromaticGenusMapping] {
 

@@ -22,8 +22,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.JsPath
 
-import java.net.{InetSocketAddress, URI}
 import java.net.http.HttpClient
+import java.net.{InetSocketAddress, URI}
 
 class JsonPreprocessorHttpRefLoaderTest extends AnyWordSpec with Matchers with MockFactory {
 
