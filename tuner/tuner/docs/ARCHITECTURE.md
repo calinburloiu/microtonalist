@@ -12,7 +12,8 @@ package. Finding when to change the tuning is the job of the
 
 ## Key types
 
-`Tuner` is a plugin, which `format` (de)serializes by its `familyName` and `typeName`.
+`Tuner` is a plugin, which [`tuner-format`](../../tuner-format/docs/ARCHITECTURE.md) (de)serializes by its
+`familyName` and `typeName`.
 
 **`Tuner`** is the protocol abstraction. `reset()` configures the output instrument, `tune(tuning)` stores a tuning and
 emits the messages it needs now, and `process(message)` rewrites each message of the track. The trait keeps the current
@@ -20,14 +21,13 @@ tuning: `tune` and `reset` are `final` and delegate to the `onTune` / `onReset` 
 tuning after the configuration. `canTune(tuning)` tells whether a tuning is within the tuner's limits, such as its
 Pitch Bend Sensitivity; the tuner clamps any other tuning, with a warning, rather than throw.
 
-| Protocol | Tuner | How it tunes | Polyphony |
-| -------- | ----- | ------------ | --------- |
-| MTS (MIDI Tuning Standard) Octave, 1-byte/2-byte, real/non-real-time | `MtsOctave*Tuner` | An MTS SysEx retunes the instrument's pitch table in advance; notes pass through. | Polyphonic |
-| Monophonic Pitch Bend | `MonophonicPitchBendTuner` | Pitch Bend, all input folded onto one output channel. | Monophonic |
-| MPE | `MpeTuner` | Pitch Bend per note, on the MPE Member Channel it allocates to the note. | Polyphonic |
+Each tuner has a module of its own, in a subpackage of `org.calinburloiu.music.microtonalist.tuner`:
 
-`MpeTuner` routes each message by its channel's role in the MPE Zones and allocates notes to Member Channels; see
-[`mpe-tuner.md`](../../tuner-mpe/docs/mpe-tuner.md).
+| Protocol | Module | How it tunes | Polyphony |
+| -------- | ------ | ------------ | --------- |
+| MTS (MIDI Tuning Standard) Octave, 1-byte/2-byte, real/non-real-time | [`tuner-mts`](../../tuner-mts/docs/ARCHITECTURE.md) | An MTS SysEx retunes the instrument's pitch table in advance; notes pass through. | Polyphonic |
+| Monophonic Pitch Bend | [`tuner-mpb`](../../tuner-mpb/docs/ARCHITECTURE.md) | Pitch Bend, all input folded onto one output channel. | Monophonic |
+| MPE | [`tuner-mpe`](../../tuner-mpe/docs/ARCHITECTURE.md) | Pitch Bend per note, on the MPE Member Channel it allocates to the note. | Polyphonic |
 
 **Session and service.** `TuningSession` holds the tunings and the current index, and publishes a `TuningEvent` on
 every change, which the rig and the UI follow. It runs on the business thread, behind the thread-safe
@@ -44,4 +44,3 @@ resets them on the business thread (see [`rig`](../../../rig/rig/docs/ARCHITECTU
 
 - `TuningService.tunings` is deprecated until the UI moves to JavaFX (#99).
 - A tuning beyond a tuner's limits is only warned about when applied (#326).
-- The tuners will move to modules of their own: `tuner-mpe`, `tuner-mts` and `tuner-mpb` (#366).

@@ -13,7 +13,8 @@ Each implementation has a module of its own, in a subpackage of `org.calinburloi
 
 ## Key types
 
-- **`TuningChanger`** — the plugin, of the `tuningChanger` family, which `format` (de)serializes by its `typeName`. It
+- **`TuningChanger`** — the plugin, of the `tuningChanger` family, which
+  [`tuning-changer-format`](../../tuning-changer-format/docs/ARCHITECTURE.md) (de)serializes by its `typeName`. It
   decides a `TuningChange` for each MIDI message, and whether the messages that trigger a change reach the output.
 - **`TuningChangeTriggers`** — the triggers, e.g. Control Change numbers, that select the previous, the next or a given
   tuning; an implementation looks up the `TuningChange` of the trigger it detects.
