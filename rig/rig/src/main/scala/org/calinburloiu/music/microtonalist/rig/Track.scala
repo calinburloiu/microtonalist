@@ -43,7 +43,7 @@ import javax.annotation.concurrent.ThreadSafe
  * @param midiManager Used to open the input and output MIDI devices named by the spec, and to release them when the
  *   track is closed.
  * @param tuningService Notified by the [[TuningChangeProcessor]] when a
- *   [[org.calinburloiu.music.microtonalist.tuner.TuningChanger]] decides an effective tuning change.
+ *   [[org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger]] decides an effective tuning change.
  */
 @ThreadSafe
 class Track(val spec: TrackSpec,

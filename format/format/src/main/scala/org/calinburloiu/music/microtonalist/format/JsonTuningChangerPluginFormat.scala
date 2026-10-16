@@ -17,8 +17,9 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{TypeSpec, TypeSpecs}
-import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
-import org.calinburloiu.music.microtonalist.tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}
+import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
+import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger.CcNumber
+import org.calinburloiu.music.microtonalist.tuner.changer.{TuningChangeTriggers, TuningChanger}
 import org.calinburloiu.music.scmidi.message.MidiCc
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
 import play.api.libs.json.*

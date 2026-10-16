@@ -14,14 +14,15 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.tuner.changer
 
+import org.calinburloiu.music.microtonalist.tuner.{IndexTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange}
 import org.calinburloiu.music.scmidi.message.MidiCc
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 class TuningChangeTriggersTest extends AnyWordSpec with Matchers {
-  val triggers: TuningChangeTriggers[PedalTuningChanger.CcNumber] = TuningChangeTriggers(
+  val triggers: TuningChangeTriggers[Int] = TuningChangeTriggers(
     previous = Some(MidiCc.SoftPedal),
     next = Some(MidiCc.SostenutoPedal),
     index = Map(
@@ -33,15 +34,15 @@ class TuningChangeTriggersTest extends AnyWordSpec with Matchers {
   "constructor" should {
     "fail if there is no trigger configured" in {
       assertThrows[IllegalArgumentException] {
-        TuningChangeTriggers[PedalTuningChanger.CcNumber](
+        TuningChangeTriggers[Int](
           previous = None,
           next = None,
-          index = Map.empty[Int, PedalTuningChanger.CcNumber]
+          index = Map.empty[Int, Int]
         )
       }
 
       assertThrows[IllegalArgumentException] {
-        TuningChangeTriggers[PedalTuningChanger.CcNumber]()
+        TuningChangeTriggers[Int]()
       }
     }
 

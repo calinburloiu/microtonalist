@@ -14,10 +14,12 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.tuner.changer.pedal
 
 import com.typesafe.scalalogging.LazyLogging
-import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
+import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger.CcNumber
+import org.calinburloiu.music.microtonalist.tuner.changer.{TuningChangeTriggers, TuningChanger}
+import org.calinburloiu.music.microtonalist.tuner.{MayTriggerTuningChange, NoTuningChange, TuningChange}
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, MidiRequirements}
 
 import scala.collection.mutable

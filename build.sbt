@@ -62,6 +62,8 @@ lazy val root = (project in file("."))
     compositionModule,
     tunerModule,
     tuningModule,
+    tuningChangerModule,
+    tuningChangerPedalModule,
     rigModule,
     formatModule,
     intonationModule,
@@ -247,6 +249,37 @@ lazy val tuningModule = (project in file("tuner/tuning"))
     coverageSettings(stmt = 55, branch = 49),
   )
 
+lazy val tuningChangerModule = (project in file("tuner/tuning-changer"))
+  .withId("tuning-changer")
+  .dependsOn(
+    commonModule,
+    scMidiModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuning-changer",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      jsr305,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tuningChangerPedalModule = (project in file("tuner/tuning-changer-pedal"))
+  .withId("tuning-changer-pedal")
+  .dependsOn(
+    scMidiModule,
+    tuningChangerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuning-changer-pedal",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
 lazy val rigModule = (project in file("rig/rig"))
   .withId("rig")
   .dependsOn(
@@ -256,6 +289,8 @@ lazy val rigModule = (project in file("rig/rig"))
     scMidiModule,
     tunerModule,
     tuningModule,
+    tuningChangerModule,
+    tuningChangerPedalModule % Test,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -276,6 +311,8 @@ lazy val formatModule = (project in file("format/format"))
     rigModule,
     tunerModule,
     tuningModule,
+    tuningChangerModule,
+    tuningChangerPedalModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(

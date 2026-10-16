@@ -20,6 +20,7 @@ import com.fasterxml.jackson.core.JsonParseException
 import org.calinburloiu.music.microtonalist.format.FormatTestUtils.readRigFromResources
 import org.calinburloiu.music.microtonalist.rig.*
 import org.calinburloiu.music.microtonalist.tuner.*
+import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
 import org.calinburloiu.music.scmidi.{MidiDeviceId, PitchBendSensitivity}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
