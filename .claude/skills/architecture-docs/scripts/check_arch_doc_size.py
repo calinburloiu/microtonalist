@@ -30,6 +30,8 @@ EXEMPTION_MARKER = "<!-- arch-doc-size: exempt (<reason>) -->"
 EXEMPTION_PATTERN = re.compile(r"<!-- arch-doc-size: exempt(?: \(.*\))? -->")
 MARKER_MAX_LINE = 10
 ARCHITECTURE_DIR = Path("docs") / "architecture"
+# Matches the docs/ directory of each module, a top-level directory of the repository.
+MODULE_DOCS_GLOB = "*/docs"
 # This file is <root>/.claude/skills/architecture-docs/scripts/check_arch_doc_size.py.
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -112,6 +114,11 @@ def discover(directory: Path) -> List[Path]:
     return sorted(path for path in directory.rglob("*.md") if path.is_file())
 
 
+def discover_default(root: Path) -> List[Path]:
+    directories = [root / ARCHITECTURE_DIR, *root.glob(MODULE_DOCS_GLOB)]
+    return sorted(doc for directory in directories for doc in discover(directory))
+
+
 def display_path(path: Path, root: Path) -> str:
     try:
         return path.resolve().relative_to(root.resolve()).as_posix()
@@ -132,7 +139,8 @@ def parse_args(argv: Optional[List[str]]) -> argparse.Namespace:
     parser.add_argument("--github", action="store_true",
                         help="also print GitHub Actions annotations for the warnings and errors")
     parser.add_argument("paths", nargs="*", type=Path, metavar="PATH",
-                        help="a doc, or a directory of docs, to check (default: every doc under docs/architecture/)")
+                        help="a doc, or a directory of docs, to check (default: every doc under docs/architecture/ and "
+                             "<module>/docs/)")
     return parser.parse_args(argv)
 
 
@@ -148,7 +156,7 @@ def main(argv: Optional[List[str]] = None, root: Path = REPO_ROOT, out: TextIO =
     if args.paths:
         targets = [doc for path in args.paths for doc in (discover(path) if path.is_dir() else [path])]
     else:
-        targets = discover(root / ARCHITECTURE_DIR)
+        targets = discover_default(root)
     if not targets:
         print("error: no Markdown docs to check", file=err)
         return 2

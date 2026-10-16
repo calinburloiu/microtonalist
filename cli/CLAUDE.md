@@ -1,3 +1,3 @@
 # `cli` module
 
-@../docs/architecture/cli/README.md
+@docs/ARCHITECTURE.md

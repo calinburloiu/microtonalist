@@ -190,9 +190,10 @@ Latest. The script refuses to release unless `main` is clean, in sync with `orig
 
 ### `architecture-docs` skill
 
-[`.claude/skills/architecture-docs/SKILL.md`](../../.claude/skills/architecture-docs/SKILL.md) tells Claude what an
-architecture doc under `docs/architecture/` holds, how to draw its flows in Mermaid, and how to keep it within its
-budget of 1000 words, splitting it when needed. Its bundled script checks the budget, and has a `unittest` suite; CI's `docs` job runs both:
+[`.claude/skills/architecture-docs/SKILL.md`](../../.claude/skills/architecture-docs/SKILL.md) tells Claude where an
+architecture doc lives (`<module>/docs/ARCHITECTURE.md`, or `docs/architecture/` for what spans modules), what it
+holds, how to draw its flows in Mermaid, and how to keep it within its budget of 1000 words, splitting it when needed.
+Its bundled script checks the budget, and has a `unittest` suite; CI's `docs` job runs both:
 
 ```bash
 python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py

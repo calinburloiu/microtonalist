@@ -38,10 +38,10 @@ every change, which the rig and the UI follow. It runs on the business thread, b
 
 ## Threading
 
-`TuningSession` is `@NotThreadSafe` and runs on the business thread (see [`businessync`](../businessync/README.md));
-other threads go through `TuningService`. The tuners and the tuning changers are `@NotThreadSafe` too: a track runs MIDI
-messages through them on the input device's callback thread, and tunes and resets them on the business thread (see
-[`rig`](../rig/README.md#threading)).
+`TuningSession` is `@NotThreadSafe` and runs on the business thread (see
+[`businessync`](../../businessync/docs/ARCHITECTURE.md)); other threads go through `TuningService`. The tuners and the
+tuning changers are `@NotThreadSafe` too: a track runs MIDI messages through them on the input device's callback
+thread, and tunes and resets them on the business thread (see [`rig`](../../rig/docs/ARCHITECTURE.md#threading)).
 
 ## Subject to change
 

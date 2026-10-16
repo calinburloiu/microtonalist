@@ -15,6 +15,7 @@ JSON composition file
   → MIDI output device
 ```
 
-> **More detail:** the threading model behind this flow is documented in [`businessync/`](businessync/README.md);
-> the rig in [`rig/`](rig/README.md); serialization in [`format/`](format/README.md); the startup wiring that builds
-> this pipeline in [`app/`](app/README.md).
+> **More detail:** the threading model behind this flow is documented in
+> [`businessync`](../../businessync/docs/ARCHITECTURE.md); the rig in [`rig`](../../rig/docs/ARCHITECTURE.md);
+> serialization in [`format`](../../format/docs/ARCHITECTURE.md); the startup wiring that builds this pipeline in
+> [`app`](../../app/docs/ARCHITECTURE.md).

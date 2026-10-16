@@ -1,3 +1,3 @@
 # `composition` module
 
-@../docs/architecture/composition/README.md
+@docs/ARCHITECTURE.md

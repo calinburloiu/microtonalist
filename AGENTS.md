@@ -17,8 +17,8 @@ Scala 3 and is built by using sbt 1.
   sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
 - Before writing code, create a task to explore the architecture: read the always-loaded overviews imported in the
   [Architecture](#architecture) section plus the architecture documents strictly relevant to the prompt — typically the
-  `docs/architecture/$MODULE/README.md` of each module you will touch and its immediate collaborators. That section
-  explains how the architecture documents are organized.
+  `$MODULE/docs/ARCHITECTURE.md` of each module you will touch and its immediate collaborators. That section explains
+  how the architecture documents are organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
       no logic) to get them to compile. A stub may leave constructor parameters unused; that warning is allowed until
@@ -34,8 +34,8 @@ Scala 3 and is built by using sbt 1.
       until the target coverage is met. See [Coverage](#coverage) section for details.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
-      guides etc.) and agent artifacts, following the documentation conventions. When the change affects a document
-      under `docs/architecture/`, invoke the `architecture-docs` skill.
+      guides etc.) and agent artifacts, following the documentation conventions. When the change affects an
+      architecture document, under `docs/architecture/` or `$MODULE/docs/`, invoke the `architecture-docs` skill.
     - **Lint**. Run `sbtn fixLint`, which applies the scalafix autofixes and formats the code (`sbtn fix`), then runs
       CI's check (`sbtn lint`). Fix what it reports by hand, and repeat until it passes.
 - If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
@@ -149,24 +149,26 @@ See [`docs/development/license-headers.md`](docs/development/license-headers.md)
 
 The architecture docs are organized as follows:
 
-- **Shared overview documents (`docs/architecture/`)** — the single source of truth for the cross-cutting basics,
-  imported here and linked from the human-facing index:
+- **Cross-cutting documents (`docs/architecture/`)** — documents that span modules. The shared overview documents
+  among them are the single source of truth for the cross-cutting basics, imported here and linked from the
+  human-facing index:
     * @docs/architecture/module-overview.md
     * @docs/architecture/domain-concepts.md
     * @docs/architecture/data-flow.md
-- **Per-module deep dives (`docs/architecture/$MODULE/README.md`)** — one document per module (an architecture document
+- **Per-module deep dives (`$MODULE/docs/ARCHITECTURE.md`)** — one document per module (an architecture document
   covering responsibility, key types, flows, and module-specific concerns). Each module's `$MODULE/CLAUDE.md`
   `@import`s its document, so when you work inside a module that detail loads automatically. To read another module's
-  architecture without editing in it, open its `docs/architecture/$MODULE/README.md` directly.
-- **Per-topic documents** — some directories carry focused topic docs alongside the module README, e.g.
-  [`docs/architecture/tuner/mpe-tuner.md`](docs/architecture/tuner/mpe-tuner.md) for the MPE Tuner.
+  architecture without editing in it, open its `$MODULE/docs/ARCHITECTURE.md` directly. The module's `README.md` only
+  links to it, for human readers browsing the module on GitHub.
+- **Per-topic documents** — some modules carry focused topic docs next to their architecture document, in
+  `$MODULE/docs/`, e.g. [`tuner/docs/mpe-tuner.md`](tuner/docs/mpe-tuner.md) for the MPE Tuner.
 - **Human-facing index (`docs/architecture/README.md`)** — the same material framed for human readers, with a table
-  mapping each module to its directory and document.
+  linking each module's document.
 
 **Before coding**, identify which architecture documents are strictly relevant to the task (this overview plus the
-README(s) of the module(s) you will touch and their immediate collaborators) and read them. Architecture docs may note
-that an area is *subject to change* under the GitHub `Architecture` milestone; treat those notes as forward-looking, not
-as the current state of the code.
+architecture documents of the module(s) you will touch and their immediate collaborators) and read them. Architecture
+docs may note that an area is *subject to change* under the GitHub `Architecture` milestone; treat those notes as
+forward-looking, not as the current state of the code.
 
 # Contributing (issues, PRs, branches)
 

@@ -1,8 +1,9 @@
 ---
 name: architecture-docs
 description: >-
-  Use when writing, updating, splitting or reviewing a document under docs/architecture/, including the Documentation
-  step of a change that adds, removes or reshapes a module's key types or internal flows.
+  Use when writing, updating, splitting or reviewing an architecture document — a module's docs/ARCHITECTURE.md or a
+  topic doc next to it, or a cross-cutting doc under docs/architecture/ — including the Documentation step of a change
+  that adds, removes or reshapes a module's key types or internal flows, or that adds a module.
 ---
 
 # Architecture docs
@@ -10,6 +11,19 @@ description: >-
 An architecture doc orients a human or an agent in a module: its responsibility, its few most important types, and how
 things flow inside it and across its boundary. It tells the reader which types to look at; their ScalaDoc holds the
 details. The documentation conventions (`docs/development/doc-conventions.md`) apply too.
+
+## Where docs live
+
+| Doc | Path |
+| --- | ---- |
+| A module's architecture | `<module>/docs/ARCHITECTURE.md` |
+| A topic or paper of one module | `<module>/docs/<topic>.md` |
+| A doc that spans modules | `docs/architecture/<topic>.md` |
+| The index | `docs/architecture/README.md` |
+
+Each module also has a `README.md` for humans and a `CLAUDE.md` for agents, both a title and one line: the README links
+to `docs/ARCHITECTURE.md`, and `CLAUDE.md` `@import`s it. Keep content out of both. A new module gets all three files,
+like the other modules, and a row in the index's *Module index*.
 
 ## What goes where
 
@@ -26,7 +40,7 @@ one only when the picture needs it, e.g. a `private[module]` type that is a main
 
 ## Shape
 
-A module README usually has these sections; leave out one with nothing to say:
+A module's `ARCHITECTURE.md` usually has these sections; leave out one with nothing to say:
 
 1. **Responsibility** — what the module does, and what it leaves to other modules.
 2. **Key types** — grouped, one or two lines each: the type's role, not its API.
@@ -51,18 +65,17 @@ The budget is 1000 words, about two pages. Check it with the bundled script, fro
 python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py [--github] [PATH...]
 ```
 
-With no path it checks every doc under `docs/architecture/`. Up to 1200 words is OK; 1201–1500 warns, compacting
-recommended; above 1500 is an error that fails CI, compacting required. The script is a black box: use `--help` for
-its usage, and don't read its source.
+With no path it checks every doc under `docs/architecture/` and `<module>/docs/`. Up to 1200 words is OK; 1201–1500
+warns, compacting recommended; above 1500 is an error that fails CI, compacting required. The script is a black box:
+use `--help` for its usage, and don't read its source.
 
 To compact a doc, in this order: rephrase; remove what ScalaDoc owns; split.
 
 ## Splitting
 
-Split a doc that is over budget and covers several capabilities. Move one capability to
-`docs/architecture/<module>/<topic>.md`, which has the same budget. The module README keeps one sentence summarising it
-and a link to it. `docs/architecture/README.md` lists, under *Other architecture
-material*, only docs that span modules, and the papers.
+Split a doc that is over budget and covers several capabilities. Move one capability to `<module>/docs/<topic>.md`,
+which has the same budget. The module's `ARCHITECTURE.md` keeps one sentence summarising it and a link to it.
+`docs/architecture/README.md` lists, under *Other architecture material*, only docs that span modules, and the papers.
 
 ## Maintenance checklist
 
