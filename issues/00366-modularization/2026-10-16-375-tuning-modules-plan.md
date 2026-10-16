@@ -101,7 +101,7 @@ and `tuning-changer-pedal`*.
 - Produces: the link checker, run as `python3 "$SCRATCH/check_md_links.py" .` from the repository root; the ScalaDoc
   link warnings in `$SCRATCH/doc-links-before.txt`; the baseline numbers that Tasks 2–5 compare against.
 
-- [ ] **Step 1: Check the starting point**
+- [x] **Step 1: Check the starting point**
 
 ```bash
 git switch refactoring/tuning-modules
@@ -115,7 +115,7 @@ isn't running, follow `docs/agents/dev-stack.md`. Then run `mcp__metals__list-mo
 and `mcp__metals__compile-full`: success, with only the two deprecation warnings on `TuningService.tunings` (in
 `TuningServiceTest` and `TuningListFrame`).
 
-- [ ] **Step 2: Save the link checker**
+- [x] **Step 2: Save the link checker**
 
 Step 1's plan holds a link checker that checks every relative Markdown link, `#heading` link and `@import` outside
 `issues/` and `docs/agent-evals/`. Extract it:
@@ -128,7 +128,7 @@ wc -l < "$SCRATCH/check_md_links.py"
 
 Expected: `90`.
 
-- [ ] **Step 3: Record the docs baseline**
+- [x] **Step 3: Record the docs baseline**
 
 ```bash
 python3 "$SCRATCH/check_md_links.py" .
@@ -137,7 +137,7 @@ python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py | wc -l
 
 Expected: `0 broken of 247 relative link(s) and import(s)`; `21` docs.
 
-- [ ] **Step 4: Record the classpath check (red)**
+- [x] **Step 4: Record the classpath check (red)**
 
 The *Done when* criterion as a command: the projects whose `Compile` classpath holds `tuner`.
 
@@ -149,7 +149,7 @@ sbtn "show Compile/internalDependencyClasspath" 2>&1 \
 
 Expected: `app composition format rig ui`.
 
-- [ ] **Step 5: Record the ScalaDoc link warnings**
+- [x] **Step 5: Record the ScalaDoc link warnings**
 
 ```bash
 for m in tuner rig format composition ui; do
@@ -161,7 +161,7 @@ cut -d: -f1 "$SCRATCH/doc-links-before.txt" | uniq -c
 Expected: `4 composition`, `45 format` and `5 rig`, none from `tuner` or `ui`. No step fixes these 54; the checks look
 only at the warnings that the move adds.
 
-- [ ] **Step 6: Record the test counts**
+- [x] **Step 6: Record the test counts**
 
 ```bash
 sbtn "tuner/testOnly * -- -oNCXEHLOPQRMWS"
@@ -173,7 +173,7 @@ Expected: 540 tests in 14 suites, of which `TuningTest` has 7, `TuningChangeTest
 `PedalTuningChangerTest` 22; `11 modules, 1475 tests` and no other line. (At `3f74046`, `composition` has 55 tests in 8
 suites, `rig` 70 in 7, `format` 218 in 23, and `ui` none.)
 
-- [ ] **Step 7: Record the statements that put the moved types in `tuner`**
+- [x] **Step 7: Record the statements that put the moved types in `tuner`**
 
 ```bash
 git grep -nF -e '(`Tuner`, `TuningChanger`)' -e 'Depends on `tuner`** for' -e 'Its only direct dependency is `tuner`' \
@@ -205,7 +205,7 @@ Task 4 fixes them all.
   `tuning-test`; `Tuning`, `DefaultCentsTolerance` and the `TuningChange` ADT, unchanged, in it; `tuning`'s coverage
   floor and, if it is below 80/80, its coverage issue.
 
-- [ ] **Step 1: Move the files**
+- [x] **Step 1: Move the files**
 
 ```bash
 T=org/calinburloiu/music/microtonalist/tuner
@@ -219,7 +219,7 @@ rtk proxy git diff --cached -M --name-status | cut -f1 | sort | uniq -c
 
 Expected: `5 R100`.
 
-- [ ] **Step 2: Declare the module in `build.sbt`**
+- [x] **Step 2: Declare the module in `build.sbt`**
 
 In `root`'s `aggregate`, add `tuningModule,` after `tunerModule,`.
 
@@ -274,7 +274,7 @@ grep -nF 'tuningModule' build.sbt
 Expected: 7 lines: `root`'s `aggregate`, `tuningModule`'s own `lazy val`, and the `dependsOn` of `uiModule`,
 `compositionModule`, `tunerModule`, `rigModule` and `formatModule`.
 
-- [ ] **Step 3: Refresh the build**
+- [x] **Step 3: Refresh the build**
 
 Run `mcp__metals__import-build`, which reloads the build on the stack's sbt server too. Then:
 
@@ -286,13 +286,13 @@ sbtn 'show tuning/target'
 Expected: 17 projects, the 16 of before and `tuning`; a path ending in `/tuner/tuning/target-bsp`. If `tuning` is
 missing, run `sbtn reload` and check again.
 
-- [ ] **Step 4: Check that Metals sees the module**
+- [x] **Step 4: Check that Metals sees the module**
 
 Run `mcp__metals__list-modules`. Expected: 35 build targets, the 33 of before and `tuning` and `tuning-test`. If they
 are missing, restart the stack with `bin/mtlist-dev-stack restart`; if the Metals MCP tools then stop answering, ask
 the user to reconnect them with `/mcp`.
 
-- [ ] **Step 5: Clean `tuner` and compile**
+- [x] **Step 5: Clean `tuner` and compile**
 
 Zinc deletes the class files of the moved sources, but not always their SemanticDB files. Cleaning `tuner` removes
 both:
@@ -317,7 +317,7 @@ Then run `mcp__metals__get-usages` with `fqcn = "org.calinburloiu.music.microton
 `TuningChangeTest.scala`, and in `tuner`, `rig` and `ui`; none in a file that has moved, i.e.
 `tuner/tuner/src/main/…/TuningChange.scala` or `tuner/tuner/src/test/…/TuningChangeTest.scala`.
 
-- [ ] **Step 6: Run the classpath check (green)**
+- [x] **Step 6: Run the classpath check (green)**
 
 ```bash
 sbtn "show Compile/internalDependencyClasspath" 2>&1 \
@@ -329,7 +329,7 @@ sbtn "show composition/Compile/internalDependencyClasspath" 2>&1 \
 
 Expected: `app format rig ui`; `base/businessync base/common midi/sc-midi theory/intonation tuner/tuning`.
 
-- [ ] **Step 7: Run the tests of the modules involved, then the full suite**
+- [x] **Step 7: Run the tests of the modules involved, then the full suite**
 
 ```bash
 sbtn "tuning/testOnly * -- -oNCXEHLOPQRMWS"
@@ -343,7 +343,7 @@ sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 \
 
 Expected: 11 tests in 2 suites; 529 in 12; 55 in 8; 70 in 7; 218 in 23; `12 modules, 1475 tests` and no other line.
 
-- [ ] **Step 8: Measure the coverage floors**
+- [x] **Step 8: Measure the coverage floors**
 
 Invoke the `scoverage-inspector` skill. The coverage scripts don't work through `sbtn`, and take a few minutes:
 
@@ -361,7 +361,7 @@ for both, near 98% and 97%. Then apply the rule of the Global Constraints:
 - If `tuning` reaches 80% for both, set `coverageSettings(stmt = 80, branch = 80)` and skip step 9.
 - If `tuner` falls below 80% for either, stop and report it: the simulation didn't predict that.
 
-- [ ] **Step 9: Open `tuning`'s coverage issue**
+- [x] **Step 9: Open `tuning`'s coverage issue**
 
 Modelled on `format`'s, #179, with step 8's numbers for `<stmt>` and `<branch>`:
 
@@ -387,7 +387,7 @@ Expected: the URL of the new issue, `#<n>`. In `tuningModule`, add above `covera
     // TODO #<n> Raise toward 80% statement and branch coverage.
 ```
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add build.sbt
@@ -428,7 +428,7 @@ Expected: `1 M` (`build.sbt`) and `5 R100`, so `git log --follow` keeps each fil
   `tuning-changer-pedal` (`lazy val tuningChangerPedalModule`); the Metals build targets `tuning-changer`,
   `tuning-changer-test`, `tuning-changer-pedal` and `tuning-changer-pedal-test`.
 
-- [ ] **Step 1: Move the files**
+- [x] **Step 1: Move the files**
 
 ```bash
 T=org/calinburloiu/music/microtonalist/tuner
@@ -446,7 +446,7 @@ rtk proxy git diff --cached -M --name-status | cut -f1 | sort | uniq -c
 
 Expected: `5 R100`.
 
-- [ ] **Step 2: Give the moved files their packages and imports**
+- [x] **Step 2: Give the moved files their packages and imports**
 
 As in the design, `…tuner` abbreviates `org.calinburloiu.music.microtonalist.tuner`, which the code spells out.
 `sbtn fixLint` (Task 5) orders the imports.
@@ -459,7 +459,7 @@ As in the design, `…tuner` abbreviates `org.calinburloiu.music.microtonalist.t
 | `PedalTuningChanger.scala` | `…tuner.changer.pedal` | `…tuner.PedalTuningChanger.CcNumber` becomes `…tuner.changer.pedal.PedalTuningChanger.CcNumber`; add `…tuner.changer.{TuningChangeTriggers, TuningChanger}` and `…tuner.{MayTriggerTuningChange, NoTuningChange, TuningChange}` |
 | `PedalTuningChangerTest.scala` | `…tuner.changer.pedal` | the same `CcNumber` change; add `…tuner.changer.{TuningChangeTriggers, TuningChanger}` and `…tuner.{IndexTuningChange, MayTriggerTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange, TuningChange}` |
 
-- [ ] **Step 3: Point the users at the new packages**
+- [x] **Step 3: Point the users at the new packages**
 
 | File | Change |
 | ---- | ------ |
@@ -469,7 +469,7 @@ As in the design, `…tuner` abbreviates `org.calinburloiu.music.microtonalist.t
 | `JsonTuningChangerPluginFormat.scala`, `JsonTuningChangerPluginFormatTest.scala` | `…tuner.PedalTuningChanger.CcNumber` and `…tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}` become `…tuner.changer.pedal.PedalTuningChanger`, `…tuner.changer.pedal.PedalTuningChanger.CcNumber` and `…tuner.changer.{TuningChangeTriggers, TuningChanger}` |
 | `JsonRigFormatTest.scala` | keep `…tuner.*`; add `…tuner.changer.pedal.PedalTuningChanger` |
 
-- [ ] **Step 4: Declare the modules in `build.sbt`**
+- [x] **Step 4: Declare the modules in `build.sbt`**
 
 In `root`'s `aggregate`, add `tuningChangerModule,` and `tuningChangerPedalModule,` after `tuningModule,`. In
 `rigModule`'s `dependsOn`, add `tuningChangerModule,` and `tuningChangerPedalModule % Test,` after `tuningModule,`; in
@@ -520,7 +520,7 @@ Expected: `tuningChangerModule` in `root`'s `aggregate`, in its own `lazy val`, 
 `dependsOn` and in those of `rigModule` and `formatModule`; `tuningChangerPedalModule` in `root`'s `aggregate`, in its
 own `lazy val`, in `rigModule`'s `dependsOn` with `% Test` and in `formatModule`'s without.
 
-- [ ] **Step 5: Refresh the build**
+- [x] **Step 5: Refresh the build**
 
 Run `mcp__metals__import-build`. Then:
 
@@ -532,13 +532,13 @@ sbtn 'show tuning-changer-pedal/target'
 Expected: 19 projects, the 17 of before and `tuning-changer` and `tuning-changer-pedal`; a path ending in
 `/tuner/tuning-changer-pedal/target-bsp`. If either is missing, run `sbtn reload` and check again.
 
-- [ ] **Step 6: Check that Metals sees the modules**
+- [x] **Step 6: Check that Metals sees the modules**
 
 Run `mcp__metals__list-modules`. Expected: 39 build targets, the 35 of before and `tuning-changer`,
 `tuning-changer-test`, `tuning-changer-pedal` and `tuning-changer-pedal-test`. If they are missing, act as in Task 2,
 step 4.
 
-- [ ] **Step 7: Clean `tuner` and compile**
+- [x] **Step 7: Clean `tuner` and compile**
 
 ```bash
 sbtn "tuner/clean"
@@ -556,7 +556,7 @@ with `fqcn = "org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger"`
 Expected: usages under `tuner/tuning-changer/src/`, `tuner/tuning-changer-pedal/src/`, `rig/rig/src/` and
 `format/format/src/`, and none under `tuner/tuner/`.
 
-- [ ] **Step 8: Fix `rig`'s ScalaDoc links (red, then green)**
+- [x] **Step 8: Fix `rig`'s ScalaDoc links (red, then green)**
 
 Collect the link warnings of the modules involved, and compare them with Task 1's:
 
@@ -586,7 +586,7 @@ loop and the two `comm`s. Expected: only the `tuning:` lines from the first, not
 short link in a moved file, e.g. `tuning-changer: link query: TuningChange`, means that scaladoc didn't find the
 `…tuner` type from the subpackage: write that link fully qualified and rerun.
 
-- [ ] **Step 9: Run the classpath check**
+- [x] **Step 9: Run the classpath check**
 
 ```bash
 sbtn "show Compile/internalDependencyClasspath" 2>&1 \
@@ -609,7 +609,7 @@ tuning-changer: base/businessync base/common midi/sc-midi tuner/tuning
 tuning-changer-pedal: base/businessync base/common midi/sc-midi tuner/tuning tuner/tuning-changer
 ```
 
-- [ ] **Step 10: Run the tests of the modules involved, then the full suite**
+- [x] **Step 10: Run the tests of the modules involved, then the full suite**
 
 ```bash
 sbtn "tuning-changer/testOnly * -- -oNCXEHLOPQRMWS"
@@ -623,7 +623,7 @@ sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 \
 
 Expected: 7 tests in 1 suite; 22 in 1; 500 in 10; 70 in 7; 218 in 23; `14 modules, 1475 tests` and no other line.
 
-- [ ] **Step 11: Measure the coverage floors**
+- [x] **Step 11: Measure the coverage floors**
 
 ```bash
 bin/mtlist-coverage-modules tuning-changer tuning-changer-pedal tuner
@@ -637,7 +637,7 @@ only `PedalTuningChangerTest` covers), `tuning-changer-pedal` at 100% and 100%, 
 module below 80% for either gets the floor of the Global Constraints, under a new coverage issue opened as in Task 2,
 step 9.
 
-- [ ] **Step 12: Commit**
+- [x] **Step 12: Commit**
 
 ```bash
 git add build.sbt tuner rig format
@@ -670,11 +670,11 @@ Expected before the commit: only the files of this task's **Files** are staged. 
 - Consumes: Tasks 2 and 3's modules; Task 1's link checker and baselines.
 - Produces: docs whose links resolve and which put each type in its module.
 
-- [ ] **Step 1: Invoke the `architecture-docs` skill**
+- [x] **Step 1: Invoke the `architecture-docs` skill**
 
 `AGENTS.md` asks for it when a change adds a module. Its maintenance checklist applies to `tuner`'s doc, which splits.
 
-- [ ] **Step 2: Unlink the types downstream of `tuning` (green)**
+- [x] **Step 2: Unlink the types downstream of `tuning` (green)**
 
 In `TuningChange.scala`, replace:
 
@@ -714,7 +714,7 @@ with:
 Rerun the loop and the two `comm`s of Task 3, step 8. Expected: nothing from either. Then run
 `mcp__metals__compile-module` with `module = "tuning"`: success.
 
-- [ ] **Step 3: Create the new modules' docs**
+- [x] **Step 3: Create the new modules' docs**
 
 For each `<id>` of `tuning`, `tuning-changer` and `tuning-changer-pedal`, `tuner/<id>/README.md`:
 
@@ -805,7 +805,7 @@ their initial position once released.
   the controller numbers 0–119, MIDI 1.0 reserving 120–127 for the Channel Mode messages.
 ```
 
-- [ ] **Step 4: Split `tuner`'s `ARCHITECTURE.md`**
+- [x] **Step 4: Split `tuner`'s `ARCHITECTURE.md`**
 
 In `tuner/tuner/docs/ARCHITECTURE.md`, replace the body of *Responsibility*:
 
@@ -893,7 +893,7 @@ that it exists: `Tuning`, `DefaultCentsTolerance`, `TuningChange`, `PreviousTuni
 `TuningSession`, `TuningService`, `TuningEvent`, `TunerModule`, `TuningChanger`, `TuningChangeTriggers`,
 `PedalTuningChanger`, `TuningChangeProcessor`.
 
-- [ ] **Step 5: Add the modules to the cross-cutting docs**
+- [x] **Step 5: Add the modules to the cross-cutting docs**
 
 In `docs/architecture/module-overview.md`, replace the tree:
 
@@ -997,7 +997,7 @@ with:
   `TuningChange`; `PedalTuningChanger`, in the `tuning-changer-pedal` module, triggers on a pedal
 ```
 
-- [ ] **Step 6: Fix the module docs that put the moved types in `tuner`**
+- [x] **Step 6: Fix the module docs that put the moved types in `tuner`**
 
 In `theory/composition/docs/ARCHITECTURE.md`, replace:
 
@@ -1149,7 +1149,7 @@ app → format → { common, composition, rig, tuner, tuning-changer-pedal }
 
 `businessync`'s doc stays: the modules it lists still publish and subscribe as it says.
 
-- [ ] **Step 7: Check the links and the size budget**
+- [x] **Step 7: Check the links and the size budget**
 
 Stage the new docs first, since the checker reads `git ls-files`:
 
@@ -1164,7 +1164,7 @@ three `CLAUDE.md` imports, the links of the new `ARCHITECTURE.md`s (2 in `tuning
 `tuning-changer-pedal`'s), 2 more in `tuner`'s, 1 each in `rig`'s and `composition`'s, and the three *Module index*
 rows. The size script lists 24 docs, the three new ones among them, and exits 0.
 
-- [ ] **Step 8: Check that the *Packages* table leads the Metals tools to the right module**
+- [x] **Step 8: Check that the *Packages* table leads the Metals tools to the right module**
 
 Run `mcp__metals__get-usages` with each pair below. Expected: a non-empty result for each.
 
@@ -1175,7 +1175,7 @@ Run `mcp__metals__get-usages` with each pair below. Expected: a non-empty result
 | `org.calinburloiu.music.microtonalist.tuner.changer.TuningChangeTriggers` | `tuning-changer` |
 | `org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger` | `tuning-changer-pedal` |
 
-- [ ] **Step 9: Check the lines of the docs**
+- [x] **Step 9: Check the lines of the docs**
 
 ```bash
 for f in tuner/*/docs/ARCHITECTURE.md docs/architecture/*.md; do
@@ -1186,11 +1186,11 @@ done
 Expected: only table rows, which can't wrap, e.g. the `tuning-changer-pedal` row of the *Module index*. `awk` counts
 bytes, so a line with `—` or `…` may show up to two or four more than its width in characters: count those by hand.
 
-- [ ] **Step 10: Grep for statements that put the moved types in `tuner`**
+- [x] **Step 10: Grep for statements that put the moved types in `tuner`**
 
 Rerun Task 1, step 7. Expected: nothing. Fix any line it prints.
 
-- [ ] **Step 11: Commit**
+- [x] **Step 11: Commit**
 
 ```bash
 git add tuner docs app/app/docs base/common/docs format/format/docs rig/rig/docs theory/composition/docs \
@@ -1212,7 +1212,7 @@ Expected before the commit: only the files of this task's **Files** are staged.
 **Interfaces:**
 - Consumes: everything above; Task 1's baselines.
 
-- [ ] **Step 1: Full test suite**
+- [x] **Step 1: Full test suite**
 
 ```bash
 sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 \
@@ -1221,7 +1221,7 @@ sbtn "root/testOnly * -- -oNCXEHLOPQRMWS" 2>&1 \
 
 Expected: `14 modules, 1475 tests` and no other line.
 
-- [ ] **Step 2: Lint**
+- [x] **Step 2: Lint**
 
 Lint comes before coverage, so that a reformatted file doesn't leave a stale report behind.
 
@@ -1233,7 +1233,7 @@ rtk proxy git status --short
 Expected: `fixLint` passes. If it reformatted files, commit them:
 `git commit -am "[#366/#375] Format the code" -m "<attribution lines>"`.
 
-- [ ] **Step 3: Coverage**
+- [x] **Step 3: Coverage**
 
 Invoke the `scoverage-inspector` skill, and run the whole workflow, as CI does:
 
@@ -1249,21 +1249,21 @@ bin/mtlist-scoverage-inspector module-summary composition --overall-only
 Expected: every module passes its floor and the aggregate passes its own; the four modules as Tasks 2 and 3 measured
 them; `composition` at 80% or more for both, its tests unchanged.
 
-- [ ] **Step 4: The *Done when* criterion**
+- [x] **Step 4: The *Done when* criterion**
 
 Rerun Task 3, step 9. Expected: the same output.
 
-- [ ] **Step 5: Docs and ScalaDoc links**
+- [x] **Step 5: Docs and ScalaDoc links**
 
 Rerun Task 4, steps 7, 9 and 10, and the loop and the two `comm`s of Task 3, step 8. Expected: the same results;
 nothing from either `comm`.
 
-- [ ] **Step 6: Metals**
+- [x] **Step 6: Metals**
 
 Run `mcp__metals__list-modules` and `mcp__metals__get-usages` as in Task 3, steps 6 and 7. Expected: the same
 results.
 
-- [ ] **Step 7: Hand over**
+- [x] **Step 7: Hand over**
 
 Don't push and don't open a PR. Report to the user the results of the steps above and of the final review, with the
 branch's commits (`git log --oneline 3f74046..HEAD`) and the coverage issue of Task 2, step 9. Remind them that an IDE
