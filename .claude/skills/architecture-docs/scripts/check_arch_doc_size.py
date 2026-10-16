@@ -30,8 +30,8 @@ EXEMPTION_MARKER = "<!-- arch-doc-size: exempt (<reason>) -->"
 EXEMPTION_PATTERN = re.compile(r"<!-- arch-doc-size: exempt(?: \(.*\))? -->")
 MARKER_MAX_LINE = 10
 ARCHITECTURE_DIR = Path("docs") / "architecture"
-# Matches the docs/ directory of each module, a top-level directory of the repository.
-MODULE_DOCS_GLOB = "*/docs"
+# Matches the docs/ directory of each module, which sits in a grouping folder at the top of the repository.
+MODULE_DOCS_GLOB = "*/*/docs"
 # This file is <root>/.claude/skills/architecture-docs/scripts/check_arch_doc_size.py.
 REPO_ROOT = Path(__file__).resolve().parents[4]
 
@@ -140,7 +140,7 @@ def parse_args(argv: Optional[List[str]]) -> argparse.Namespace:
                         help="also print GitHub Actions annotations for the warnings and errors")
     parser.add_argument("paths", nargs="*", type=Path, metavar="PATH",
                         help="a doc, or a directory of docs, to check (default: every doc under docs/architecture/ and "
-                             "<module>/docs/)")
+                             "<group>/<module>/docs/)")
     return parser.parse_args(argv)
 
 

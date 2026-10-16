@@ -65,9 +65,9 @@ The budget is 1000 words, about two pages. Check it with the bundled script, fro
 python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py [--github] [PATH...]
 ```
 
-With no path it checks every doc under `docs/architecture/` and `<module>/docs/`. Up to 1200 words is OK; 1201–1500
-warns, compacting recommended; above 1500 is an error that fails CI, compacting required. The script is a black box:
-use `--help` for its usage, and don't read its source.
+With no path it checks every doc under `docs/architecture/` and `<group>/<module>/docs/`. Up to 1200 words is OK;
+1201–1500 warns, compacting recommended; above 1500 is an error that fails CI, compacting required. The script is a
+black box: use `--help` for its usage, and don't read its source.
 
 To compact a doc, in this order: rephrase; remove what ScalaDoc owns; split.
 
