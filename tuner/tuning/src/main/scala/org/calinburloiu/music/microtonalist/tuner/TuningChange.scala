@@ -17,10 +17,11 @@
 package org.calinburloiu.music.microtonalist.tuner
 
 /**
- * An object describing an operation that controls to which [[Tuning]] from the tuning sequence should the [[Tuner]]
+ * An object describing an operation that controls to which [[Tuning]] from the tuning sequence should the `Tuner`
  * tune.
  *
- * @see [[TuningChanger]] which returns such an object as a decision based on the input MIDI received.
+ * @see `TuningChanger`, in the `tuning-changer` module, which returns such an object as a decision based on the input
+ *   MIDI received.
  */
 sealed trait TuningChange {
   /**
@@ -59,7 +60,7 @@ case object NoTuningChange extends IneffectiveTuningChange
 
 /**
  * Describes an operation that does not trigger a tuning change, but the MIDI message that caused the production of this
- * operation via [[TuningChanger.decide]] it part of a series/pattern that may eventually trigger an effective tuning
+ * operation via `TuningChanger.decide` is part of a series/pattern that may eventually trigger an effective tuning
  * change.
  *
  * For example, if a piano pedal is used as tuning change trigger, depressing it will emit a continuous stream of CC

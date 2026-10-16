@@ -97,8 +97,7 @@ A few conventions are worth internalizing before working in this module:
 ScalaTest/ScalaMock).
 
 It is depended on by `composition` (models compositions in terms of `Scale`/`IntonationStandard`), `experiments`
-(research executables over scales), and `app` directly; `format`, `tuner`, and `ui` reach it transitively through
-`composition`.
+(research executables over scales), and `app` directly; `format` reaches it transitively through `composition`.
 
 ## Notes / subject to change
 

@@ -37,6 +37,9 @@ of its own folder (`build.sbt` sets `.withId(<dir>)`).
 | `businessync` | [base/businessync/docs/ARCHITECTURE.md](../../base/businessync/docs/ARCHITECTURE.md) |
 | `composition` | [theory/composition/docs/ARCHITECTURE.md](../../theory/composition/docs/ARCHITECTURE.md) |
 | `tuner` | [tuner/tuner/docs/ARCHITECTURE.md](../../tuner/tuner/docs/ARCHITECTURE.md) |
+| `tuning` | [tuner/tuning/docs/ARCHITECTURE.md](../../tuner/tuning/docs/ARCHITECTURE.md) |
+| `tuning-changer` | [tuner/tuning-changer/docs/ARCHITECTURE.md](../../tuner/tuning-changer/docs/ARCHITECTURE.md) |
+| `tuning-changer-pedal` | [tuner/tuning-changer-pedal/docs/ARCHITECTURE.md](../../tuner/tuning-changer-pedal/docs/ARCHITECTURE.md) |
 | `rig` | [rig/rig/docs/ARCHITECTURE.md](../../rig/rig/docs/ARCHITECTURE.md) |
 | `format` | [format/format/docs/ARCHITECTURE.md](../../format/format/docs/ARCHITECTURE.md) |
 | `intonation` | [theory/intonation/docs/ARCHITECTURE.md](../../theory/intonation/docs/ARCHITECTURE.md) |

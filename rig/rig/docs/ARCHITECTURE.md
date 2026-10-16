@@ -18,10 +18,10 @@ It doesn't read or write the tracks files that store rigs: the `RigRepo` trait l
 `TrackOutputSpec` each name a device or another track. A `RigSpec` is the ordered list of a rig's `TrackSpec`s.
 `RigManager` builds and replaces the tracks, wires the links between them, and reacts to tuning and device events.
 
-**Processors.** They are the stages of a track. `TuningChangeProcessor` asks the track's tuning changers in order, the
-first effective decision winning, and calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`: it sends
-the tuner's reset to every receiver attached to its transmitter and, as a courtesy, restores 12-EDO on every receiver
-detached from it.
+**Processors.** They are the stages of a track. `TuningChangeProcessor` asks the track's
+[tuning changers](../../../tuner/tuning-changer/docs/ARCHITECTURE.md) in order, the first effective decision winning,
+and calls `TuningService.changeTuning`. `TunerProcessor` wraps a `Tuner`: it sends the tuner's reset to every receiver
+attached to its transmitter and, as a courtesy, restores 12-EDO on every receiver detached from it.
 
 **Session and service.** `RigSession` loads the `RigSpec` through a `RigRepo` and edits it. It runs on the business
 thread and publishes `RigEvent`s, behind the thread-safe `RigService`. `RigModule` wires them around the

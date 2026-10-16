@@ -26,15 +26,24 @@ deeper (including the concrete implementations of each Plugin family).
 - `TuningSpec` — pairs a `Scale` with a `TuningMapper` and an optional transposition
 - `TuningList` — the resolved sequence of `Tuning` objects built from a `Composition`
 
-**Tuner (`tuner` module, `org.calinburloiu.music.microtonalist.tuner`):**
+**Tuning (`tuning` module, `org.calinburloiu.music.microtonalist.tuner`):**
 
 - `Tuning` — 12 optional cent offsets for pitch classes; `Tuning.Standard` is 12-EDO
+- `TuningChange` (sealed trait) — a decision to change the tuning, to the previous, the next or a given index, or not
+  to change it
+
+**Tuner (`tuner` module, `org.calinburloiu.music.microtonalist.tuner`):**
+
 - `Tuner` (trait, Plugin) — processes MIDI messages: `reset()`, `tune(tuning)`, `process(message)`; keeps the current
   `tuning` and restates it on `reset()`; `canTune(tuning)` tells whether it can apply a tuning exactly within its
   limits, which it clamps any other tuning to; implementations cover the supported tuning protocols (MTS Octave, MPE,
   monophonic Pitch Bend)
-- `TuningChanger` (trait, Plugin) — decides when to change tuning by inspecting MIDI messages
 - `TuningSession` / `TuningService` — holds current tuning index and exposes thread-safe API for changing it
+
+**Tuning changer (`tuning-changer` module, `org.calinburloiu.music.microtonalist.tuner.changer`):**
+
+- `TuningChanger` (abstract class, Plugin) — decides when to change tuning by inspecting MIDI messages, returning a
+  `TuningChange`; `PedalTuningChanger`, in the `tuning-changer-pedal` module, triggers on a pedal
 
 **Rig (`rig` module, `org.calinburloiu.music.microtonalist.rig`):**
 

@@ -45,11 +45,11 @@ present state, not a long-term contract.
 other application module. It is the assembly target whose fat JAR main class is `MicrotonalistApp`.
 
 ```
-app → ui → tuner → sc-midi → businessync
+app → ui → tuner → tuning → sc-midi → businessync
 app → sc-midi-javamidi → sc-midi
-app → rig → tuner
-app → composition → { intonation, tuner }
-app → format → { common, composition, rig, tuner }
+app → rig → { tuner, tuning-changer }
+app → composition → { intonation, tuning }
+app → format → { common, composition, rig, tuner, tuning-changer-pedal }
 app → config → common
 ```
 
