@@ -46,7 +46,7 @@ class Businessync(eventBus: EventBus) {
    *
    * @param event
    */
-  def handle(event: BusinessyncEvent): Unit = publish(event)
+  def handle(event: AnyRef): Unit = publish(event)
 
   /**
    * If called from the UI Thread, delivers an event to its subscribers immediately. Otherwise,
@@ -56,7 +56,7 @@ class Businessync(eventBus: EventBus) {
    *
    * @param event
    */
-  def handleOnUi(event: BusinessyncEvent): Unit = ???
+  def handleOnUi(event: AnyRef): Unit = ???
 
   /**
    * Subscribes to events that match the given class to be delivered on the Business Thread by calling the given
@@ -68,7 +68,7 @@ class Businessync(eventBus: EventBus) {
    * @param handler
    * @tparam E
    */
-  def subscribe[E <: BusinessyncEvent](eventClass: Class[E], handler: E => Unit): Unit = {}
+  def subscribe[E <: AnyRef](eventClass: Class[E], handler: E => Unit): Unit = {}
 
   /**
    * Subscribes to events that match the given class to be delivered on the UI Thread by calling the given function
@@ -80,7 +80,7 @@ class Businessync(eventBus: EventBus) {
    * @param handler
    * @tparam E
    */
-  def subscribeOnUi[E <: BusinessyncEvent](eventClass: Class[E], handler: E => Unit): Unit = {}
+  def subscribeOnUi[E <: AnyRef](eventClass: Class[E], handler: E => Unit): Unit = {}
 
   // TODO #90 Replaced by subscribe after implementing businessync
   def register(obj: AnyRef): Unit = eventBus.register(obj)

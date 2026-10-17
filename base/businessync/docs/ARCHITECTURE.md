@@ -32,10 +32,10 @@ All types live in package `org.calinburloiu.businessync`.
   need cross-thread communication. It wraps event publish/subscribe and (eventually) thread dispatch.
 - **`BusinessyncEvent`** — the abstract base class of the application's events, providing a `name` defaulting to the
   runtime simple class name. They extend it as sealed `case class`/`case object` hierarchies (e.g. `TuningEvent`,
-  `RigEvent`). `publish` takes any object, though, so the events of a library that doesn't know the bus, like
-  `sc-midi`'s `MidiEvent`s, go on it too, and `RigManager` subscribes to them all the same. Because Guava's `EventBus`
-  dispatches by runtime type and walks supertypes, **subscribing to a base class catches all of its subclasses** — e.g.
-  `RigManager` subscribes to `TuningEvent` and receives every concrete subtype.
+  `RigEvent`). `Businessync` takes any object as an event, though, so the events of a library that doesn't know the
+  bus, like `sc-midi`'s `MidiEvent`s, go on it too, and `RigManager` subscribes to them all the same. Because Guava's
+  `EventBus` dispatches by runtime type and walks supertypes, **subscribing to a base class catches all of its
+  subclasses** — e.g. `RigManager` subscribes to `TuningEvent` and receives every concrete subtype.
 - **`BusinessyncUiHandler`** — a small `case class` (`run` lambda + `isUiThread` predicate) intended to make UI-thread
   submission *pluggable*: a GUI toolkit supplies the lambda that schedules work onto its event thread. It is defined but
   not yet consumed by `Businessync`.
