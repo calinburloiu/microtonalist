@@ -13,9 +13,9 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | [`midi`](../../midi/README.md) | A Scala-idiomatic MIDI API over Java Sound |
 | [`tuner`](../../tuner/README.md) | Real-time tuning of the instruments over MIDI |
 | [`rig`](../../rig/README.md) | The tracks a performer plays, one per instrument |
-| [`format`](../../format/README.md) | File I/O of compositions, scales and rigs |
+| [`format`](../../format/README.md) | Persistence of compositions, scales and rigs, in local files or over HTTP(S) |
 | [`ui`](../../ui/README.md) | The desktop GUI |
-| [`app`](../../app/README.md) | The executables, and the configuration of the application |
+| [`app`](../../app/README.md) | The application layer: the executables, and their configuration and wiring |
 
 ## Main modules
 
@@ -26,7 +26,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `cli` | `app` | Command-line utility tool, e.g. for listing the MIDI devices |
 | `ui` | `ui` | Swing GUI |
 | `format` | `format` | JSON (de)serialization of compositions, scales and rigs |
-| `rig` | `rig` | The tracks, each routing MIDI from an input to an output through a tuner |
+| `rig` | `rig` | The tracks, each routing MIDI from an input to an output through a tuning changer and a tuner |
 | `tuner` | `tuner` | MIDI tuning engine: tuners, tuning changers and the tuning session |
 | `composition` | `theory` | The composition model, which turns scales into tunings |
 | `intonation` | `theory` | Interval math |

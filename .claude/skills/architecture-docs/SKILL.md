@@ -24,9 +24,10 @@ details. The documentation conventions (`docs/development/doc-conventions.md`) a
 | A doc that spans groups | `docs/architecture/<topic>.md` |
 | The index | `docs/architecture/README.md` |
 
-Each module, save test-utility modules, also has a `README.md` for humans and a `CLAUDE.md` for agents, both a title
-and one line: the README links to `docs/ARCHITECTURE.md`, and `CLAUDE.md` `@import`s it. Keep architecture-related
-content out of both.
+Each module, save test-utility modules, also has a `README.md` for humans and a `CLAUDE.md` for agents. The README holds
+a title, the module's one-line description from its group's README, and a link to `docs/ARCHITECTURE.md`; `CLAUDE.md`
+holds a title and the `@import` of that doc. Agents don't load the module's README, so the copied description costs no
+context. Keep any other architecture-related content out of both.
 
 ## Module groups
 
@@ -38,16 +39,18 @@ has:
 2. a table of every module in the group: its name, linked to its `ARCHITECTURE.md`, a one-line description and its root
    package;
 3. a Mermaid flowchart of the dependencies between its modules, when they have some worth drawing;
-4. links to the docs in the group's `docs/`, if any, and to `docs/architecture/module-overview.md`.
+4. links to the docs in the group's `docs/`, if any.
+
+It doesn't link to `module-overview.md`, which agents already have loaded.
 
 `module-overview.md` is always loaded, so it stays short as modules are added. It has a row for each group, and a row
 for each *main* module only: one that a reader needs to find their way across groups. It leaves the packages to the
 group READMEs, and draws the main modules' direct dependencies, leaving out those that others imply.
 
-When a change adds, renames, moves or removes a module, update its three files and its row in its group's README. For
-a main module, also update its row and its node in `module-overview.md`, and the diagram whenever a main module's
-dependencies change. A new group gets a `README.md`, a `CLAUDE.md` and a row in the *Module groups* table of
-`module-overview.md`.
+When a change adds, renames, moves or removes a module, update its three files and its row in its group's README.
+A changed description goes in both its group's README and its own. For a main module, also update its row and its node
+in `module-overview.md`, and the diagram whenever a main module's dependencies change. A new group gets a `README.md`, a
+`CLAUDE.md` and a row in the *Module groups* table of `module-overview.md`.
 
 ## What goes where
 
@@ -57,7 +60,7 @@ dependencies change. A new group gets a `README.md`, a `CLAUDE.md` and a row in 
 | A type's methods, parameters, edge cases and mechanics | its ScalaDoc |
 | `private` and `protected` members | the code, save in rare cases |
 | Which modules depend on which | `build.sbt`, and for the main modules `docs/architecture/module-overview.md` |
-| A module's description and root package | its group's `README.md` |
+| A module's description and root package | its group's `README.md`; the description is also copied into the module's `README.md` |
 | How the code got here | git, the PRs and the release notes |
 
 Mention a dependency only where it matters to the picture. Avoid documenting `private` and `protected` members; name
