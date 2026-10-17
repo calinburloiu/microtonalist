@@ -25,7 +25,7 @@ import play.api.libs.json.*
 /**
  * JSON format utilities for [[MtsTuner]] plugins.
  */
-object JsonMtsTunerPluginFormating {
+object JsonMtsTunerPluginFormatting {
 
   import org.calinburloiu.music.microtonalist.format.JsonCommonMidiFormat.*
 

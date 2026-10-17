@@ -27,7 +27,7 @@ import play.api.libs.json.Reads.{max, min}
 /**
  * JSON format utilities for [[MpeTuner]].
  */
-object JsonMpeTunerPluginFormating {
+object JsonMpeTunerPluginFormatting {
 
   private implicit val pitchBendSensitivityFormat: Format[PitchBendSensitivity] =
     JsonCommonMidiFormat.pitchBendSensitivityFormat

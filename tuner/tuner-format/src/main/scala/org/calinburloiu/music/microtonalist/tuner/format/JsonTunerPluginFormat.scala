@@ -19,9 +19,9 @@ package org.calinburloiu.music.microtonalist.tuner.format
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.{TypeSpec, TypeSpecs}
 import org.calinburloiu.music.microtonalist.tuner.Tuner
-import org.calinburloiu.music.microtonalist.tuner.mpb.format.JsonMonophonicPitchBendTunerPluginFormating
-import org.calinburloiu.music.microtonalist.tuner.mpe.format.JsonMpeTunerPluginFormating
-import org.calinburloiu.music.microtonalist.tuner.mts.format.JsonMtsTunerPluginFormating
+import org.calinburloiu.music.microtonalist.tuner.mpb.format.JsonMonophonicPitchBendTunerPluginFormatting
+import org.calinburloiu.music.microtonalist.tuner.mpe.format.JsonMpeTunerPluginFormatting
+import org.calinburloiu.music.microtonalist.tuner.mts.format.JsonMtsTunerPluginFormatting
 
 /**
  * JSON format for [[Tuner]] plugins, supporting MPE, Monophonic Pitch Bend, and MTS tuners.
@@ -31,7 +31,7 @@ object JsonTunerPluginFormat extends JsonPluginFormat[Tuner] {
   override val familyName: String = Tuner.FamilyName
 
   override val specs: TypeSpecs[Tuner] = Seq[TypeSpec[? <: Tuner]](
-    JsonMpeTunerPluginFormating.spec,
-    JsonMonophonicPitchBendTunerPluginFormating.spec,
-  ) ++ JsonMtsTunerPluginFormating.specs
+    JsonMpeTunerPluginFormatting.spec,
+    JsonMonophonicPitchBendTunerPluginFormatting.spec,
+  ) ++ JsonMtsTunerPluginFormatting.specs
 }

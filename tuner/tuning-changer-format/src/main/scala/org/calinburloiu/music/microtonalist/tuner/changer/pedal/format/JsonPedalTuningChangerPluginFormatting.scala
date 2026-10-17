@@ -31,7 +31,7 @@ import scala.util.Try
 /**
  * JSON format utilities for [[org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger]].
  */
-object JsonPedalTuningChangerPluginFormating {
+object JsonPedalTuningChangerPluginFormatting {
 
   // # index triggers
   private val tuningIndexKeyReads: String => JsResult[Int] = { str =>

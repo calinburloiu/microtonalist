@@ -19,7 +19,7 @@ package org.calinburloiu.music.microtonalist.tuner.changer.format
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat
 import org.calinburloiu.music.microtonalist.format.JsonPluginFormat.TypeSpecs
 import org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger
-import org.calinburloiu.music.microtonalist.tuner.changer.pedal.format.JsonPedalTuningChangerPluginFormating
+import org.calinburloiu.music.microtonalist.tuner.changer.pedal.format.JsonPedalTuningChangerPluginFormatting
 
 /**
  * JSON format for [[org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger]] plugins, supporting the pedal
@@ -29,5 +29,5 @@ object JsonTuningChangerPluginFormat extends JsonPluginFormat[TuningChanger] {
 
   override val familyName: String = TuningChanger.FamilyName
 
-  override val specs: TypeSpecs[TuningChanger] = Seq(JsonPedalTuningChangerPluginFormating.spec)
+  override val specs: TypeSpecs[TuningChanger] = Seq(JsonPedalTuningChangerPluginFormatting.spec)
 }
