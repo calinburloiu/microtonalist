@@ -13,8 +13,9 @@ Its role in the layered architecture:
 
 - It sits at the bottom of the domain stack and has **no application dependencies** — it knows nothing about MIDI,
   tunings, compositions, file formats, the GUI, or threading. It is reusable, side-effect-free value math.
-- Higher modules build on it: `composition` models a piece in terms of `Scale`s and `IntonationStandard`s, `format`
-  (de)serializes scales, and `tuner` ultimately consumes the resulting cent offsets.
+- Higher modules build on it: `composition` models a piece in terms of `Scale`s and `IntonationStandard`s,
+  [`intonation-format`](../../intonation-format/docs/ARCHITECTURE.md) reads and writes scales, and `tuner` ultimately
+  consumes the resulting cent offsets.
 
 Everything here is expressed in **musical logarithmic space** (where an octave is a doubling of frequency and intervals
 add/subtract rather than multiply/divide). The public API of `Interval` performs all arithmetic in that space;
@@ -64,9 +65,9 @@ input), ensures a unison is present, and sorts the intervals.
 
 `IntonationStandard` is a `sealed abstract class` describing how intervals are expressed — `CentsIntonationStandard`,
 `JustIntonationStandard`, `EdoIntonationStandard(countPerOctave)` — each carrying a `typeName` used for JSON
-serialization in `format`. Its `conversionQualityTo(that)` classifies a standard-to-standard conversion: conversion to
-cents is always lossless; conversion to just intonation is impossible (a ratio cannot be recovered from cents/EDO);
-EDO-to-EDO is lossless only when the target EDO is a multiple of the source. The result is an
+serialization in `intonation-format`. Its `conversionQualityTo(that)` classifies a standard-to-standard conversion:
+conversion to cents is always lossless; conversion to just intonation is impossible (a ratio cannot be recovered from
+cents/EDO); EDO-to-EDO is lossless only when the target EDO is a multiple of the source. The result is an
 `IntonationConversionQuality` enum (`NoConversion` < `Lossless` < `Lossy` < `Impossible`), and a whole-scale conversion
 takes the worst per-interval value.
 
@@ -96,8 +97,8 @@ A few conventions are worth internalizing before working in this module:
 (log/GCD/EDO math and index checks) plus the project-wide common dependencies (logging and, in `Test` scope,
 ScalaTest/ScalaMock).
 
-It is depended on by `composition` (models compositions in terms of `Scale`/`IntonationStandard`), `experiments`
-(research executables over scales), and `app` directly; `format` reaches it transitively through `composition`.
+It is depended on by `composition` (models compositions in terms of `Scale`/`IntonationStandard`), `intonation-format`
+and `composition-format` (their JSON formats), `experiments` (research executables over scales), and `app`.
 
 ## Notes / subject to change
 

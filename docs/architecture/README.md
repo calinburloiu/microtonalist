@@ -30,4 +30,4 @@ module group, which lists the group's modules and links the architecture doc of 
 
 - [`midi-device-lifecycle.md`](midi-device-lifecycle.md) — the *available*/*unavailable*, *open*/*closed* and
   *attached*/*detached* vocabulary of a MIDI device and of a track input/output, and how the three relate.
-- [`tuner/tuner/docs/mpe-tuner-paper.md`](../../tuner/tuner/docs/mpe-tuner-paper.md) — MPE tuner design paper.
+- [`tuner/tuner-mpe/docs/mpe-tuner-paper.md`](../../tuner/tuner-mpe/docs/mpe-tuner-paper.md) — MPE tuner design paper.

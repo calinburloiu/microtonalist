@@ -9,7 +9,7 @@ Microtonalist. It is not a domain module — it holds no musical concepts. Inste
 that many higher modules need but that belong to no single one: the `Plugin` extension point, a lock-scoping helper, a
 session-lifecycle trait, URL/path parsing, and platform detection.
 
-It sits near the bottom of the dependency graph and is **widely depended upon** (`tuner`, `rig`, `format`,
+It sits near the bottom of the dependency graph and is **widely depended upon** (`tuner`, `rig`, `format-core`,
 `sc-midi`, `sc-midi-javamidi`, `config`, `app`), so it deliberately keeps almost no dependencies of its own. Each
 utility here is independent of the others.
 
@@ -22,8 +22,9 @@ naming contract used both at runtime and for JSON (de)serialization: `familyName
 `tuningMapper`) and `typeName` (the chosen type within it, e.g. `auto`). Within one family the user can swap between
 types. The families across the project live in `composition` (`TuningMapper`, `TuningReducer`, `TuningReference`,
 `SoftChromaticGenusMapping`), `tuner` (`Tuner`), `tuning-changer` (`TuningChanger`) and `rig` (the track I/O specs
-`TrackInputSpec` / `TrackOutputSpec`). The serialization side lives in `format` (`JsonPluginFormat[P]` keys off these
-names); the `Plugin` trait itself carries only the two `val`s and no serialization logic.
+`TrackInputSpec` / `TrackOutputSpec`). The serialization side lives in the format modules (`format-core`'s
+`JsonPluginFormat[P]` keys off these names); the `Plugin` trait itself carries only the two `val`s and no
+serialization logic.
 
 **`Locking`** is a mix-in trait providing `@inline` helpers (`withLock` / `withReadLock` / `withWriteLock`) that run a
 block while holding an implicitly-passed lock and always release it in a `finally`, so call sites read like
@@ -43,8 +44,8 @@ to macOS** — see notes below.
 
 `common` has no application `dependsOn` (only `commonTestUtils % Test`). Externally it uses Guava plus the inherited
 common logging/test stack. It is depended on directly by `config`, `composition`, `tuner`, `tuning-changer`, `rig`,
-`format`, `sc-midi`, `sc-midi-javamidi`, and `app`, and transitively by `ui` (via `tuner`) and by `cli`, `tuning` and
-`tuning-changer-pedal` (via `sc-midi`); `experiments` does not depend on it.
+`format-core`, `sc-midi`, `sc-midi-javamidi`, and `app`, and transitively by every other module but `intonation`,
+`businessync`, `experiments` and the test-utility modules.
 
 ## Notes / subject to change
 

@@ -48,27 +48,41 @@ addCommandAlias("fixLint", "fix; lint")
 // `midi/sc-midi`). The ID — used in `sbt "<id>/test"`, in `thisProject.value.id`, and thus in `coverageDataDir` — must
 // equal the folder's name. The sole special case is `root` (base dir ".", ID "root"), which keeps its plain `root` val
 // name. When adding a module, put it in its module group's folder and set its `.withId` to its folder's name.
+//
+// CONVENTION: `root` comes first, then the modules, one module group after another in the order of the group table in
+// docs/architecture/module-overview.md, sorted by folder name within a group; `root`'s `.aggregate` lists them in the
+// same order. sbt needs no order, since the projects are `lazy val`s: this one only gives each module an obvious place.
 
 lazy val root = (project in file("."))
   .withId("root")
   .aggregate(
-    appModule,
-    configModule,
     businessyncModule,
-    cliModule,
     commonModule,
     commonTestUtilsModule,
-    uiModule,
     compositionModule,
-    tunerModule,
-    tuningModule,
-    tuningChangerModule,
-    tuningChangerPedalModule,
-    rigModule,
-    formatModule,
+    compositionFormatModule,
     intonationModule,
+    intonationFormatModule,
     scMidiModule,
     scMidiJavamidiModule,
+    tunerModule,
+    tunerFormatModule,
+    tunerMpbModule,
+    tunerMpeModule,
+    tunerMtsModule,
+    tuningModule,
+    tuningChangerModule,
+    tuningChangerFormatModule,
+    tuningChangerPedalModule,
+    rigModule,
+    rigFormatModule,
+    formatModule,
+    formatCoreModule,
+    formatTestUtilsModule,
+    uiModule,
+    appModule,
+    cliModule,
+    configModule,
     experimentsModule,
   )
   .disablePlugins(AssemblyPlugin)
@@ -80,82 +94,16 @@ lazy val root = (project in file("."))
     coverageSettings(stmt = 73, branch = 68),
   )
 
-lazy val appModule = (project in file("app/app"))
-  .withId("app")
-  .dependsOn(
-    configModule,
-    businessyncModule,
-    commonModule,
-    commonTestUtilsModule % Test,
-    compositionModule,
-    intonationModule,
-    formatModule,
-    rigModule,
-    scMidiModule,
-    scMidiJavamidiModule,
-    tunerModule,
-    uiModule,
-  )
-  .enablePlugins(BuildInfoPlugin)
+lazy val businessyncModule = (project in file("base/businessync"))
+  .withId("businessync")
+  .disablePlugins(AssemblyPlugin)
   .settings(
-    name := "microtonalist-app",
+    name := "microtonalist-businessync",
     commonSettings,
-    assemblySettings,
-    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
-    buildInfoPackage := "org.calinburloiu.music.microtonalist",
     libraryDependencies ++= Seq(
       guava,
-      playJson,
     ),
-    // * LevelHighlightingConverter only maps log levels to the console colors of logback.xml
-    coverageExcludedFiles := ".*/org/calinburloiu/music/microtonalist/LevelHighlightingConverter",
-    // TODO #180 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 0, branch = 0),
-  )
-
-lazy val configModule = (project in file("app/config"))
-  .withId("config")
-  .dependsOn(
-    commonModule
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-config",
-    commonSettings,
-    libraryDependencies ++= Seq(
-      ficus,
-    ),
-    // TODO #176 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 59, branch = 39),
-  )
-
-lazy val cliModule = (project in file("app/cli"))
-  .withId("cli")
-  .dependsOn(
-    scMidiModule,
-    scMidiJavamidiModule,
-  )
-  .settings(
-    name := "microtonalist-cli",
-    commonSettings,
-    assemblySettings,
-    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.cli.MicrotonalistToolApp"),
-    // TODO #181 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 0, branch = 0),
-  )
-
-lazy val uiModule = (project in file("ui/ui"))
-  .withId("ui")
-  .dependsOn(
-    tunerModule,
-    tuningModule,
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-ui",
-    commonSettings,
-    // TODO #182 Raise toward 80% statement and branch coverage.
+    // TODO #174 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 0, branch = 0),
   )
 
@@ -185,19 +133,6 @@ lazy val commonTestUtilsModule = (project in file("base/common-test-utils"))
     coverageEnabled := false,
   )
 
-lazy val businessyncModule = (project in file("base/businessync"))
-  .withId("businessync")
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-businessync",
-    commonSettings,
-    libraryDependencies ++= Seq(
-      guava,
-    ),
-    // TODO #174 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 0, branch = 0),
-  )
-
 lazy val compositionModule = (project in file("theory/composition"))
   .withId("composition")
   .dependsOn(
@@ -214,115 +149,28 @@ lazy val compositionModule = (project in file("theory/composition"))
     coverageSettings(stmt = 80, branch = 80),
   )
 
-lazy val tunerModule = (project in file("tuner/tuner"))
-  .withId("tuner")
+lazy val compositionFormatModule = (project in file("theory/composition-format"))
+  .withId("composition-format")
   .dependsOn(
-    businessyncModule,
-    commonModule,
-    commonTestUtilsModule % Test,
-    scMidiModule,
-    tuningModule,
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-tuner",
-    commonSettings,
-    libraryDependencies ++= Seq(
-      jsr305,
-    ),
-    coverageSettings(stmt = 80, branch = 80),
-  )
-
-lazy val tuningModule = (project in file("tuner/tuning"))
-  .withId("tuning")
-  .dependsOn(
-    scMidiModule,
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-tuning",
-    commonSettings,
-    libraryDependencies ++= Seq(
-      guava,
-    ),
-    // TODO #377 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 55, branch = 49),
-  )
-
-lazy val tuningChangerModule = (project in file("tuner/tuning-changer"))
-  .withId("tuning-changer")
-  .dependsOn(
-    commonModule,
-    scMidiModule,
-    tuningModule,
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-tuning-changer",
-    commonSettings,
-    libraryDependencies ++= Seq(
-      jsr305,
-    ),
-    coverageSettings(stmt = 80, branch = 80),
-  )
-
-lazy val tuningChangerPedalModule = (project in file("tuner/tuning-changer-pedal"))
-  .withId("tuning-changer-pedal")
-  .dependsOn(
-    scMidiModule,
-    tuningChangerModule,
-    tuningModule,
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-tuning-changer-pedal",
-    commonSettings,
-    coverageSettings(stmt = 80, branch = 80),
-  )
-
-lazy val rigModule = (project in file("rig/rig"))
-  .withId("rig")
-  .dependsOn(
-    businessyncModule,
-    commonModule,
-    commonTestUtilsModule % Test,
-    scMidiModule,
-    tunerModule,
-    tuningModule,
-    tuningChangerModule,
-    tuningChangerPedalModule % Test,
-  )
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-rig",
-    commonSettings,
-    libraryDependencies ++= Seq(
-      jsr305,
-    ),
-    coverageSettings(stmt = 80, branch = 80),
-  )
-
-lazy val formatModule = (project in file("format/format"))
-  .withId("format")
-  .dependsOn(
-    commonModule,
+    businessyncModule % Test,
     commonTestUtilsModule % Test,
     compositionModule,
-    rigModule,
-    tunerModule,
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    intonationFormatModule,
+    intonationModule,
+    scMidiModule,
     tuningModule,
-    tuningChangerModule,
-    tuningChangerPedalModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
-    name := "microtonalist-format",
+    name := "microtonalist-composition-format",
     commonSettings,
     libraryDependencies ++= Seq(
       playJson,
     ),
     // TODO #179 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 66, branch = 59),
+    coverageSettings(stmt = 70, branch = 70),
   )
 
 lazy val intonationModule = (project in file("theory/intonation"))
@@ -337,6 +185,27 @@ lazy val intonationModule = (project in file("theory/intonation"))
     // * SagittalInterval is a registry of interval constants with no logic to test
     coverageExcludedFiles := ".*/org/calinburloiu/music/intonation/intervals/SagittalInterval",
     coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val intonationFormatModule = (project in file("theory/intonation-format"))
+  .withId("intonation-format")
+  .dependsOn(
+    businessyncModule,
+    commonTestUtilsModule % Test,
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    intonationModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-intonation-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      guava,
+      playJson,
+    ),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 67, branch = 75),
   )
 
 lazy val scMidiModule = (project in file("midi/sc-midi"))
@@ -373,6 +242,340 @@ lazy val scMidiJavamidiModule = (project in file("midi/sc-midi-javamidi"))
     //   JavaMidiEnvironment seam it implements lets JavaMidiManager be tested over a fake instead
     coverageExcludedFiles := ".*/org/calinburloiu/music/scmidi/javamidi/CoreMidi4JEnvironment",
     coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tunerModule = (project in file("tuner/tuner"))
+  .withId("tuner")
+  .dependsOn(
+    businessyncModule,
+    commonModule,
+    commonTestUtilsModule % Test,
+    scMidiModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      jsr305,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tunerFormatModule = (project in file("tuner/tuner-format"))
+  .withId("tuner-format")
+  .dependsOn(
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    scMidiModule,
+    tunerModule,
+    tunerMpbModule,
+    tunerMpeModule,
+    tunerMtsModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tunerMpbModule = (project in file("tuner/tuner-mpb"))
+  .withId("tuner-mpb")
+  .dependsOn(
+    commonTestUtilsModule % Test,
+    scMidiModule,
+    tunerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner-mpb",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tunerMpeModule = (project in file("tuner/tuner-mpe"))
+  .withId("tuner-mpe")
+  .dependsOn(
+    commonTestUtilsModule % Test,
+    scMidiModule,
+    tunerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner-mpe",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tunerMtsModule = (project in file("tuner/tuner-mts"))
+  .withId("tuner-mts")
+  .dependsOn(
+    scMidiModule,
+    tunerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuner-mts",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tuningModule = (project in file("tuner/tuning"))
+  .withId("tuning")
+  .dependsOn(
+    scMidiModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuning",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      guava,
+    ),
+    // TODO #377 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 55, branch = 49),
+  )
+
+lazy val tuningChangerModule = (project in file("tuner/tuning-changer"))
+  .withId("tuning-changer")
+  .dependsOn(
+    commonModule,
+    scMidiModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuning-changer",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      jsr305,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val tuningChangerFormatModule = (project in file("tuner/tuning-changer-format"))
+  .withId("tuning-changer-format")
+  .dependsOn(
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    scMidiModule,
+    tuningChangerModule,
+    tuningChangerPedalModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuning-changer-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 80, branch = 63),
+  )
+
+lazy val tuningChangerPedalModule = (project in file("tuner/tuning-changer-pedal"))
+  .withId("tuning-changer-pedal")
+  .dependsOn(
+    scMidiModule,
+    tuningChangerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-tuning-changer-pedal",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val rigModule = (project in file("rig/rig"))
+  .withId("rig")
+  .dependsOn(
+    businessyncModule,
+    commonModule,
+    commonTestUtilsModule % Test,
+    scMidiModule,
+    tunerModule,
+    tunerMtsModule % Test,
+    tuningModule,
+    tuningChangerModule,
+    tuningChangerPedalModule % Test,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-rig",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      jsr305,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val rigFormatModule = (project in file("rig/rig-format"))
+  .withId("rig-format")
+  .dependsOn(
+    commonTestUtilsModule % Test,
+    formatCoreModule,
+    formatTestUtilsModule % Test,
+    rigModule,
+    scMidiModule,
+    tunerFormatModule % Test,
+    tunerModule,
+    tunerMpbModule % Test,
+    tunerMtsModule % Test,
+    tuningChangerFormatModule % Test,
+    tuningChangerModule,
+    tuningChangerPedalModule % Test,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-rig-format",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 48, branch = 39),
+  )
+
+lazy val formatModule = (project in file("format/format"))
+  .withId("format")
+  .dependsOn(
+    businessyncModule,
+    commonTestUtilsModule % Test,
+    compositionFormatModule,
+    formatCoreModule,
+    intonationFormatModule,
+    rigFormatModule,
+    rigModule,
+    tunerFormatModule,
+    tunerMtsModule % Test,
+    tuningChangerFormatModule,
+    tuningChangerPedalModule % Test,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-format",
+    commonSettings,
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val formatCoreModule = (project in file("format/format-core"))
+  .withId("format-core")
+  .dependsOn(
+    commonModule,
+    formatTestUtilsModule % Test,
+    scMidiModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-format-core",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    // TODO #179 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 65, branch = 63),
+  )
+
+lazy val formatTestUtilsModule = (project in file("format/format-test-utils"))
+  .withId("format-test-utils")
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-format-test-utils",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+      scalaTest,
+    ),
+    // Test infrastructure — exclude from coverage measurement.
+    coverageEnabled := false,
+  )
+
+lazy val uiModule = (project in file("ui/ui"))
+  .withId("ui")
+  .dependsOn(
+    tunerModule,
+    tuningModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-ui",
+    commonSettings,
+    // TODO #182 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 0, branch = 0),
+  )
+
+lazy val appModule = (project in file("app/app"))
+  .withId("app")
+  .dependsOn(
+    configModule,
+    businessyncModule,
+    commonModule,
+    commonTestUtilsModule % Test,
+    compositionModule,
+    intonationModule,
+    formatModule,
+    rigModule,
+    scMidiModule,
+    scMidiJavamidiModule,
+    tunerModule,
+    uiModule,
+  )
+  .enablePlugins(BuildInfoPlugin)
+  .settings(
+    name := "microtonalist-app",
+    commonSettings,
+    assemblySettings,
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
+    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoPackage := "org.calinburloiu.music.microtonalist",
+    libraryDependencies ++= Seq(
+      guava,
+      playJson,
+    ),
+    // * LevelHighlightingConverter only maps log levels to the console colors of logback.xml
+    coverageExcludedFiles := ".*/org/calinburloiu/music/microtonalist/LevelHighlightingConverter",
+    // TODO #180 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 0, branch = 0),
+  )
+
+lazy val cliModule = (project in file("app/cli"))
+  .withId("cli")
+  .dependsOn(
+    scMidiModule,
+    scMidiJavamidiModule,
+  )
+  .settings(
+    name := "microtonalist-cli",
+    commonSettings,
+    assemblySettings,
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.cli.MicrotonalistToolApp"),
+    // TODO #181 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 0, branch = 0),
+  )
+
+lazy val configModule = (project in file("app/config"))
+  .withId("config")
+  .dependsOn(
+    commonModule
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-config",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      ficus,
+    ),
+    // TODO #176 Raise toward 80% statement and branch coverage.
+    coverageSettings(stmt = 59, branch = 39),
   )
 
 lazy val experimentsModule = (project in file("app/experiments"))

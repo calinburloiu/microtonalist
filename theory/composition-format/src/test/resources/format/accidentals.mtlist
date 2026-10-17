@@ -1,0 +1,19 @@
+{
+  "intonationStandard": "justIntonation",
+  "tuningReference": {
+    "basePitchClass": 2
+  },
+  "tunings": [
+    {
+      "transposition": "16/15"
+    },
+    {
+      "name": "hicaz",
+      "transposition": "5/4"
+    },
+    {},
+    {
+      "name": "dügah"
+    }
+  ]
+}

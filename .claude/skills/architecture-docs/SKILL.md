@@ -38,8 +38,10 @@ has:
 1. one sentence on the group's area;
 2. a table of every module in the group: its name, linked to its `ARCHITECTURE.md`, a one-line description and its root
    package;
-3. a Mermaid flowchart of the dependencies between its modules, when they have some worth drawing;
-4. links to the docs in the group's `docs/`, if any.
+3. the concepts and conventions of the group's area, if any, such as a package its modules share or a naming rule: a
+   paragraph, or a section per topic; a topic that takes more than a few paragraphs goes in the group's `docs/`;
+4. a Mermaid flowchart of the dependencies between its modules, when they have some worth drawing;
+5. links to the docs in the group's `docs/`, if any.
 
 It doesn't link to `module-overview.md`, which agents already have loaded.
 
@@ -61,6 +63,7 @@ in `module-overview.md`, and the diagram whenever a main module's dependencies c
 | `private` and `protected` members | the code, save in rare cases |
 | Which modules depend on which | `build.sbt`, and for the main modules `docs/architecture/module-overview.md` |
 | A module's description and root package | its group's `README.md`; the description is also copied into the module's `README.md` |
+| The concepts and conventions of a group's area | its group's `README.md`, or for a longer topic the group's `docs/` |
 | How the code got here | git, the PRs and the release notes |
 
 Mention a dependency only where it matters to the picture. Avoid documenting `private` and `protected` members; name

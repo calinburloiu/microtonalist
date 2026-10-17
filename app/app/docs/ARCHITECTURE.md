@@ -49,7 +49,7 @@ app → ui → tuner → { businessync, tuning → sc-midi }
 app → sc-midi-javamidi → sc-midi
 app → rig → { tuner, tuning-changer }
 app → composition → { intonation, tuning }
-app → format → { common, composition, rig, tuner, tuning-changer-pedal }
+app → format → { format-core, intonation-format, composition-format, rig-format, tuner-format, tuning-changer-format }
 app → config → common
 ```
 

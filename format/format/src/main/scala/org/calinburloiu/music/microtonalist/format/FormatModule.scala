@@ -17,12 +17,32 @@
 package org.calinburloiu.music.microtonalist.format
 
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.intonation.format.{
+  DefaultScaleRepo, FileScaleRepo, HttpScaleRepo, HuygensFokkerScalaScaleFormat, JsonScaleFormat, LibraryScaleRepo,
+  ScaleContextConverter, ScaleFormat, ScaleFormatRegistry, ScaleRepo
+}
+import org.calinburloiu.music.microtonalist.composition.format.{
+  CompositionFormat, CompositionRepo, DefaultCompositionRepo, FileCompositionRepo, HttpCompositionRepo,
+  JsonCompositionFormat
+}
 import org.calinburloiu.music.microtonalist.rig.RigRepo
+import org.calinburloiu.music.microtonalist.rig.format.{
+  DefaultRigRepo, FileRigRepo, HttpRigRepo, JsonRigFormat, LibraryRigRepo, RigFormat
+}
+import org.calinburloiu.music.microtonalist.tuner.changer.format.JsonTuningChangerPluginFormat
+import org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat
 
 import java.net.URI
 import java.net.http.HttpClient
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
+/**
+ * Composition root of the format modules: lazily wires the formats and repos of the scales, compositions and rigs.
+ *
+ * @param businessync Where the scale context converter publishes its lossy conversion events.
+ * @param libraryBaseUrl Base URL of the Microtonalist Library, which the library scale and rig repos resolve against.
+ * @param synchronousAwaitTimeout How long a synchronous read or write of a composition or a rig waits for its result.
+ */
 class FormatModule(businessync: Businessync,
                    libraryBaseUrl: URI,
                    synchronousAwaitTimeout: FiniteDuration = 1 minute) {
@@ -62,7 +82,8 @@ class FormatModule(businessync: Businessync,
   lazy val defaultCompositionRepo: CompositionRepo = new DefaultCompositionRepo(Some(fileCompositionRepo),
     Some(httpCompositionRepo))
 
-  lazy val rigFormat: RigFormat = new JsonRigFormat(jsonPreprocessor, synchronousAwaitTimeout)
+  lazy val rigFormat: RigFormat = new JsonRigFormat(jsonPreprocessor, JsonTunerPluginFormat.format,
+    JsonTuningChangerPluginFormat.format, synchronousAwaitTimeout)
 
   lazy val fileRigRepo: FileRigRepo = new FileRigRepo(rigFormat, synchronousAwaitTimeout)
   lazy val httpRigRepo: HttpRigRepo = new HttpRigRepo(httpClient, rigFormat, synchronousAwaitTimeout)

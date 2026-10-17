@@ -1,0 +1,11 @@
+{
+  "intonationStandard": "justIntonation",
+  "tuningReference": {
+    "basePitchClass": 2
+  },
+  "tunings": [
+    {
+      "scale": "scales/major.scl"
+    }
+  ]
+}

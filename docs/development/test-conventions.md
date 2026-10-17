@@ -103,7 +103,7 @@ it counts toward that module's coverage. Drive it through its public API, with r
 upstream modules. Fake only the external I/O, such as the MIDI devices, but read files from test resources
 (`CommonTestUtils.uriOfResource`) through the real repository, as `TuningSeqMappingIntegrationTest` does. Stub the
 repository only when its implementation lives in a module that this one doesn't depend on; for example,
-`RigModuleIntegrationTest` stubs `RigRepo`, because `rig` doesn't depend on `format`.
+`RigModuleIntegrationTest` stubs `RigRepo`, because `rig` doesn't depend on `rig-format`.
 
 Following the testing pyramid, cover only the main flows, especially those that unit tests can't reach, such as a change
 crossing modules over the bus. Leave edge cases to the unit tests of the classes involved.

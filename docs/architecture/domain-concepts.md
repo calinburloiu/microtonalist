@@ -36,8 +36,8 @@ deeper (including the concrete implementations of each Plugin family).
 
 - `Tuner` (trait, Plugin) — processes MIDI messages: `reset()`, `tune(tuning)`, `process(message)`; keeps the current
   `tuning` and restates it on `reset()`; `canTune(tuning)` tells whether it can apply a tuning exactly within its
-  limits, which it clamps any other tuning to; implementations cover the supported tuning protocols (MTS Octave, MPE,
-  monophonic Pitch Bend)
+  limits, which it clamps any other tuning to; each implementation covers a tuning protocol in a module of its own:
+  MTS Octave (`tuner-mts`), MPE (`tuner-mpe`) and monophonic Pitch Bend (`tuner-mpb`)
 - `TuningSession` / `TuningService` — holds current tuning index and exposes thread-safe API for changing it
 
 **Tuning changer (`tuning-changer` module, `org.calinburloiu.music.microtonalist.tuner.changer`):**

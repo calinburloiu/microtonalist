@@ -98,7 +98,7 @@ design; treat it as planned and subject to change. The headline elements:
 `common`. Its only third-party dependency is Guava (`EventBus`), plus the inherited common logging stack.
 
 Modules that depend on it: `tuner` (publishes `TuningEvent`), `rig` (publishes `RigEvent`, subscribes to `TuningEvent`
-and `MidiEvent`), `app` (constructs the instance, wires it in and forwards `JavaMidiManager`'s `MidiEvent`s to it), and
-transitively `format` (publishes `ScaleLossyConversionEvent`) and `ui` (subscribes to `TuningIndexUpdatedEvent`). The
-instance is created once in `MicrotonalistApp.run` and injected everywhere, so a single bus/threading context is shared
-across the running app.
+and `MidiEvent`), `intonation-format` (publishes `ScaleLossyConversionEvent`), `format` (hands the instance to
+`intonation-format`), `app` (constructs the instance, wires it in and forwards `JavaMidiManager`'s `MidiEvent`s to it),
+and transitively `ui` (subscribes to `TuningIndexUpdatedEvent`). The instance is created once in
+`MicrotonalistApp.run` and injected everywhere, so a single bus/threading context is shared across the running app.

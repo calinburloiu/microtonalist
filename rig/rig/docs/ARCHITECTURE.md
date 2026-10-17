@@ -7,12 +7,13 @@ from an input to an output while its tuning changers detect tuning-change trigge
 [`tuner`](../../../tuner/tuner/docs/ARCHITECTURE.md) applies the current tuning. The module holds the runtime state of
 the rig, behind a thread-safe service.
 
-It doesn't read or write the tracks files that store rigs: the `RigRepo` trait lives here, its implementations in
-`format`.
+It doesn't read or write the tracks files that store rigs: the `RigRepo` trait lives here, and
+[`rig-format`](../../rig-format/docs/ARCHITECTURE.md) implements it.
 
 ## Key types
 
-`TrackInputSpec` and `TrackOutputSpec` are plugins, which `format` (de)serializes by their `familyName` and `typeName`.
+`TrackInputSpec` and `TrackOutputSpec` are plugins, which `rig-format` (de)serializes by their `familyName` and
+`typeName`.
 
 **Tracks.** A `Track` is one instrument pipeline built from a `TrackSpec`, whose `TrackInputSpec` and
 `TrackOutputSpec` each name a device or another track. A `RigSpec` is the ordered list of a rig's `TrackSpec`s.

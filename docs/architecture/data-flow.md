@@ -4,7 +4,7 @@ How a composition file becomes tuning MIDI messages, end to end:
 
 ```
 JSON composition file
-  → DefaultCompositionRepo (format module)
+  → DefaultCompositionRepo (composition-format module)
   → Composition
   → TuningList.fromComposition()   (applies TuningMapper, TuningReducer, fill)
   → TuningSession.tunings          (tuner module)
