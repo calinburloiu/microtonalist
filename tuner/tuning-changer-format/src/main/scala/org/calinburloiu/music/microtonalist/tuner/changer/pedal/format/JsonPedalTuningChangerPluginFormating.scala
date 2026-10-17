@@ -48,13 +48,13 @@ object JsonPedalTuningChangerPluginFormating {
   }
 
   //@formatter:off
-  val ccTriggersFormat: Format[TuningChangeTriggers[CcNumber]] = (
+  private val ccTriggersFormat: Format[TuningChangeTriggers[CcNumber]] = (
     (__ \ "previous").formatNullable[CcNumber](using ccNumberFormat) and
     (__ \ "next").formatNullable[CcNumber](using ccNumberFormat) and
     (__ \ "index").formatWithDefault[Map[Int, CcNumber]](Map.empty)(using Format(indexTriggersReads, indexTriggersWrites))
   )(TuningChangeTriggers.apply, Tuple.fromProductTyped)
 
-  implicit val pedalTuningChangerFormat: Format[PedalTuningChanger] = (
+  private val pedalTuningChangerFormat: Format[PedalTuningChanger] = (
     (__ \ "triggers").format[TuningChangeTriggers[CcNumber]](using ccTriggersFormat) and
     (__ \ "threshold").format[Int](min(0) keepAnd max(126)) and
     (__ \ "triggersThru").format[Boolean]

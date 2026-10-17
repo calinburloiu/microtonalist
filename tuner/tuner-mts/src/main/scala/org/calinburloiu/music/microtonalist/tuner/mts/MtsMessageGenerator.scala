@@ -133,7 +133,7 @@ abstract class MtsOctaveMessageGenerator(val isRealTime: Boolean,
   }
 }
 
-private[tuner] object MtsOctaveMessageGenerator {
+private[mts] object MtsOctaveMessageGenerator {
   private val HeaderBytes_AllChannels: Array[Byte] = Array(0x03.toByte, 0x7F.toByte, 0x7F.toByte)
 
   private val semitonePitchBendSensitivity: PitchBendSensitivity = PitchBendSensitivity(semitones = 1)
@@ -155,8 +155,8 @@ private[tuner] object MtsOctaveMessageGenerator {
  */
 object MtsMessageGenerator {
 
-  private[tuner] val HeaderByte_AllDevices: Byte = 0x7F.toByte
-  private[tuner] val HeaderByte_Mts: Byte = 0x08.toByte
+  private[mts] val HeaderByte_AllDevices: Byte = 0x7F.toByte
+  private[mts] val HeaderByte_Mts: Byte = 0x08.toByte
 
   /**
    * Generates a non-real-time MIDI Tuning Standard (MTS) SysEx message for octave-based tunings, where tuning values

@@ -25,7 +25,7 @@ import org.calinburloiu.music.scmidi.{RpnMessages, RpnSelector}
  * The role is a total classification: every channel has exactly one in either input mode. It carries the Zone it
  * belongs to, so that a routing decision needs nothing else to name its destination channel.
  */
-private[tuner] enum MpeChannelRole {
+private[mpe] enum MpeChannelRole {
   /** Non-MPE Input Mode, with a Zone enabled to route this input's Zone-level messages to. */
   case NonMpeInput(zone: MpeZone)
 
@@ -46,7 +46,7 @@ private[tuner] enum MpeChannelRole {
 /**
  * What the Tuner does with a received channel message, as decided by [[MpeMessageRouting.route]].
  */
-private[tuner] enum MpeRoutingVerdict {
+private[mpe] enum MpeRoutingVerdict {
   /** Emit nothing. The message is outside the Zone structure, or at the wrong level for its class. */
   case Discard
 
@@ -76,7 +76,7 @@ private[tuner] enum MpeRoutingVerdict {
  * This object holds no state: everything it needs is passed in, which is what lets the paper's message-handling table
  * be read straight off [[route]].
  */
-private[tuner] object MpeMessageRouting {
+private[mpe] object MpeMessageRouting {
 
   /**
    * Classifies a channel within a Zone configuration.
@@ -238,11 +238,11 @@ private[tuner] object MpeMessageRouting {
     (msg.channel == 0 || msg.channel == 15) && MpeZone.isValidMemberCount(msg.value)
 
   /** Whether `rpnSelector` currently selects the MPE Configuration Message RPN. */
-  private[tuner] def isMcm(rpnSelector: RpnSelector): Boolean =
+  private[mpe] def isMcm(rpnSelector: RpnSelector): Boolean =
     rpnSelector == RpnMessages.MpeConfigurationMessageSelector
 
   /** Whether `rpnSelector` currently selects the Pitch Bend Sensitivity RPN. */
-  private[tuner] def isPbs(rpnSelector: RpnSelector): Boolean =
+  private[mpe] def isPbs(rpnSelector: RpnSelector): Boolean =
     rpnSelector == RpnMessages.PitchBendSensitivitySelector
 
   /**
@@ -266,7 +266,7 @@ private[tuner] object MpeMessageRouting {
    * deselect, on every channel at once; it carries no channel of its own, so its caller handles it rather than this
    * predicate.
    */
-  private[tuner] def deselectsOnRelay(msg: ChannelMidiMsg): Boolean = msg match {
+  private[mpe] def deselectsOnRelay(msg: ChannelMidiMsg): Boolean = msg match {
     case _: ResetAllControllersMidiMsg => true
     case _ => false
   }

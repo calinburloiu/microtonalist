@@ -26,7 +26,7 @@ import org.calinburloiu.music.scmidi.message.PitchBendMidiMsg
  * Value — it belongs to the tuning domain rather than to the expression domain, and is added to the Expression Pitch
  * Bend only when the Pitch Bend emitted on a Member Channel is computed.
  */
-private[tuner] trait MpeExpression {
+private[mpe] trait MpeExpression {
   /**
    * Expression Pitch Bend as a signed 14-bit MIDI Pitch Bend value (-8192 to 8191), excluding any tuning offset. 0
    * means no bend.
@@ -52,7 +52,7 @@ private[tuner] trait MpeExpression {
   def slide: Int
 }
 
-private[tuner] object MpeExpression {
+private[mpe] object MpeExpression {
   /** Default Expression Pitch Bend value (no bend). */
   val DefaultPitchBend: Int = PitchBendMidiMsg.NoPitchBendValue
 
@@ -63,19 +63,19 @@ private[tuner] object MpeExpression {
   val DefaultSlide: Int = 64
 }
 
-private[tuner] class MutableMpeExpression(var pitchBend: Int = MpeExpression.DefaultPitchBend,
-                                          var pressure: Int = MpeExpression.DefaultPressure,
-                                          var slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
+private[mpe] class MutableMpeExpression(var pitchBend: Int = MpeExpression.DefaultPitchBend,
+                                        var pressure: Int = MpeExpression.DefaultPressure,
+                                        var slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
 
 /**
  * Immutable [[MpeExpression]], used to hand Expression Values to [[MpeChannelAllocator]] and to snapshot a channel's
  * aggregate.
  */
-private[tuner] case class ImmutableMpeExpression(pitchBend: Int = MpeExpression.DefaultPitchBend,
-                                                 pressure: Int = MpeExpression.DefaultPressure,
-                                                 slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
+private[mpe] case class ImmutableMpeExpression(pitchBend: Int = MpeExpression.DefaultPitchBend,
+                                               pressure: Int = MpeExpression.DefaultPressure,
+                                               slide: Int = MpeExpression.DefaultSlide) extends MpeExpression
 
-private[tuner] object ImmutableMpeExpression {
+private[mpe] object ImmutableMpeExpression {
   val Default: ImmutableMpeExpression = ImmutableMpeExpression()
 }
 
@@ -85,14 +85,14 @@ private[tuner] object ImmutableMpeExpression {
  * `None` means the dimension is unchanged and needs no message on the output channel; `Some(value)` means it changed to
  * `value`.
  */
-private[tuner] case class MpeExpressionUpdate(pitchBend: Option[Int] = None,
-                                              pressure: Option[Int] = None,
-                                              slide: Option[Int] = None)
+private[mpe] case class MpeExpressionUpdate(pitchBend: Option[Int] = None,
+                                            pressure: Option[Int] = None,
+                                            slide: Option[Int] = None)
 
-private[tuner] object MpeExpressionUpdate {
+private[mpe] object MpeExpressionUpdate {
   /** No Expression Value changed. */
   val Unchanged: MpeExpressionUpdate = MpeExpressionUpdate()
 }
 
 /** An [[MpeExpressionUpdate]] addressed to a specific output Member Channel. */
-private[tuner] case class MpeChannelExpressionUpdate(channel: Int, update: MpeExpressionUpdate)
+private[mpe] case class MpeChannelExpressionUpdate(channel: Int, update: MpeExpressionUpdate)

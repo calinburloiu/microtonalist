@@ -54,7 +54,8 @@ class JsonPreprocessorHttpRefLoaderTest extends AnyWordSpec with Matchers with M
       server.start()
       val uri = URI(s"http://127.0.0.1:${server.getAddress.getPort}/refs/missing.json")
       val pathContext = JsPath \ "tuningReference"
-      val loader = JsonPreprocessorHttpRefLoader(HttpClient.newHttpClient())
+      val httpClient = HttpClient.newHttpClient()
+      val loader = JsonPreprocessorHttpRefLoader(httpClient)
 
       try {
         // When
@@ -66,6 +67,7 @@ class JsonPreprocessorHttpRefLoaderTest extends AnyWordSpec with Matchers with M
         exception.uri shouldEqual uri
         exception.pathContext shouldEqual pathContext
       } finally {
+        httpClient.close()
         server.stop(0)
       }
     }

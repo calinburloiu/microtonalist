@@ -26,7 +26,7 @@ import scala.util.boundary
  * A dropped note together with the number of Note Off messages owed for it: one per Note On that was forwarded for it,
  * which is the reference count it held at the moment of the drop.
  */
-private[tuner] case class MpeDroppedNote(noteIdentity: MpeNoteIdentity, referenceCount: Int)
+private[mpe] case class MpeDroppedNote(noteIdentity: MpeNoteIdentity, referenceCount: Int)
 
 /**
  * Describes the notes that were removed from a channel as a side-effect of an allocation or of an Expression Pitch Bend
@@ -43,9 +43,9 @@ private[tuner] case class MpeDroppedNote(noteIdentity: MpeNoteIdentity, referenc
  * @param notes The dropped notes, oldest onset first, each with the reference count it held.
  * @param group The [[ChannelGroup]] that `channel` belonged to at the time of the drop.
  */
-private[tuner] case class MpeDroppedNotes(channel: Int,
-                                          notes: Seq[MpeDroppedNote],
-                                          group: ChannelGroup)
+private[mpe] case class MpeDroppedNotes(channel: Int,
+                                        notes: Seq[MpeDroppedNote],
+                                        group: ChannelGroup)
 
 /**
  * Result of a channel allocation operation.
@@ -57,10 +57,10 @@ private[tuner] case class MpeDroppedNotes(channel: Int,
  * @param isDuplicate `true` when the Note On raised an already active identity's reference count, so the allocation
  *   algorithm was bypassed.
  */
-private[tuner] case class MpeAllocationResult(channel: Int,
-                                              update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
-                                              droppedNotes: Option[MpeDroppedNotes] = None,
-                                              isDuplicate: Boolean = false)
+private[mpe] case class MpeAllocationResult(channel: Int,
+                                            update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
+                                            droppedNotes: Option[MpeDroppedNotes] = None,
+                                            isDuplicate: Boolean = false)
 
 /**
  * Result of releasing a note.
@@ -71,9 +71,9 @@ private[tuner] case class MpeAllocationResult(channel: Int,
  *   and the reset actually changed the retained value. The new value is carried by `update.pressure` and must be
  *   emitted ''before'' the Note Off — the sole exception to the Note Off message ordering.
  */
-private[tuner] case class MpeReleaseResult(channel: Int,
-                                           update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
-                                           pressureWasReset: Boolean = false)
+private[mpe] case class MpeReleaseResult(channel: Int,
+                                         update: MpeExpressionUpdate = MpeExpressionUpdate.Unchanged,
+                                         pressureWasReset: Boolean = false)
 
 /**
  * Result of an Expression Value update received on an input channel and fanned out to every output Member Channel
@@ -84,8 +84,8 @@ private[tuner] case class MpeReleaseResult(channel: Int,
  *
  * @param droppedNotes Notes dropped by the divergence rule; always empty for pressure and slide updates.
  */
-private[tuner] case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChannelExpressionUpdate] = Nil,
-                                                    droppedNotes: Seq[MpeDroppedNotes] = Nil)
+private[mpe] case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChannelExpressionUpdate] = Nil,
+                                                  droppedNotes: Seq[MpeDroppedNotes] = Nil)
 
 /**
  * Result of rebuilding a Zone's allocator for a reconfiguration — the allocator, paired with what having it costs the
@@ -98,8 +98,8 @@ private[tuner] case class MpeExpressionUpdateResult(channelUpdates: Seq[MpeChann
  *   settle. The notes dropped for their input channel leaving MPE control are deliberately absent — see
  *   [[MpeChannelAllocator.retaining]].
  */
-private[tuner] case class MpeRebuildResult(allocator: MpeChannelAllocator,
-                                           settlement: MpeExpressionUpdateResult = MpeExpressionUpdateResult())
+private[mpe] case class MpeRebuildResult(allocator: MpeChannelAllocator,
+                                         settlement: MpeExpressionUpdateResult = MpeExpressionUpdateResult())
 
 /**
  * Manages channel allocation and the Expression Value model for a single MPE Zone.
@@ -141,9 +141,9 @@ private[tuner] case class MpeRebuildResult(allocator: MpeChannelAllocator,
  *   reference and mutated in place: the caller must not keep or reuse these [[MpeChannelState]] instances after passing
  *   them in. See [[MpeChannelAllocator.retaining]].
  */
-private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
-                                         initialExpressionPitchBendThreshold: Int,
-                                         retainedStates: Map[Int, MpeChannelState] = Map.empty) {
+private[mpe] class MpeChannelAllocator(private val zone: MpeZoneStructure,
+                                       initialExpressionPitchBendThreshold: Int,
+                                       retainedStates: Map[Int, MpeChannelState] = Map.empty) {
 
   /**
    * Data structures with allocation information, keyed by output Member Channel. A channel present in `retainedStates`
@@ -725,7 +725,7 @@ private[tuner] class MpeChannelAllocator(private val zone: MpeZoneStructure,
  * Companion of [[MpeChannelAllocator]], holding the types, constants, helpers and factory methods of the dual-group
  * allocation strategy.
  */
-private[tuner] object MpeChannelAllocator {
+private[mpe] object MpeChannelAllocator {
 
   /**
    * Logical partitioning of Member Channels into two groups to manage note allocation while prioritizing intonation

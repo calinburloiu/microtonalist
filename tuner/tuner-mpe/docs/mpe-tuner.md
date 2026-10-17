@@ -37,7 +37,7 @@ the routing and pass through.
   that a relayed sequence repeats its selector only when needed.
 
 Only `MpeTuner`, `MpeZone*` and `MpeInputMode` are public, because `tuner-format` references them; the rest are
-`private[tuner]`.
+`private[mpe]`.
 
 ## Reconfigurations
 

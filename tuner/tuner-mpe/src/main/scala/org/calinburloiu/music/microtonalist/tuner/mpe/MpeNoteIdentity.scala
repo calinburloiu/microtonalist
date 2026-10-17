@@ -25,4 +25,4 @@ import org.calinburloiu.music.scmidi.MidiNote
  * — of a note's Expression Values in MPE Input Mode, and of the Polyphonic Key Pressure addressed to a note in Non-MPE
  * Input Mode — so two notes with the same note number arriving on different input channels are independent notes.
  */
-private[tuner] case class MpeNoteIdentity(inputChannel: Int, midiNote: MidiNote)
+private[mpe] case class MpeNoteIdentity(inputChannel: Int, midiNote: MidiNote)

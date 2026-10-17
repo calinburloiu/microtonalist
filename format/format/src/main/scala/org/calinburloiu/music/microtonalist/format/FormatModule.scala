@@ -36,6 +36,13 @@ import java.net.URI
 import java.net.http.HttpClient
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
+/**
+ * Composition root of the format modules: lazily wires the formats and repos of the scales, compositions and rigs.
+ *
+ * @param businessync Where the scale context converter publishes its lossy conversion events.
+ * @param libraryBaseUrl Base URL of the Microtonalist Library, which the library scale and rig repos resolve against.
+ * @param synchronousAwaitTimeout How long a synchronous read or write of a composition or a rig waits for its result.
+ */
 class FormatModule(businessync: Businessync,
                    libraryBaseUrl: URI,
                    synchronousAwaitTimeout: FiniteDuration = 1 minute) {

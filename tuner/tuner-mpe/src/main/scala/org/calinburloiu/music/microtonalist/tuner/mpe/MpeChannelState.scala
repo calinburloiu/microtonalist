@@ -25,9 +25,9 @@ import scala.collection.mutable
  * Per-note state on an output Member Channel: the note's own Expression Values, its reference count and the logical
  * time of the Note On that allocated it.
  */
-private[tuner] class MpeNoteState(val expression: MutableMpeExpression,
-                                  var referenceCount: Int,
-                                  val onsetTime: Long)
+private[mpe] class MpeNoteState(val expression: MutableMpeExpression,
+                                var referenceCount: Int,
+                                val onsetTime: Long)
 
 /**
  * Holds all mutable runtime state for a single MPE Member Channel within the allocator.
@@ -40,7 +40,7 @@ private[tuner] class MpeNoteState(val expression: MutableMpeExpression,
  *
  * @param channel The 0-indexed MIDI channel number this state object represents.
  */
-private[tuner] class MpeChannelState(val channel: Int) {
+private[mpe] class MpeChannelState(val channel: Int) {
   private val _notes: mutable.HashMap[MpeNoteIdentity, MpeNoteState] = mutable.HashMap.empty
   private var _expression: ImmutableMpeExpression = ImmutableMpeExpression.Default
   private var _isExpressionStale: Boolean = false
