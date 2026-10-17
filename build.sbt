@@ -90,8 +90,7 @@ lazy val root = (project in file("."))
     name := "microtonalist-root",
     commonSettings,
     // Aggregate thresholds — enforced by `coverageAggregate` on the combined report from all modules.
-    // TODO #183 Raise toward 80% statement and branch coverage once the per-module floors do.
-    coverageSettings(stmt = 73, branch = 68),
+    coverageSettings(stmt = 80, branch = 80),
   )
 
 lazy val businessyncModule = (project in file("base/businessync"))
@@ -116,9 +115,6 @@ lazy val commonModule = (project in file("base/common"))
   .settings(
     name := "microtonalist-common",
     commonSettings,
-    libraryDependencies ++= Seq(
-      guava,
-    ),
     // TODO #175 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 50, branch = 22),
   )
@@ -129,6 +125,9 @@ lazy val commonTestUtilsModule = (project in file("base/common-test-utils"))
   .settings(
     name := "microtonalist-common-test-utils",
     commonSettings,
+    libraryDependencies ++= Seq(
+      slf4jApi,
+    ),
     // Test infrastructure — exclude from coverage measurement.
     coverageEnabled := false,
   )
@@ -145,7 +144,9 @@ lazy val compositionModule = (project in file("theory/composition"))
   .settings(
     name := "microtonalist-composition",
     commonSettings,
-    libraryDependencies ++= Seq(),
+    libraryDependencies ++= Seq(
+      guava,
+    ),
     coverageSettings(stmt = 80, branch = 80),
   )
 
@@ -258,6 +259,7 @@ lazy val tunerModule = (project in file("tuner/tuner"))
     name := "microtonalist-tuner",
     commonSettings,
     libraryDependencies ++= Seq(
+      guava,
       jsr305,
     ),
     coverageSettings(stmt = 80, branch = 80),
@@ -385,6 +387,7 @@ lazy val tuningChangerPedalModule = (project in file("tuner/tuning-changer-pedal
   .withId("tuning-changer-pedal")
   .dependsOn(
     scMidiModule,
+    tunerMtsModule % Test,
     tuningChangerModule,
     tuningModule,
   )
@@ -400,7 +403,6 @@ lazy val rigModule = (project in file("rig/rig"))
   .dependsOn(
     businessyncModule,
     commonModule,
-    commonTestUtilsModule % Test,
     scMidiModule,
     tunerModule,
     tunerMtsModule % Test,
@@ -413,6 +415,7 @@ lazy val rigModule = (project in file("rig/rig"))
     name := "microtonalist-rig",
     commonSettings,
     libraryDependencies ++= Seq(
+      guava,
       jsr305,
     ),
     coverageSettings(stmt = 80, branch = 80),
@@ -439,6 +442,7 @@ lazy val rigFormatModule = (project in file("rig/rig-format"))
     name := "microtonalist-rig-format",
     commonSettings,
     libraryDependencies ++= Seq(
+      jacksonCore % Test,
       playJson,
     ),
     // TODO #179 Raise toward 80% statement and branch coverage.
@@ -465,6 +469,9 @@ lazy val formatModule = (project in file("format/format"))
   .settings(
     name := "microtonalist-format",
     commonSettings,
+    libraryDependencies ++= Seq(
+      guava % Test,
+    ),
     coverageSettings(stmt = 80, branch = 80),
   )
 
@@ -510,6 +517,9 @@ lazy val uiModule = (project in file("ui/ui"))
   .settings(
     name := "microtonalist-ui",
     commonSettings,
+    libraryDependencies ++= Seq(
+      guava,
+    ),
     // TODO #182 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 0, branch = 0),
   )
@@ -522,7 +532,7 @@ lazy val appModule = (project in file("app/app"))
     commonModule,
     commonTestUtilsModule % Test,
     compositionModule,
-    intonationModule,
+    intonationModule % Test,
     formatModule,
     rigModule,
     scMidiJavamidiModule,
@@ -539,7 +549,6 @@ lazy val appModule = (project in file("app/app"))
     buildInfoPackage := "org.calinburloiu.music.microtonalist",
     libraryDependencies ++= Seq(
       guava,
-      playJson,
     ),
     // * LevelHighlightingConverter only maps log levels to the console colors of logback.xml
     coverageExcludedFiles := ".*/org/calinburloiu/music/microtonalist/LevelHighlightingConverter",
@@ -573,6 +582,7 @@ lazy val configModule = (project in file("app/config"))
     commonSettings,
     libraryDependencies ++= Seq(
       ficus,
+      typesafeConfig,
     ),
     // TODO #176 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 59, branch = 39),
@@ -598,6 +608,7 @@ lazy val commonDependencies = Seq(
   logback,
   scalaLogging,
   scalaTest % Test,
+  scalactic % Test,
   scalaMock % Test,
 )
 

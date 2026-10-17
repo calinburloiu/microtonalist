@@ -20,7 +20,7 @@ resolves the config path, constructs a `MainConfigManager`, and reads `coreConfi
 
 Package: `org.calinburloiu.music.microtonalist.config`. Configuration is parsed and rendered with the
 **Typesafe/Lightbend Config** library (aliased `HoconConfig` throughout); typed reading uses **Ficus**, a thin Scala
-wrapper that adds `getAs[T]`/`ValueReader[T]`. Ficus is the only extra library dependency declared for this module.
+wrapper that adds `getAs[T]`/`ValueReader[T]`. They are the only extra library dependencies declared for this module.
 
 ## Key types
 
@@ -54,8 +54,8 @@ HOCON `propertyPath`).
 ## Dependencies
 
 `config` depends only on `common` (for `PlatformUtils`, `parseUrlOrPath`, and the `Locking` trait) plus the external
-`ficus` library, keeping it near the bottom of the layered architecture. It is depended on by `app`, which constructs
-and queries the `MainConfigManager` during startup.
+Config and Ficus libraries, keeping it near the bottom of the layered architecture. It is depended on by `app`, which
+constructs and queries the `MainConfigManager` during startup.
 
 ```
 app

@@ -38,12 +38,12 @@ command framework.
 
 `cli` declares two application dependencies: `sc-midi`, for the `MidiManager` trait and the `MidiDeviceInfo` /
 `MidiConnectionLimit` value types, and `sc-midi-javamidi`, for the `JavaMidiManager` implementation. The module
-imports nothing from `javax.sound.midi` (#282). Nothing depends on
-`cli`; it is aggregated by `root` for building/testing but packaged as its own fat JAR.
+imports nothing from `javax.sound.midi`. Nothing depends on `cli`; it is aggregated by `root` for building/testing but
+packaged as its own fat JAR.
 
 ## Future / planned changes
 
-- Coverage thresholds are currently 0 with `// TODO #181` to raise them toward the project's 80% target. Since #282
-  the module does have a test — `MidiDevicesCliCommand` is covered through a stubbed `MidiManager` — but `main` is not,
-  because it builds the real `JavaMidiManager`.
+- Coverage thresholds are currently 0 with `// TODO #181` to raise them toward the project's 80% target.
+  `MidiDevicesCliCommand` is covered through a stubbed `MidiManager`, but `main` is not, because it builds the real
+  `JavaMidiManager`.
 - The hand-rolled argument dispatch is structured to grow: new subcommands are added as additional `case` branches.

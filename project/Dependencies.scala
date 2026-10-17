@@ -21,25 +21,35 @@ object Dependencies {
   val coreMidi4jVersion = "1.6"
   val ficusVersion = "1.5.2"
   val guavaVersion = "33.7.2-jre"
+  // A version "brought by" a library is the one that library depends on: keep them in step, so that declaring it
+  // changes nothing.
+  val jacksonVersion = "2.14.3" // Brought by play-json
   val jsr305Version = "3.0.2"
   val logbackVersion = "1.6.4"
   val playJsonVersion = "3.0.6"
   val scalaLoggingVersion = "3.9.6"
   val scalaMockVersion = "7.6.0"
   val scalaTestVersion = "3.2.20"
+  val slf4jVersion = "2.0.19" // Brought by logback
+  val typesafeConfigVersion = "1.3.4" // Brought by ficus
 
   // # Dependency definitions
   val coreMidi4j = "uk.co.xfactory-librarians" % "coremidi4j" % coreMidi4jVersion
   val ficus = "com.iheart" %% "ficus" % ficusVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
+  val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion
   // The `javax.annotation.concurrent` annotations (`@ThreadSafe`, `@NotThreadSafe`). Guava stopped depending on it in
   // 33.4.3.
   val jsr305 = "com.google.code.findbugs" % "jsr305" % jsr305Version
   val logback = "ch.qos.logback" % "logback-classic" % logbackVersion
   val playJson = "org.playframework" %% "play-json" % playJsonVersion
+  // ScalaTest's equality API (`org.scalactic.Equality`), released with each ScalaTest version.
+  val scalactic = "org.scalactic" %% "scalactic" % scalaTestVersion
   val scalaLogging = "com.typesafe.scala-logging" %% "scala-logging" % scalaLoggingVersion
   // The ScalaTest integration (`org.scalamock.scalatest.MockFactory`), which depends on scalamock itself. Since 7.6.0 it
   // is no longer part of the scalamock artifact.
   val scalaMock = "org.scalamock" %% "scalamock-scalatest" % scalaMockVersion
   val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
+  val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
+  val typesafeConfig = "com.typesafe" % "config" % typesafeConfigVersion
 }

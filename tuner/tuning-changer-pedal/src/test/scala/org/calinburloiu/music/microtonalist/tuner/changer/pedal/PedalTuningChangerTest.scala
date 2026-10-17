@@ -18,18 +18,18 @@ package org.calinburloiu.music.microtonalist.tuner.changer.pedal
 
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger.CcNumber
 import org.calinburloiu.music.microtonalist.tuner.changer.{TuningChangeTriggers, TuningChanger}
+import org.calinburloiu.music.microtonalist.tuner.mts.MtsMessageGenerator
 import org.calinburloiu.music.microtonalist.tuner.{
-  IndexTuningChange, MayTriggerTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange, TuningChange
+  IndexTuningChange, MayTriggerTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange, Tuning,
+  TuningChange
 }
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.message.{
   AllNotesOffMidiMsg, AllSoundOffMidiMsg, CcMidiMsg, NoteOnMidiMsg,
-  PolyModeOnMidiMsg, SysExMidiMsg
+  PolyModeOnMidiMsg
 }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-
-import scala.collection.immutable.ArraySeq
 
 class PedalTuningChangerTest extends AnyWordSpec with Matchers {
 
@@ -128,8 +128,7 @@ class PedalTuningChangerTest extends AnyWordSpec with Matchers {
     }
 
     "return NoTuningChange for a SysEx MIDI message" in {
-      // A Universal Non-Real-Time Identity Request
-      val sysExMessage = SysExMidiMsg(ArraySeq.unsafeWrapArray(Array(0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7).map(_.toByte)))
+      val sysExMessage = MtsMessageGenerator.Octave1ByteNonRealTime.generate(Tuning.Standard)
       tuningChanger.decide(sysExMessage) shouldEqual NoTuningChange
     }
   }
