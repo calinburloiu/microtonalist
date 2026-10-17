@@ -468,8 +468,7 @@ lazy val formatModule = (project in file("format/format"))
   .settings(
     name := "microtonalist-format",
     commonSettings,
-    // TODO #179 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 44, branch = 80),
+    coverageSettings(stmt = 80, branch = 80),
   )
 
 lazy val formatCoreModule = (project in file("format/format-core"))

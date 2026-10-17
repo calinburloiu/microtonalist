@@ -18,6 +18,8 @@ package org.calinburloiu.music.microtonalist.format
 
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.intonation.RatioInterval.InfixOperator
+import org.calinburloiu.music.intonation.{JustIntonationStandard, RatiosScale}
 import org.calinburloiu.music.microtonalist.common.CommonTestUtils
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
 import org.calinburloiu.music.microtonalist.tuner.mts.MtsOctave1ByteNonRealTimeTuner
@@ -29,6 +31,18 @@ class FormatModuleIntegrationTest extends AnyWordSpec with Matchers {
   private val formatModule = FormatModule(Businessync(EventBus()), CommonTestUtils.uriOfResource("format/"))
 
   "FormatModule" should {
+    "read a composition and the scales it references" in {
+      // When
+      val composition = formatModule.defaultCompositionRepo.read(
+        CommonTestUtils.uriOfResource("format/format-module.mtlist"))
+
+      // Then
+      composition.intonationStandard shouldEqual JustIntonationStandard
+      composition.tuningReference.basePitchClass.number shouldEqual 2
+      composition.tuningSpecs.map(_.scale) shouldEqual Seq(
+        RatiosScale("Major", 1 /: 1, 9 /: 8, 5 /: 4, 4 /: 3, 3 /: 2, 5 /: 3, 15 /: 8, 2 /: 1))
+    }
+
     "read a rig file's tuners and tuning changers with their family formats" in {
       // When
       val rigSpec = formatModule.defaultRigRepo.readRig(
