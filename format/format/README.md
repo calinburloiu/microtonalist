@@ -1,5 +1,5 @@
 # `format` module
 
-Reads compositions, scales and rigs from local files, HTTP(S) and the user's library.
+Wires the format modules into the repositories that `app` reads compositions, scales and rigs from.
 
 See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the module's architecture.

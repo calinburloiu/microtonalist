@@ -13,7 +13,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | [`midi`](../../midi/README.md) | A Scala-idiomatic MIDI API over Java Sound |
 | [`tuner`](../../tuner/README.md) | Real-time tuning of the instruments over MIDI |
 | [`rig`](../../rig/README.md) | The tracks a performer plays, one per instrument |
-| [`format`](../../format/README.md) | Persistence of compositions, scales and rigs, in local files or over HTTP(S) |
+| [`format`](../../format/README.md) | Persistence of compositions, scales and rigs: what the format modules share, and their wiring |
 | [`ui`](../../ui/README.md) | The desktop GUI |
 | [`app`](../../app/README.md) | The application layer: the executables, and their configuration and wiring |
 
@@ -25,7 +25,8 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `config` | `app` | HOCON configuration of the application |
 | `cli` | `app` | Command-line utility tool, e.g. for listing the MIDI devices |
 | `ui` | `ui` | Swing GUI |
-| `format` | `format` | JSON (de)serialization of compositions, scales and rigs |
+| `format` | `format` | Wiring of the format modules into the repositories of compositions, scales and rigs |
+| `format-core` | `format` | What the format modules share, such as (de)serializing plugins |
 | `rig` | `rig` | The tracks, each routing MIDI from an input to an output through a tuning changer and a tuner |
 | `tuner` | `tuner` | MIDI tuning engine: tuners, tuning changers and the tuning session |
 | `composition` | `theory` | The composition model, which turns scales into tunings |
@@ -33,6 +34,11 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `sc-midi` | `midi` | Scala-idiomatic MIDI API |
 | `businessync` | `base` | Event bus and threading |
 | `common` | `base` | Shared utilities |
+
+Each `<module>-format` module (de)serializes the types of `<module>` and sits in the same group, e.g.
+`composition-format` in `theory`. Each `Tuner` and `TuningChanger` implementation has a module of its own in `tuner`,
+e.g. `tuner-mts`, `tuner-mpe` and `tuning-changer-pedal`, and its family's format module, `tuner-format` or
+`tuning-changer-format`, holds its format.
 
 ## Dependencies
 
@@ -50,6 +56,7 @@ flowchart TD
   end
   subgraph formatGroup ["format/"]
     format
+    formatCore["format-core"]
   end
   subgraph rigGroup ["rig/"]
     rig
@@ -68,8 +75,9 @@ flowchart TD
     businessync
     common
   end
-  app --> config & ui & format
-  format --> composition & rig
+  app --> config & ui & format & composition
+  format --> formatCore & rig
+  formatCore --> scMidi
   composition --> intonation & tuner
   rig --> tuner
   ui --> tuner
