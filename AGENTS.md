@@ -62,12 +62,19 @@ already implemented functionality. Use the read docs functionality to understand
 ## Symbol tool targets
 
 `mcp__metals__glob-search` and `mcp__metals__typed-glob-search` search the whole workspace. The other symbol tools
-resolve the symbol on one build target and, without one or with one that lacks the symbol, silently return an empty
-result or "not found" (`mcp__metals__get-source` may even return an unrelated file):
+resolve the symbol on one build target. Without one, or with one that lacks the symbol, they fail silently: an empty
+result, "not found", or the result for something else, such as the enclosing package (`mcp__metals__get-docs`,
+`mcp__metals__get-usages`) or an unrelated file (`mcp__metals__get-source`):
 
-- `mcp__metals__get-usages`, `mcp__metals__get-docs`, and `mcp__metals__get-source` take the target as `module`: the
-  owning module, which the module table of its group's `$GROUP/README.md` gives for the symbol's package. Use
-  `<module>-test` for code under `src/test/scala`, and a module that depends on the library for a dependency's symbol.
+- `mcp__metals__get-usages`, `mcp__metals__get-docs`, and `mcp__metals__get-source` take the target as `module`, which
+  must have the symbol on its classpath; `mcp__metals__get-usages` then searches the whole workspace. Pick it by where
+  the symbol lives:
+    * Production code: `app`, which depends on every module except `cli`, `experiments` and the test-utility modules;
+      use those for their own symbols. `root` only aggregates the modules, so it resolves nothing.
+    * Code under `src/test/scala`: `<module>-test` of the owning module, which the module table of its group's
+      `$GROUP/README.md` gives for the symbol's package. No other target sees a module's tests.
+    * A library's symbol: a module that depends on the library.
+
   Check the name against `mcp__metals__list-modules` (once per session), since an unknown name is silently ignored.
 - `mcp__metals__inspect` needs a `fileInFocus` instead; see
   [`docs/agents/metals-mcp-inspect-workaround.md`](docs/agents/metals-mcp-inspect-workaround.md).

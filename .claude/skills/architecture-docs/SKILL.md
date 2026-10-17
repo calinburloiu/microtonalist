@@ -25,7 +25,8 @@ details. The documentation conventions (`docs/development/doc-conventions.md`) a
 | The index | `docs/architecture/README.md` |
 
 Each module, save test-utility modules, also has a `README.md` for humans and a `CLAUDE.md` for agents, both a title
-and one line: the README links to `docs/ARCHITECTURE.md`, and `CLAUDE.md` `@import`s it. Keep content out of both.
+and one line: the README links to `docs/ARCHITECTURE.md`, and `CLAUDE.md` `@import`s it. Keep architecture-related
+content out of both.
 
 ## Module groups
 
