@@ -38,8 +38,8 @@ addCommandAlias("fixLint", "fix; lint")
 
 // # Projects
 //
-// CONVENTION: every module lives at `<group>/<id>/`, in a grouping folder that holds the modules of one area and
-// nothing else (see docs/architecture/module-overview.md), and sets `.withId(<id>)`, so its sbt project ID always
+// CONVENTION: every module lives at `<group>/<id>/`, in the folder of its module group, which holds the modules of one
+// area (see docs/architecture/module-overview.md), and sets `.withId(<id>)`, so its sbt project ID always
 // equals the name of its own folder — even where the `lazy val` name already matches (it is added redundantly on
 // purpose, to make the rule uniform and self-documenting). This consistency is relied upon by tooling that maps a
 // source directory to its sbt module ID without parsing this file — notably the `scoverage-inspector` MCP server
@@ -47,7 +47,7 @@ addCommandAlias("fixLint", "fix; lint")
 // `<group>/<id>/src/`. The `lazy val` name follows the convention `<camelCaseId>Module` (e.g. `scMidiModule` for
 // `midi/sc-midi`). The ID — used in `sbt "<id>/test"`, in `thisProject.value.id`, and thus in `coverageDataDir` — must
 // equal the folder's name. The sole special case is `root` (base dir ".", ID "root"), which keeps its plain `root` val
-// name. When adding a module, put it in its area's grouping folder and set its `.withId` to its folder's name.
+// name. When adding a module, put it in its module group's folder and set its `.withId` to its folder's name.
 
 lazy val root = (project in file("."))
   .withId("root")
