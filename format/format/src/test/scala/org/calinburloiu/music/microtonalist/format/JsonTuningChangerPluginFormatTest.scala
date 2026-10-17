@@ -16,8 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.format
 
-import org.calinburloiu.music.microtonalist.tuner.PedalTuningChanger.CcNumber
-import org.calinburloiu.music.microtonalist.tuner.{PedalTuningChanger, TuningChangeTriggers, TuningChanger}
+import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
+import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger.CcNumber
+import org.calinburloiu.music.microtonalist.tuner.changer.{TuningChangeTriggers, TuningChanger}
 import play.api.libs.json.*
 
 class JsonTuningChangerPluginFormatTest extends JsonFormatTestUtils {

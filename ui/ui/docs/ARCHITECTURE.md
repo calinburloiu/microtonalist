@@ -33,9 +33,10 @@ The single Swing window — the "Microtuner" frame opened at startup by `app`. I
 - **Business → display.** An event handler subscribed to `TuningIndexUpdatedEvent` updates the selected row when the
   tuning index changes elsewhere (e.g. a pedal-driven `TuningChanger`), keeping the GUI in sync with the session.
 
-### Collaborators (in `tuner`)
+### Collaborators (in `tuner` and `tuning`)
 
-The frame talks only to these `tuner`-module types — the stable contract for the planned JavaFX rewrite:
+The frame talks only to these types of `tuner` and, for `IndexTuningChange`, `tuning` — the stable contract for the
+planned JavaFX rewrite:
 
 - **`TuningService`** — the `@ThreadSafe` façade the frame is constructed with. It uses `changeTuning` (runs the
   mutation on the business thread) and the **deprecated, not-thread-safe** `tunings` accessor, called once at
@@ -78,9 +79,10 @@ displayed selection consistent with the active tuning.
 
 ## Dependencies
 
-Its only direct dependency is `tuner`; `businessync`, `common`, and `sc-midi` arrive transitively through it (the frame
-uses Businessync types via that path). Externally it uses Java Swing and Guava's `EventBus`/`@Subscribe`. Coverage
-thresholds are currently 0 with `// TODO #182` to raise them — appropriate for code slated for replacement under #99.
+Its direct dependencies are `tuner` and `tuning`; `businessync`, `common`, and `sc-midi` arrive transitively through
+them (the frame uses Businessync types via that path). Externally it uses Java Swing and Guava's
+`EventBus`/`@Subscribe`. Coverage thresholds are currently 0 with `// TODO #182` to raise them — appropriate for code
+slated for replacement under #99.
 
 **Depended on by** `app`, which constructs the frame, registers it on the bus, and shows it. No other module depends on
 `ui`.

@@ -18,8 +18,9 @@ package org.calinburloiu.music.microtonalist.rig
 
 import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
+import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
 import org.calinburloiu.music.microtonalist.tuner.{
-  MtsMessageGenerator, MtsOctave1ByteNonRealTimeTuner, PedalTuningChanger, TunerModule, Tuning
+  MtsMessageGenerator, MtsOctave1ByteNonRealTimeTuner, TunerModule, Tuning
 }
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiDirection, MidiManager, MidiSplitter}

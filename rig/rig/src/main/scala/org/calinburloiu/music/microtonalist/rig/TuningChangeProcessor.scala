@@ -16,9 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.rig
 
-import org.calinburloiu.music.microtonalist.tuner.{
-  EffectiveTuningChange, NoTuningChange, TuningChange, TuningChanger, TuningService
-}
+import org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger
+import org.calinburloiu.music.microtonalist.tuner.{EffectiveTuningChange, NoTuningChange, TuningChange, TuningService}
 import org.calinburloiu.music.scmidi.MidiProcessor
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
@@ -27,11 +26,11 @@ import scala.annotation.tailrec
 
 /**
  * Processes incoming messages and decides whether to trigger a tuning change or not based on the incoming MIDI messages
- * and the given [[org.calinburloiu.music.microtonalist.tuner.TuningChanger]] plugins.
+ * and the given [[org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger]] plugins.
  *
  * @param tuningService The service to trigger the actual tuning change.
- * @param tuningChangers A sequence of [[org.calinburloiu.music.microtonalist.tuner.TuningChanger]] plugins that decide
- *   whether the tuning should be changed or not. The decision is of the first one that returns an effective
+ * @param tuningChangers A sequence of [[org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger]] plugins that
+ *   decide whether the tuning should be changed or not. The decision is of the first one that returns an effective
  *   [[org.calinburloiu.music.microtonalist.tuner.TuningChange]], so this class acts like an OR operator. Note that if
  *   none decides to trigger a change, no change will be performed.
  */
@@ -50,8 +49,8 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
   }
 
   /**
-   * Resets every [[org.calinburloiu.music.microtonalist.tuner.TuningChanger]], e.g. so that a trigger held when the
-   * input device disappeared does not swallow the first trigger after the device comes back.
+   * Resets every [[org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger]], e.g. so that a trigger held when
+   * the input device disappeared does not swallow the first trigger after the device comes back.
    */
   def reset(): Unit = {
     tuningChangers.foreach(_.reset())
@@ -80,8 +79,8 @@ class TuningChangeProcessor(val tuningChangers: Seq[TuningChanger],
 
 object TuningChangeProcessor {
   /**
-   * Chooses the first [[org.calinburloiu.music.microtonalist.tuner.TuningChanger]] from the given list that returns an
-   * effective [[org.calinburloiu.music.microtonalist.tuner.TuningChange]] (which has
+   * Chooses the first [[org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger]] from the given list that
+   * returns an effective [[org.calinburloiu.music.microtonalist.tuner.TuningChange]] (which has
    * [[org.calinburloiu.music.microtonalist.tuner.TuningChange#isChanging]] true) for the given MIDI message and returns
    * it. If there is none, [[org.calinburloiu.music.microtonalist.tuner.NoTuningChange]] is returned.
    *

@@ -27,7 +27,9 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `ui` | `ui` | Swing GUI |
 | `format` | `format` | JSON (de)serialization of compositions, scales and rigs |
 | `rig` | `rig` | The tracks, each routing MIDI from an input to an output through a tuning changer and a tuner |
-| `tuner` | `tuner` | MIDI tuning engine: tuners, tuning changers and the tuning session |
+| `tuner` | `tuner` | MIDI tuning engine: tuners and the tuning session |
+| `tuning-changer` | `tuner` | Contract of the tuning changers, which decide when to change the tuning |
+| `tuning` | `tuner` | The `Tuning` and `TuningChange` values |
 | `composition` | `theory` | The composition model, which turns scales into tunings |
 | `intonation` | `theory` | Interval math |
 | `sc-midi-javamidi` | `midi` | Java Sound implementation of `sc-midi`, with CoreMIDI4J |
@@ -37,7 +39,8 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 
 ## Dependencies
 
-The main modules and their direct dependencies, leaving out those that others imply; `build.sbt` has them all.
+The main modules and their direct dependencies, leaving out those that others imply, with `tuning-changer-pedal` as an
+example of a module that holds a plugin implementation; `build.sbt` has them all.
 
 ```mermaid
 flowchart TD
@@ -61,6 +64,9 @@ flowchart TD
   end
   subgraph tunerGroup ["tuner/"]
     tuner
+    tuningChanger["tuning-changer"]
+    tuningChangerPedal["tuning-changer-pedal"]
+    tuning
   end
   subgraph midiGroup ["midi/"]
     scMidiJavamidi["sc-midi-javamidi"]
@@ -71,11 +77,14 @@ flowchart TD
     common
   end
   app --> config & ui & format & scMidiJavamidi
-  format --> composition & rig
-  composition --> intonation & tuner
-  rig --> tuner
+  format --> composition & rig & tuningChangerPedal
+  composition --> intonation & tuning
+  rig --> tuner & tuningChanger
   ui --> tuner
-  tuner --> scMidi & businessync
+  tuningChangerPedal --> tuningChanger
+  tuner --> tuning & businessync
+  tuningChanger --> tuning
+  tuning --> scMidi
   cli --> scMidiJavamidi
   scMidiJavamidi --> scMidi
   scMidi --> common

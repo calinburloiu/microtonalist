@@ -91,9 +91,9 @@ after loading the `Composition`, and the resulting `TuningList` feeds the `Tunin
 ## Dependencies
 
 - **Depends on `intonation`** for the interval math it builds on (`Interval`, `Scale`, `IntonationStandard`, …).
-- **Depends on `tuner`** for the output value type `Tuning` (and `Tuning.Standard`). The arrow points *into* `tuner`:
-  this module produces `Tuning`s but does not perform MIDI tuning. It also uses `sc-midi` types such as `PitchClass` and
-  `MidiNote` (reached via `tuner`) and `common`'s `Plugin` trait.
+- **Depends on [`tuning`](../../../tuner/tuning/docs/ARCHITECTURE.md)** for the output value type `Tuning` (and
+  `Tuning.Standard`), and not on the tuning engine of `tuner`: this module produces `Tuning`s but does not perform MIDI
+  tuning. It also uses `sc-midi`'s `PitchClass` and `MidiNote`, and `common`'s `Plugin` trait.
 
 Depended on by **`format`** (which serializes every type here) and **`app`** (which loads a `Composition` and calls
 `TuningList.fromComposition`). Its coverage floor is set high (statement and branch both 80%), reflecting its status as

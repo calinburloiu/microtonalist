@@ -16,8 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.rig
 
+import org.calinburloiu.music.microtonalist.tuner.changer.TuningChanger
 import org.calinburloiu.music.microtonalist.tuner.{
-  IndexTuningChange, MayTriggerTuningChange, NextTuningChange, NoTuningChange, TuningChanger, TuningService
+  IndexTuningChange, MayTriggerTuningChange, NextTuningChange, NoTuningChange, TuningService
 }
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg, NoteOnMidiMsg}
 import org.calinburloiu.music.scmidi.{MidiNote, MidiReceiver}

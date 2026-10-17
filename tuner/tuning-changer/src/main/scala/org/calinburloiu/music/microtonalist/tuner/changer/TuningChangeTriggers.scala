@@ -14,7 +14,11 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner
+package org.calinburloiu.music.microtonalist.tuner.changer
+
+import org.calinburloiu.music.microtonalist.tuner.{
+  IndexTuningChange, NextTuningChange, NoTuningChange, PreviousTuningChange, TuningChange
+}
 
 /**
  * Represents a configuration to define triggers for [[TuningChange]]s.

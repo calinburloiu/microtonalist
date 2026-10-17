@@ -21,8 +21,8 @@ Package: `org.calinburloiu.music.microtonalist.common` (sub-package `.concurrenc
 naming contract used both at runtime and for JSON (de)serialization: `familyName` (the family/context, e.g.
 `tuningMapper`) and `typeName` (the chosen type within it, e.g. `auto`). Within one family the user can swap between
 types. The families across the project live in `composition` (`TuningMapper`, `TuningReducer`, `TuningReference`,
-`SoftChromaticGenusMapping`), `tuner` (`Tuner`, `TuningChanger`) and `rig` (the track I/O specs `TrackInputSpec` /
-`TrackOutputSpec`). The serialization side lives in `format` (`JsonPluginFormat[P]` keys off these
+`SoftChromaticGenusMapping`), `tuner` (`Tuner`), `tuning-changer` (`TuningChanger`) and `rig` (the track I/O specs
+`TrackInputSpec` / `TrackOutputSpec`). The serialization side lives in `format` (`JsonPluginFormat[P]` keys off these
 names); the `Plugin` trait itself carries only the two `val`s and no serialization logic.
 
 **`Locking`** is a mix-in trait providing `@inline` helpers (`withLock` / `withReadLock` / `withWriteLock`) that run a
@@ -42,9 +42,9 @@ to macOS** — see notes below.
 ## Dependencies
 
 `common` has no application `dependsOn` (only `commonTestUtils % Test`). Externally it uses Guava plus the inherited
-common logging/test stack. It is depended on directly by `config`, `tuner`, `rig`, `format`, `sc-midi`,
-`sc-midi-javamidi`, and `app`, and transitively by `composition` and `ui` (via `tuner`) and `cli` (via `sc-midi`);
-`experiments` does not depend on it.
+common logging/test stack. It is depended on directly by `config`, `composition`, `tuner`, `tuning-changer`, `rig`,
+`format`, `sc-midi`, `sc-midi-javamidi`, and `app`, and transitively by `ui` (via `tuner`) and by `cli`, `tuning` and
+`tuning-changer-pedal` (via `sc-midi`); `experiments` does not depend on it.
 
 ## Notes / subject to change
 

@@ -123,8 +123,9 @@ internals rather than its public surface.
 ## Dependencies
 
 **Depends on** `composition` (the `Composition` model and its plugins this module (de)serializes), `rig` (`RigSpec`,
-the `RigRepo` trait and the track I/O plugin families), `tuner` (the tuner and tuning-changer plugin families), `common`
-(the `Plugin` type, `Locking`, and shared utilities), and — transitively — `intonation`
+the `RigRepo` trait and the track I/O plugin families), `tuner` and `tuning-changer` (the tuner and tuning-changer
+plugin families), `tuning-changer-pedal` (`PedalTuningChanger`), `tuning` (`DefaultCentsTolerance`), `common` (the
+`Plugin` type, `Locking`, and shared utilities), and — transitively — `intonation`
 (`Scale`/`Interval`/`IntonationStandard`) and `businessync` (`ScaleContextConverter` publishes
 `ScaleLossyConversionEvent`). Third-party: Play JSON, Guava, and `java.net.http.HttpClient`.
 
