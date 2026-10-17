@@ -15,7 +15,7 @@ rule.
 - **`JavaMidiManager`** — the Java Sound `MidiManager`. Java Sound exposes a device working in both directions as two
   devices sharing a `MidiDeviceId`, so the manager accepts only the `Input` and `Output` directions, keeping a registry
   of live handles for each, which it reconciles with the devices found on every refresh. It publishes its `MidiEvent`s
-  on the [Businessync](../../../base/businessync/docs/ARCHITECTURE.md) bus.
+  through the `MidiEventPublisher` it is given.
 - **`JavaMidiDeviceHandle`** — the Java Sound `MidiDeviceHandle` for one direction of a device, and the one place
   where messages cross between `MidiMsg` and Java Sound.
 - **`JavaMidiDeviceReferenceCounter`** — opens and closes the devices of all the handles of a manager, since Java
@@ -46,4 +46,3 @@ CoreMIDI4J's notification thread.
 - Two identical devices plugged in at once share a `MidiDeviceId`, so only the one resolved last gets a handle (#306).
 - A vanished device is noticed only once CoreMIDI4J reports it, and a handle whose device failed to open stays unusable
   until the tracks are rebuilt (#302).
-- `JavaMidiManager` takes a `Businessync` to publish its events; a `MidiEventPublisher` will replace it (#366).

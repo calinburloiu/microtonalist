@@ -82,11 +82,11 @@ flowchart TD
   rig --> tuner & tuningChanger
   ui --> tuner
   tuningChangerPedal --> tuningChanger
-  tuner --> tuning
+  tuner --> tuning & businessync
   tuningChanger --> tuning
   tuning --> scMidi
   cli --> scMidiJavamidi
   scMidiJavamidi --> scMidi
-  scMidi --> businessync & common
+  scMidi --> common
   config --> common
 ```
