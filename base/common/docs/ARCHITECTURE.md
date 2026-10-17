@@ -10,8 +10,8 @@ that many higher modules need but that belong to no single one: the `Plugin` ext
 session-lifecycle trait, URL/path parsing, and platform detection.
 
 It sits near the bottom of the dependency graph and is **widely depended upon** (`tuner`, `rig`, `format`,
-`sc-midi`, `config`, `app`), so it deliberately keeps almost no dependencies of its own. Each utility here is
-independent of the others.
+`sc-midi`, `sc-midi-javamidi`, `config`, `app`), so it deliberately keeps almost no dependencies of its own. Each
+utility here is independent of the others.
 
 Package: `org.calinburloiu.music.microtonalist.common` (sub-package `.concurrency`).
 
@@ -42,8 +42,9 @@ to macOS** — see notes below.
 ## Dependencies
 
 `common` has no application `dependsOn` (only `commonTestUtils % Test`). Externally it uses Guava plus the inherited
-common logging/test stack. It is depended on directly by `config`, `tuner`, `rig`, `format`, `sc-midi`, and `app`,
-and transitively by `composition` and `ui` (via `tuner`); `cli` and `experiments` do not depend on it.
+common logging/test stack. It is depended on directly by `config`, `tuner`, `rig`, `format`, `sc-midi`,
+`sc-midi-javamidi`, and `app`, and transitively by `composition` and `ui` (via `tuner`) and `cli` (via `sc-midi`);
+`experiments` does not depend on it.
 
 ## Notes / subject to change
 

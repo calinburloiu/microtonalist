@@ -38,7 +38,7 @@ package org.calinburloiu.music.scmidi
  * usable, the wiring works without any change.
  *
  * [[state]] tells the current state of the handle and of its device; see [[MidiDeviceHandle.State]] for the
- * transitions. [[org.calinburloiu.music.scmidi.javamidi.JavaMidiDeviceHandle]] is the Java Sound implementation.
+ * transitions. `JavaMidiDeviceHandle`, in the `sc-midi-javamidi` module, is the Java Sound implementation.
  */
 trait MidiDeviceHandle {
 

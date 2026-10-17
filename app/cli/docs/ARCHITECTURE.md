@@ -13,8 +13,8 @@ it offers a single subcommand that **lists the MIDI devices available on the com
 device with its metadata (name, vendor, version, description) and its maximum transmitter/receiver count — useful for
 discovering device names to reference in compositions and track configurations.
 
-In the layered architecture it sits to the side of the main stack: it depends only on `sc-midi` (and the transitive
-`businessync` that a `MidiManager` implementation requires). Nothing depends on `cli`.
+In the layered architecture it sits to the side of the main stack: it depends only on `sc-midi` and `sc-midi-javamidi`
+(and the transitive `businessync` that `JavaMidiManager` requires). Nothing depends on `cli`.
 
 Package: `org.calinburloiu.music.microtonalist.cli`.
 
@@ -23,8 +23,8 @@ Package: `org.calinburloiu.music.microtonalist.cli`.
 **`MicrotonalistToolApp`** is a plain Scala `object` with a `main` method — the executable's entry point and the
 assembly `mainClass`. It does its own minimal argument dispatch (no CLI-parsing library): `main` pattern-matches the
 first argument, routing `midi-devices` to `MidiDevicesCliCommand` and anything else to a usage message. `main` is the
-composition root: it constructs a `Businessync` and a `JavaMidiManager` (`sc-midi`'s Java Sound implementation, from
-its `javamidi` package), injects the manager into the command and closes it when done.
+composition root: it constructs a `Businessync` and a `JavaMidiManager` (the Java Sound implementation, from
+`sc-midi-javamidi`), injects the manager into the command and closes it when done.
 
 **`MidiDevicesCliCommand`** implements `midi-devices` over the `MidiManager` injected through its constructor: `run()`
 lists `devicesInfoFor` the input and then the output direction and prints each `MidiDeviceInfo`'s name, vendor,
@@ -36,12 +36,11 @@ command framework.
 
 ## Dependencies
 
-`cli` declares exactly one application dependency, `sc-midi`, used for the `MidiManager` trait, its
-`JavaMidiManager` implementation and the `MidiDeviceInfo` / `MidiConnectionLimit` value types;
-`businessync` and Guava's `EventBus` are pulled in transitively (referenced directly only to build the
-`Businessync` that `JavaMidiManager`'s constructor takes). The module imports nothing from
-`javax.sound.midi` (#282). Nothing depends on `cli`; it is aggregated by `root` for building/testing but
-packaged as its own fat JAR.
+`cli` declares two application dependencies: `sc-midi`, for the `MidiManager` trait and the `MidiDeviceInfo` /
+`MidiConnectionLimit` value types, and `sc-midi-javamidi`, for the `JavaMidiManager` implementation. `businessync` and
+Guava's `EventBus` are pulled in transitively (referenced directly only to build the `Businessync` that
+`JavaMidiManager`'s constructor takes). The module imports nothing from `javax.sound.midi` (#282). Nothing depends on
+`cli`; it is aggregated by `root` for building/testing but packaged as its own fat JAR.
 
 ## Future / planned changes
 
