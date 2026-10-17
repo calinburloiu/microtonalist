@@ -38,7 +38,7 @@ issues, pull requests) and links to the development setup and coding standards.
 ## Engineering
 
 The application is split into layered SBT modules (`app`, `composition`, `tuner`, `format`, `intonation`, `sc-midi`,
-and more). For the module structure, dependency graph, and the root package of each module, see the
+and more), organized in module groups. For the groups, the main modules and their dependencies, see the
 [module overview](docs/architecture/module-overview.md); for the domain types and how a composition becomes tuning MIDI
 messages, see the [architecture docs](docs/architecture/README.md).
 

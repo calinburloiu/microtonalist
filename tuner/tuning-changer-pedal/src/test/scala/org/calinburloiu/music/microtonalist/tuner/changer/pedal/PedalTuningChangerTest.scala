@@ -128,6 +128,7 @@ class PedalTuningChangerTest extends AnyWordSpec with Matchers {
     }
 
     "return NoTuningChange for a SysEx MIDI message" in {
+      // TODO #380 Generate an MTS message with MtsMessageGenerator, via a Test dependency on tuner-mts
       // A Universal Non-Real-Time Identity Request
       val sysExMessage = SysExMidiMsg(ArraySeq.unsafeWrapArray(Array(0xF0, 0x7E, 0x7F, 0x06, 0x01, 0xF7).map(_.toByte)))
       tuningChanger.decide(sysExMessage) shouldEqual NoTuningChange

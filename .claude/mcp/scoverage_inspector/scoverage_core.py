@@ -19,7 +19,7 @@ dataclasses. The MCP server (`server.py`) and the human/CI CLI (`cli.py`) are
 thin wrappers over this module.
 
 This module relies on the build convention that an sbt module's ID equals the name of
-its folder, which sits in a grouping folder (`build.sbt` enforces this with
+its folder, which sits in its module group's folder (`build.sbt` enforces this with
 `.withId(<dir>)`). That means a module ID finds its source directory, so no `build.sbt`
 parsing is needed: scoverage reports live at `coverage-reports/<id>/...` (sbt's
 `thisProject.value.id`) and sources at `<group>/<id>/src/...`.
@@ -148,7 +148,7 @@ def repo_root_default() -> Path:
 def _module_dirs(root: Path) -> list[str]:
     """Every module's directory relative to `root`, i.e. each `<group>/<id>` containing a `src/`.
 
-    Relies on the build convention that every module sits in a grouping folder, in a
+    Relies on the build convention that every module sits in its module group's folder, in a
     directory named after its sbt module ID (`build.sbt` enforces this with
     `.withId(<dir>)`), so a module ID finds its source directory — no `build.sbt`
     parsing is needed.
