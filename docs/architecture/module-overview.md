@@ -28,9 +28,12 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `format` | `format` | Wiring of the format modules into the repositories of compositions, scales and rigs |
 | `format-core` | `format` | What the format modules share, such as (de)serializing plugins |
 | `rig` | `rig` | The tracks, each routing MIDI from an input to an output through a tuning changer and a tuner |
-| `tuner` | `tuner` | MIDI tuning engine: tuners, tuning changers and the tuning session |
+| `tuner` | `tuner` | MIDI tuning engine: the `Tuner` contract and the tuning session |
+| `tuning-changer` | `tuner` | Contract of the tuning changers, which decide when to change the tuning |
+| `tuning` | `tuner` | The `Tuning` and `TuningChange` values |
 | `composition` | `theory` | The composition model, which turns scales into tunings |
 | `intonation` | `theory` | Interval math |
+| `sc-midi-javamidi` | `midi` | Java Sound implementation of `sc-midi`, with CoreMIDI4J |
 | `sc-midi` | `midi` | Scala-idiomatic MIDI API |
 | `businessync` | `base` | Event bus and threading |
 | `common` | `base` | Shared utilities |
@@ -67,22 +70,28 @@ flowchart TD
   end
   subgraph tunerGroup ["tuner/"]
     tuner
+    tuningChanger["tuning-changer"]
+    tuning
   end
   subgraph midiGroup ["midi/"]
+    scMidiJavamidi["sc-midi-javamidi"]
     scMidi["sc-midi"]
   end
   subgraph baseGroup ["base/"]
     businessync
     common
   end
-  app --> config & ui & format & composition
+  app --> config & ui & format & composition & scMidiJavamidi
   format --> formatCore & rig
   formatCore --> scMidi
-  composition --> intonation & tuner
-  rig --> tuner
+  composition --> intonation & tuning
+  rig --> tuner & tuningChanger
   ui --> tuner
-  tuner --> scMidi
-  cli --> scMidi
+  tuner --> tuning
+  tuningChanger --> tuning
+  tuning --> scMidi
+  cli --> scMidiJavamidi
+  scMidiJavamidi --> scMidi
   scMidi --> businessync & common
   config --> common
 ```
