@@ -53,8 +53,8 @@ def _age_tree(directory: Path, mtime: float) -> None:
 
 
 class ModuleDirsTest(unittest.TestCase):
-    def test_lists_only_dirs_with_a_src_subdir_in_a_grouping_folder(self):
-        # Given a repo root with two module dirs in grouping folders (each with src/) and one without
+    def test_lists_only_dirs_with_a_src_subdir_in_a_module_group(self):
+        # Given a repo root with two module dirs in module groups (each with src/) and one without
         tmp = Path(tempfile.mkdtemp())
         try:
             (tmp / "midi" / "sc-midi" / "src").mkdir(parents=True)
@@ -81,7 +81,7 @@ class SafeIntTest(unittest.TestCase):
 
 class FreshnessTest(unittest.TestCase):
     def setUp(self):
-        # The module ID equals the name of its directory, in a grouping folder, by build
+        # The module ID equals the name of its directory, in a module group, by build
         # convention, so the report dir and queried module ID are "sc-midi" and the source
         # dir is "midi/sc-midi".
         self.tmp = Path(tempfile.mkdtemp())
@@ -129,7 +129,7 @@ class FreshnessTest(unittest.TestCase):
         _set_mtime(self.source_file, 2000)
         self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.STALE)
 
-    def test_stale_for_a_module_named_after_its_grouping_folder(self):
+    def test_stale_for_a_module_named_after_its_module_group(self):
         # Given the tuner module at tuner/tuner, with a source newer than its report
         src = self.tmp / "tuner" / "tuner" / "src" / "main" / "scala"
         src.mkdir(parents=True)
@@ -143,7 +143,7 @@ class FreshnessTest(unittest.TestCase):
         self.assertEqual(core.freshness(self.tmp, "tuner"), core.Freshness.STALE)
 
     def test_fresh_when_only_another_modules_source_changed(self):
-        # Given a fresh sc-midi report and another module, in another grouping folder
+        # Given a fresh sc-midi report and another module, in another module group
         src = self.tmp / "app" / "config" / "src" / "main" / "scala"
         src.mkdir(parents=True)
         source_file = src / "Bar.scala"
@@ -156,8 +156,8 @@ class FreshnessTest(unittest.TestCase):
         # Then the sc-midi report is still fresh
         self.assertEqual(core.freshness(self.tmp, "sc-midi"), core.Freshness.FRESH)
 
-    def test_aggregate_covers_the_modules_of_every_grouping_folder(self):
-        # Given a fresh root report and a second module, in another grouping folder
+    def test_aggregate_covers_the_modules_of_every_module_group(self):
+        # Given a fresh root report and a second module, in another module group
         src = self.tmp / "app" / "config" / "src" / "main" / "scala"
         src.mkdir(parents=True)
         source_file = src / "Bar.scala"
