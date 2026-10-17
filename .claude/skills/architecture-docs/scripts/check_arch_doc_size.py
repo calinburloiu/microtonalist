@@ -30,8 +30,9 @@ EXEMPTION_MARKER = "<!-- arch-doc-size: exempt (<reason>) -->"
 EXEMPTION_PATTERN = re.compile(r"<!-- arch-doc-size: exempt(?: \(.*\))? -->")
 MARKER_MAX_LINE = 10
 ARCHITECTURE_DIR = Path("docs") / "architecture"
-# Matches the docs/ directory of each module, which sits in a grouping folder at the top of the repository. A docs/
-# directory added at the same depth outside a module would match too, so keep those out of the repository.
+# Match the docs/ directory of each module group, a folder at the top of the repository, and of each module in it. A
+# docs/ directory added at either depth outside a group or a module would match too, so keep those out of the repo.
+GROUP_DOCS_GLOB = "*/docs"
 MODULE_DOCS_GLOB = "*/*/docs"
 # This file is <root>/.claude/skills/architecture-docs/scripts/check_arch_doc_size.py.
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -116,7 +117,7 @@ def discover(directory: Path) -> List[Path]:
 
 
 def discover_default(root: Path) -> List[Path]:
-    directories = [root / ARCHITECTURE_DIR, *root.glob(MODULE_DOCS_GLOB)]
+    directories = [root / ARCHITECTURE_DIR, *root.glob(GROUP_DOCS_GLOB), *root.glob(MODULE_DOCS_GLOB)]
     return sorted(doc for directory in directories for doc in discover(directory))
 
 
@@ -140,8 +141,8 @@ def parse_args(argv: Optional[List[str]]) -> argparse.Namespace:
     parser.add_argument("--github", action="store_true",
                         help="also print GitHub Actions annotations for the warnings and errors")
     parser.add_argument("paths", nargs="*", type=Path, metavar="PATH",
-                        help="a doc, or a directory of docs, to check (default: every doc under docs/architecture/ and "
-                             "<group>/<module>/docs/)")
+                        help="a doc, or a directory of docs, to check (default: every doc under docs/architecture/, "
+                             "<group>/docs/ and <group>/<module>/docs/)")
     return parser.parse_args(argv)
 
 
