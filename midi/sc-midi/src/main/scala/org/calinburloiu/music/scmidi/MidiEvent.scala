@@ -16,8 +16,6 @@
 
 package org.calinburloiu.music.scmidi
 
-import org.calinburloiu.businessync.BusinessyncEvent
-
 /**
  * Base class for all MIDI events emitted by a [[MidiManager]] implementation.
  *
@@ -29,7 +27,7 @@ import org.calinburloiu.businessync.BusinessyncEvent
  *
  * Each event reports one transition of one handle, and a failure event replaces its success event.
  */
-abstract sealed class MidiEvent extends BusinessyncEvent
+abstract sealed class MidiEvent
 
 /**
  * Event that indicates a change in the MIDI environment.

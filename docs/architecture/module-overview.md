@@ -75,9 +75,9 @@ flowchart TD
   composition --> intonation & tuner
   rig --> tuner
   ui --> tuner
-  tuner --> scMidi
+  tuner --> scMidi & businessync
   cli --> scMidiJavamidi
   scMidiJavamidi --> scMidi
-  scMidi --> businessync & common
+  scMidi --> common
   config --> common
 ```

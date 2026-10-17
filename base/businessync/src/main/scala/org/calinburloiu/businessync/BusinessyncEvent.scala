@@ -17,7 +17,9 @@
 package org.calinburloiu.businessync
 
 /**
- * Base interface for events passed via Guava `EventBus`.
+ * Base class of the application's events published through [[Businessync]].
+ *
+ * A published event needn't extend it: [[Businessync.publish]] takes any object, such as the `MidiEvent`s of `sc-midi`.
  */
 abstract class BusinessyncEvent {
   def name: String = this.getClass.getSimpleName

@@ -31,8 +31,9 @@ package org.calinburloiu.music.scmidi
  * [[MidiDirection.Input]] and [[MidiDirection.Output]] and rejects [[MidiDirection.InputOutput]].
  *
  * An implementation scans the environment on [[refresh]] and typically also when the platform reports a change, and
- * publishes [[MidiEvent]]s about what it finds. `JavaMidiManager`, in the `sc-midi-javamidi` module, is the Java Sound
- * implementation; consumers receive a [[MidiManager]] and the composition root picks the implementation.
+ * publishes [[MidiEvent]]s about what it finds through a [[MidiEventPublisher]]. `JavaMidiManager`, in the
+ * `sc-midi-javamidi` module, is the Java Sound implementation; consumers receive a [[MidiManager]] and the composition
+ * root picks the implementation.
  *
  * A handle is live while the manager holds it, which is exactly while its state is not
  * [[MidiDeviceHandle.State.Closed]] (see [[MidiDeviceHandle]]). The manager holds a handle for every device that is

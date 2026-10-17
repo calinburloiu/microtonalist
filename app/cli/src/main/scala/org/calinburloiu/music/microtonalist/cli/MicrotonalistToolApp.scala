@@ -16,8 +16,6 @@
 
 package org.calinburloiu.music.microtonalist.cli
 
-import com.google.common.eventbus.EventBus
-import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiManager
 
 /**
@@ -30,14 +28,14 @@ object MicrotonalistToolApp {
    * Runs the subcommand named by the first argument, printing a usage message for anything else.
    *
    * This is the composition root of the tool: it creates the [[JavaMidiManager]] that [[MidiDevicesCliCommand]] lists
-   * devices through and closes it when done.
+   * devices through and closes it when done. It needs none of the manager's events, so it publishes them nowhere.
    *
    * @param args Command-line arguments; only `midi-devices` is supported.
    */
   def main(args: Array[String]): Unit = {
     args match {
       case Array("midi-devices") =>
-        val midiManager = JavaMidiManager(Businessync(EventBus()))
+        val midiManager = JavaMidiManager()
         try {
           MidiDevicesCliCommand(midiManager).run()
         } finally {
