@@ -142,7 +142,25 @@ class MainTest(RepoTestCase):
         self.assertEqual([line.split()[1] for line in lines],
                          ["docs/architecture/a.md", "docs/architecture/b/README.md"])
 
-    def test_checks_every_doc_under_the_docs_of_a_module_in_a_grouping_folder_by_default(self):
+    def test_checks_every_doc_under_the_docs_of_a_module_group_by_default(self):
+        # Given
+        self.write("tuner/docs/tuners.md", words(10))
+        self.write("tuner/docs/mpe/notes.md", words(10))
+        self.write("tuner/README.md", words(10))
+        self.write("tuner/tuner/docs/ARCHITECTURE.md", words(10))
+
+        # When
+        code, lines, _ = self.run_main()
+
+        # Then
+        self.assertEqual(code, 0)
+        self.assertEqual([line.split()[1] for line in lines], [
+            "tuner/docs/mpe/notes.md",
+            "tuner/docs/tuners.md",
+            "tuner/tuner/docs/ARCHITECTURE.md",
+        ])
+
+    def test_checks_every_doc_under_the_docs_of_a_module_by_default(self):
         # Given
         self.write("tuner/tuner/docs/ARCHITECTURE.md", words(10))
         self.write("tuner/tuner/docs/mpe/paper.md", words(10))

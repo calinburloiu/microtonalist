@@ -13,11 +13,12 @@ issues when multiple builds would write in the same target subdirectory.
 
 The repository is built using SBT 1, Scala 3, and Java 25. It is split into multiple SBT projects that act as modules,
 libraries, or separate executable applications — we simply call each of those SBT projects modules. Each one lives in
-`<group>/<id>/`, in a grouping folder at the repository root that holds the modules of one area and nothing else: no
-`src/`, `README.md`, `CLAUDE.md` or `docs/` of its own. The *Packages* table of
-[`module-overview.md`](../architecture/module-overview.md) gives each module's directory. Check `build.sbt` for
-details. The `root` SBT project, the only one at the repository root, aggregates all the other projects. The
-executable application is in the `app` SBT project.
+`<group>/<id>/`, in the folder of its *module group*, at the repository root, which holds the modules of one area.
+Besides its modules, a group's folder holds a `README.md` that lists them, a `CLAUDE.md` that imports the README and, if
+needed, a `docs/` for what spans only its modules; it has no `src/`, since a group isn't an SBT project. The
+[module overview](../architecture/module-overview.md) lists the groups. Check `build.sbt` for details. The `root` SBT
+project, the only one at the repository root, aggregates all the other projects. The executable application is in the
+`app` SBT project.
 
 **The Scala version is in `project/scala-version`**, a one-line file that `build.sbt` reads. The launchers in `bin/` read
 it too, because it is part of the paths of the fat JARs they run. Upgrade Scala there, not in `build.sbt`.
