@@ -1,41 +1,80 @@
 # Module overview
 
-The project uses a layered module structure; dependency direction flows from `app` downward:
+A *module* is an SBT project. Modules are organized in *module groups*: each group is a folder at the repository root
+that holds the modules of one area, `<group>/<module>/`. A group's `README.md` lists every module in it, with its root
+package; the group's `CLAUDE.md` imports that README, so an agent gets it when working in the group.
 
+## Module groups
+
+| Group | Area |
+| ----- | ---- |
+| [`base`](../../base/README.md) | Infrastructure: shared utilities, and the event bus with its threading model |
+| [`theory`](../../theory/README.md) | Music theory: interval math and the composition model |
+| [`midi`](../../midi/README.md) | A Scala-idiomatic MIDI API over Java Sound |
+| [`tuner`](../../tuner/README.md) | Real-time tuning of the instruments over MIDI |
+| [`rig`](../../rig/README.md) | The tracks a performer plays, one per instrument |
+| [`format`](../../format/README.md) | Persistence of compositions, scales and rigs, in local files or over HTTP(S) |
+| [`ui`](../../ui/README.md) | The desktop GUI |
+| [`app`](../../app/README.md) | The application layer: the executables, and their configuration and wiring |
+
+## Main modules
+
+| Module | Group | Description |
+| ------ | ----- | ----------- |
+| `app` | `app` | The desktop application, which wires the modules together |
+| `config` | `app` | HOCON configuration of the application |
+| `cli` | `app` | Command-line utility tool, e.g. for listing the MIDI devices |
+| `ui` | `ui` | Swing GUI |
+| `format` | `format` | JSON (de)serialization of compositions, scales and rigs |
+| `rig` | `rig` | The tracks, each routing MIDI from an input to an output through a tuning changer and a tuner |
+| `tuner` | `tuner` | MIDI tuning engine: tuners, tuning changers and the tuning session |
+| `composition` | `theory` | The composition model, which turns scales into tunings |
+| `intonation` | `theory` | Interval math |
+| `sc-midi` | `midi` | Scala-idiomatic MIDI API |
+| `businessync` | `base` | Event bus and threading |
+| `common` | `base` | Shared utilities |
+
+## Dependencies
+
+The main modules and their direct dependencies, leaving out those that others imply; `build.sbt` has them all.
+
+```mermaid
+flowchart TD
+  subgraph appGroup ["app/"]
+    app
+    config
+    cli
+  end
+  subgraph uiGroup ["ui/"]
+    ui
+  end
+  subgraph formatGroup ["format/"]
+    format
+  end
+  subgraph rigGroup ["rig/"]
+    rig
+  end
+  subgraph theoryGroup ["theory/"]
+    composition
+    intonation
+  end
+  subgraph tunerGroup ["tuner/"]
+    tuner
+  end
+  subgraph midiGroup ["midi/"]
+    scMidi["sc-midi"]
+  end
+  subgraph baseGroup ["base/"]
+    businessync
+    common
+  end
+  app --> config & ui & format
+  format --> composition & rig
+  composition --> intonation & tuner
+  rig --> tuner
+  ui --> tuner
+  tuner --> scMidi
+  cli --> scMidi
+  scMidi --> businessync & common
+  config --> common
 ```
-app
-├── ui            (GUI, depends on tuner)
-├── composition   (domain model, depends on intonation + tuner)
-├── format        (JSON/file I/O, depends on composition + rig + tuner)
-├── rig           (setup of per-instrument MIDI tracks, depends on tuner)
-├── tuner         (MIDI tuning, depends on sc-midi + businessync)
-├── sc-midi       (Scala-idiomatic MIDI API; Java Sound confined to its javamidi package, depends on businessync)
-├── intonation    (interval math, no application deps)
-├── businessync   (event bus + threading, no application deps)
-├── common        (shared utilities)
-└── config        (HOCON config, depends on common)
-```
-
-`cli` is a separate executable (a utility tool, e.g. listing MIDI devices) that depends only on `sc-midi`;
-`experiments` is a separate executable for ad-hoc research studies that depends on `intonation`.
-
-## Packages
-
-Each module's SBT project ID (equal to its base directory name by build convention; see
-[`../development/build.md`](../development/build.md)) and root package:
-
-| SBT project / directory | Root package |
-| ----------------------- | ------------ |
-| `app` | `org.calinburloiu.music.microtonalist` |
-| `cli` | `org.calinburloiu.music.microtonalist.cli` |
-| `ui` | `org.calinburloiu.music.microtonalist.ui` |
-| `common` | `org.calinburloiu.music.microtonalist.common` |
-| `composition` | `org.calinburloiu.music.microtonalist.composition` |
-| `config` | `org.calinburloiu.music.microtonalist.config` |
-| `tuner` | `org.calinburloiu.music.microtonalist.tuner` |
-| `rig` | `org.calinburloiu.music.microtonalist.rig` |
-| `format` | `org.calinburloiu.music.microtonalist.format` |
-| `businessync` | `org.calinburloiu.businessync` |
-| `intonation` | `org.calinburloiu.music.intonation` |
-| `sc-midi` | `org.calinburloiu.music.scmidi` |
-| `experiments` | `org.calinburloiu.music.microtonalist.experiments` |

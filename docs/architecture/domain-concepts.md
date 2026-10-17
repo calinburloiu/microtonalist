@@ -1,8 +1,8 @@
 # Key domain concepts
 
 The core domain vocabulary of Microtonalist, grouped by the module that owns each type. This is the high-level model the
-rest of the architecture docs assume; each module's own architecture doc, `<module>/docs/ARCHITECTURE.md`, goes deeper
-(including the concrete implementations of each Plugin family).
+rest of the architecture docs assume; each module's own architecture doc, `<group>/<module>/docs/ARCHITECTURE.md`, goes
+deeper (including the concrete implementations of each Plugin family).
 
 **Intonation (`intonation` module, `org.calinburloiu.music.intonation`):**
 

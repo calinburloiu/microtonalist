@@ -1,3 +1,3 @@
-# `rig` module
+# `rig` module group
 
-@docs/ARCHITECTURE.md
+@README.md

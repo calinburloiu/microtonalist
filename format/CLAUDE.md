@@ -1,3 +1,3 @@
-# `format` module
+# `format` module group
 
-@docs/ARCHITECTURE.md
+@README.md

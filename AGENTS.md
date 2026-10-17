@@ -17,8 +17,8 @@ Scala 3 and is built by using sbt 1.
   sbt only when it is unavailable (see [`docs/development/build.md`](docs/development/build.md)).
 - Before writing code, create a task to explore the architecture: read the always-loaded overviews imported in the
   [Architecture](#architecture) section plus the architecture documents strictly relevant to the prompt — typically the
-  `$MODULE/docs/ARCHITECTURE.md` of each module you will touch and its immediate collaborators. That section explains
-  how the architecture documents are organized.
+  `$GROUP/$MODULE/docs/ARCHITECTURE.md` of each module you will touch and its immediate collaborators. That section
+  explains how the architecture documents are organized.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
       no logic) to get them to compile. A stub may leave constructor parameters unused; that warning is allowed until
@@ -35,7 +35,8 @@ Scala 3 and is built by using sbt 1.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts, following the documentation conventions. When the change affects an
-      architecture document, under `docs/architecture/` or `$MODULE/docs/`, invoke the `architecture-docs` skill.
+      architecture document, under `docs/architecture/` or `$GROUP/$MODULE/docs/`, invoke the `architecture-docs`
+      skill.
     - **Lint**. Run `sbtn fixLint`, which applies the scalafix autofixes and formats the code (`sbtn fix`), then runs
       CI's check (`sbtn lint`). Fix what it reports by hand, and repeat until it passes.
 - If the user did not mention an issue for the work, ask if creating a new issue is necessary (use the `contributing`
@@ -61,22 +62,31 @@ already implemented functionality. Use the read docs functionality to understand
 ## Symbol tool targets
 
 `mcp__metals__glob-search` and `mcp__metals__typed-glob-search` search the whole workspace. The other symbol tools
-resolve the symbol on one build target and, without one or with one that lacks the symbol, silently return an empty
-result or "not found" (`mcp__metals__get-source` may even return an unrelated file):
+resolve the symbol on one build target. Without one, or with one that lacks the symbol, they fail silently: an empty
+result, "not found", or the result for something else, such as the enclosing package (`mcp__metals__get-docs`,
+`mcp__metals__get-usages`) or an unrelated file (`mcp__metals__get-source`):
 
-- `mcp__metals__get-usages`, `mcp__metals__get-docs`, and `mcp__metals__get-source` take the target as `module`: the
-  owning module, derived from the symbol's package with the "Packages" table in
-  [`docs/architecture/module-overview.md`](docs/architecture/module-overview.md). Use `<module>-test` for code under
-  `src/test/scala`, and a module that depends on the library for a dependency's symbol. Check the name against
-  `mcp__metals__list-modules` (once per session), since an unknown name is silently ignored.
+- `mcp__metals__get-usages`, `mcp__metals__get-docs`, and `mcp__metals__get-source` take the target as `module`, which
+  must have the symbol on its classpath; `mcp__metals__get-usages` then searches the whole workspace. Pick it by where
+  the symbol lives:
+    * Production code: `app`, which depends on every module except `cli`, `experiments` and the test-utility modules;
+      use those for their own symbols. `root` only aggregates the modules, so it resolves nothing.
+    * Code under `src/test/scala`: `<module>-test` of the owning module, which the module table of its group's
+      `$GROUP/README.md` gives for the symbol's package. No other target sees a module's tests.
+    * A library's symbol: a module that depends on the library.
+
+  Check the name against `mcp__metals__list-modules` (once per session), since an unknown name is silently ignored.
 - `mcp__metals__inspect` needs a `fileInFocus` instead; see
   [`docs/agents/metals-mcp-inspect-workaround.md`](docs/agents/metals-mcp-inspect-workaround.md).
 
 # Build
 
-Built with **SBT 1, Scala 3, and Java 25**. The repo is split into multiple SBT projects (we call them modules), all in
-the repo root: `root` aggregates them all, `app` is the executable application, and `cli` is a utility tool (e.g.
-listing available MIDI devices). See `build.sbt` and [`docs/development/build.md`](docs/development/build.md).
+Built with **SBT 1, Scala 3, and Java 25**. The repo is split into multiple SBT projects (we call them modules), each in
+`$GROUP/$MODULE/`, where `$GROUP/` is its *module group*: a folder that holds the modules of one area.
+[`module-overview.md`](docs/architecture/module-overview.md) lists the groups, and each `$GROUP/README.md` the modules
+of its group. `root`, at the repo root, aggregates them all, `app` is the executable application, and `cli` is a
+utility tool (e.g. listing available MIDI devices). See `build.sbt` and
+[`docs/development/build.md`](docs/development/build.md).
 
 ## sbt invocations: prefer the BSP server via `sbtn`
 
@@ -149,21 +159,25 @@ See [`docs/development/license-headers.md`](docs/development/license-headers.md)
 
 The architecture docs are organized as follows:
 
-- **Cross-cutting documents (`docs/architecture/`)** — documents that span modules. The shared overview documents
+- **Cross-cutting documents (`docs/architecture/`)** — documents that span module groups. The shared overview documents
   among them are the single source of truth for the cross-cutting basics, imported here and linked from the
   human-facing index:
     * @docs/architecture/module-overview.md
     * @docs/architecture/domain-concepts.md
     * @docs/architecture/data-flow.md
-- **Per-module deep dives (`$MODULE/docs/ARCHITECTURE.md`)** — one document per module (an architecture document
-  covering responsibility, key types, flows, and module-specific concerns). Each module's `$MODULE/CLAUDE.md`
-  `@import`s its document, so when you work inside a module that detail loads automatically. To read another module's
-  architecture without editing in it, open its `$MODULE/docs/ARCHITECTURE.md` directly. The module's `README.md` only
-  links to it, for human readers browsing the module on GitHub.
+- **Per-group indexes (`$GROUP/README.md`)** — one per module group: its area and every module in it, with a
+  one-line description and its root package. `$GROUP/CLAUDE.md` `@import`s it, so it loads when you work inside the
+  group; read another group's README directly. A doc that spans only the modules of one group goes in `$GROUP/docs/`.
+- **Per-module deep dives (`$GROUP/$MODULE/docs/ARCHITECTURE.md`)** — one document per module (an architecture
+  document covering responsibility, key types, flows, and module-specific concerns). Each module's
+  `$GROUP/$MODULE/CLAUDE.md` `@import`s its document, so when you work inside a module that detail loads
+  automatically. To read another module's architecture without editing in it, open its
+  `$GROUP/$MODULE/docs/ARCHITECTURE.md` directly. The module's `README.md` only links to it, for human readers
+  browsing the module on GitHub.
 - **Per-topic documents** — some modules carry focused topic docs next to their architecture document, in
-  `$MODULE/docs/`, e.g. [`tuner/docs/mpe-tuner.md`](tuner/docs/mpe-tuner.md) for the MPE Tuner.
-- **Human-facing index (`docs/architecture/README.md`)** — the same material framed for human readers, with a table
-  linking each module's document.
+  `$GROUP/$MODULE/docs/`, e.g. [`tuner/tuner/docs/mpe-tuner.md`](tuner/tuner/docs/mpe-tuner.md) for the MPE Tuner.
+- **Human-facing index (`docs/architecture/README.md`)** — the same material framed for human readers, linking the
+  module groups.
 
 **Before coding**, identify which architecture documents are strictly relevant to the task (this overview plus the
 architecture documents of the module(s) you will touch and their immediate collaborators) and read them. Architecture

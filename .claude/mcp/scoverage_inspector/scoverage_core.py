@@ -18,11 +18,11 @@ No MCP, no argparse — just importable, unit-testable functions returning
 dataclasses. The MCP server (`server.py`) and the human/CI CLI (`cli.py`) are
 thin wrappers over this module.
 
-This module relies on the build convention that an sbt module's ID equals its base
-directory name (`build.sbt` enforces this with `.withId(<dir>)`). That means a module
-ID *is* its source directory, so no `build.sbt` parsing is needed: scoverage reports
-live at `coverage-reports/<id>/...` (sbt's `thisProject.value.id`) and sources at
-`<id>/src/...`.
+This module relies on the build convention that an sbt module's ID equals the name of
+its folder, which sits in its module group's folder (`build.sbt` enforces this with
+`.withId(<dir>)`). That means a module ID finds its source directory, so no `build.sbt`
+parsing is needed: scoverage reports live at `coverage-reports/<id>/...` (sbt's
+`thisProject.value.id`) and sources at `<group>/<id>/src/...`.
 
 Responsibilities:
 
@@ -146,16 +146,16 @@ def repo_root_default() -> Path:
 
 
 def _module_dirs(root: Path) -> list[str]:
-    """Every module's base directory, i.e. each top-level dir containing a `src/`.
+    """Every module's directory relative to `root`, i.e. each `<group>/<id>` containing a `src/`.
 
-    Relies on the build convention that an sbt module's ID equals its base directory
-    name (`build.sbt` enforces this with `.withId(<dir>)`), so a module ID *is* its
-    source directory — no `build.sbt` parsing is needed. Used to scope the aggregate
-    freshness check across all modules.
+    Relies on the build convention that every module sits in its module group's folder, in a
+    directory named after its sbt module ID (`build.sbt` enforces this with
+    `.withId(<dir>)`), so a module ID finds its source directory — no `build.sbt`
+    parsing is needed.
     """
     if not root.is_dir():
         return []
-    return sorted(d.name for d in root.iterdir() if (d / "src").is_dir())
+    return sorted(src.parent.relative_to(root).as_posix() for src in root.glob("*/*/src") if src.is_dir())
 
 
 def report_xml_path(root: Path, module_id: str, aggregate: bool = False) -> Path:
@@ -218,10 +218,10 @@ def freshness(
     """Return whether the report for `module_id` is FRESH, STALE, or MISSING.
 
     Per-module mode compares the report mtime against the newest `.scala` (and
-    directory) under the module's `src/{main,test}/scala`. Because the sbt module ID
-    equals its base directory name by build convention, the module ID *is* the source
-    directory — no `build.sbt` lookup is needed. Aggregate mode compares the root
-    report against the newest source across every module directory. Directory mtimes
+    directory) under the module's `<group>/<id>/src/{main,test}/scala`. Because the
+    sbt module ID equals the name of its folder by build convention, the module ID
+    finds the source directory — no `build.sbt` lookup is needed. Aggregate mode
+    compares the root report against the newest source across every module directory. Directory mtimes
     are included so that deleting or moving out a source/test file — which lowers
     coverage but leaves no newer file behind — is still detected as stale (see
     `_newest_scala_mtime`).
@@ -232,7 +232,9 @@ def freshness(
     if not xml.exists():
         return Freshness.MISSING
 
-    directories = _module_dirs(root) if aggregate else [module_id]
+    directories = _module_dirs(root)
+    if not aggregate:
+        directories = [directory for directory in directories if Path(directory).name == module_id]
     newest_source = _newest_source_mtime(root, directories)
     if newest_source > xml.stat().st_mtime:
         return Freshness.STALE
@@ -437,7 +439,7 @@ def module_summary(
     Per-module mode reads `coverage-reports/<module_id>/` and includes every class.
     Aggregate mode reads `coverage-reports/root/` and filters to classes whose source
     lives under the module's directory (unless `module_id` is the aggregate root,
-    which includes all classes). Since the module ID equals its base directory name
+    which includes all classes). Since the module ID equals the name of its folder
     by build convention, the filter keys directly off `/<module_id>/src/`.
     """
     root = Path(root)

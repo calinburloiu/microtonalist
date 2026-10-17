@@ -1,3 +1,3 @@
-# `ui` module
+# `ui` module group
 
-@docs/ARCHITECTURE.md
+@README.md

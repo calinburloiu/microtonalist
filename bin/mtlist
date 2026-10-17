@@ -19,7 +19,7 @@
 SCRIPT_PATH="$( cd "$( dirname "$(readlink -f "${BASH_SOURCE[0]}")" )" && pwd )"
 # The Scala version is part of the JAR's path; build.sbt reads it from the same file.
 SCALA_VERSION="$(< "${SCRIPT_PATH}/../project/scala-version")"
-JAR="${SCRIPT_PATH}/../app/target/scala-${SCALA_VERSION}/microtonalist-app.jar"
+JAR="${SCRIPT_PATH}/../app/app/target/scala-${SCALA_VERSION}/microtonalist-app.jar"
 
 java -jar "$JAR" "$@"
 

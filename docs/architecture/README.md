@@ -1,8 +1,7 @@
 # Architecture
 
-This directory documents what spans modules and indexes the architecture doc of each module,
-`<module>/docs/ARCHITECTURE.md`; see the [`architecture-docs` skill](../../.claude/skills/architecture-docs/SKILL.md)
-for where each kind of doc lives.
+This directory documents what spans module groups; see the
+[`architecture-docs` skill](../../.claude/skills/architecture-docs/SKILL.md) for where each kind of doc lives.
 
 Start with the cross-cutting overview below, then follow the module index into whichever module(s) a task touches. The
 three overview documents are the single source of truth for the basics; coding agents get them always-loaded because
@@ -16,34 +15,19 @@ Those notes are forward-looking; the surrounding text describes the code as it i
 
 ## Architecture overview
 
-- [`module-overview.md`](module-overview.md) — the layered module structure and dependency graph.
+- [`module-overview.md`](module-overview.md) — the module groups, the main modules and their dependencies.
 - [`domain-concepts.md`](domain-concepts.md) — the key domain types (intervals, scales, compositions, tunings, tuners)
   and the plugin pattern, grouped by module.
 - [`data-flow.md`](data-flow.md) — how a composition file becomes tuning MIDI messages, end to end.
 
 ## Module index
 
-By build convention each module's SBT project ID equals its base directory name (`build.sbt` sets `.withId(<dir>)`), so
-a module's doc is at `<id>/docs/ARCHITECTURE.md`.
-
-| Module | Architecture doc |
-| ------ | ---------------- |
-| `app` | [app/docs/ARCHITECTURE.md](../../app/docs/ARCHITECTURE.md) |
-| `config` | [config/docs/ARCHITECTURE.md](../../config/docs/ARCHITECTURE.md) |
-| `cli` | [cli/docs/ARCHITECTURE.md](../../cli/docs/ARCHITECTURE.md) |
-| `ui` | [ui/docs/ARCHITECTURE.md](../../ui/docs/ARCHITECTURE.md) |
-| `common` | [common/docs/ARCHITECTURE.md](../../common/docs/ARCHITECTURE.md) |
-| `businessync` | [businessync/docs/ARCHITECTURE.md](../../businessync/docs/ARCHITECTURE.md) |
-| `composition` | [composition/docs/ARCHITECTURE.md](../../composition/docs/ARCHITECTURE.md) |
-| `tuner` | [tuner/docs/ARCHITECTURE.md](../../tuner/docs/ARCHITECTURE.md) |
-| `rig` | [rig/docs/ARCHITECTURE.md](../../rig/docs/ARCHITECTURE.md) |
-| `format` | [format/docs/ARCHITECTURE.md](../../format/docs/ARCHITECTURE.md) |
-| `intonation` | [intonation/docs/ARCHITECTURE.md](../../intonation/docs/ARCHITECTURE.md) |
-| `sc-midi` | [sc-midi/docs/ARCHITECTURE.md](../../sc-midi/docs/ARCHITECTURE.md) |
-| `experiments` | [experiments/docs/ARCHITECTURE.md](../../experiments/docs/ARCHITECTURE.md) |
+The [*Module groups*](module-overview.md#module-groups) table of the module overview links the `README.md` of each
+module group, which lists the group's modules and links the architecture doc of each,
+`<group>/<module>/docs/ARCHITECTURE.md`.
 
 ## Other architecture material
 
 - [`midi-device-lifecycle.md`](midi-device-lifecycle.md) — the *available*/*unavailable*, *open*/*closed* and
   *attached*/*detached* vocabulary of a MIDI device and of a track input/output, and how the three relate.
-- [`tuner/docs/mpe-tuner-paper.md`](../../tuner/docs/mpe-tuner-paper.md) — MPE tuner design paper.
+- [`tuner/tuner/docs/mpe-tuner-paper.md`](../../tuner/tuner/docs/mpe-tuner-paper.md) — MPE tuner design paper.

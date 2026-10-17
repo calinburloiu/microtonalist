@@ -2,8 +2,9 @@
 name: architecture-docs
 description: >-
   Use when writing, updating, splitting or reviewing an architecture document — a module's docs/ARCHITECTURE.md or a
-  topic doc next to it, or a cross-cutting doc under docs/architecture/ — including the Documentation step of a change
-  that adds, removes or reshapes a module's key types or internal flows, or that adds a module.
+  topic doc next to it, a module group's README.md, or a cross-cutting doc under docs/architecture/ — including the
+  Documentation step of a change that adds, removes or reshapes a module's key types or internal flows, or that adds,
+  moves or removes a module or a module group.
 ---
 
 # Architecture docs
@@ -16,14 +17,40 @@ details. The documentation conventions (`docs/development/doc-conventions.md`) a
 
 | Doc | Path |
 | --- | ---- |
-| A module's architecture | `<module>/docs/ARCHITECTURE.md` |
-| A topic or paper of one module | `<module>/docs/<topic>.md` |
-| A doc that spans modules | `docs/architecture/<topic>.md` |
+| A module group's index | `<group>/README.md` |
+| A module's architecture | `<group>/<module>/docs/ARCHITECTURE.md` |
+| A topic or paper of one module | `<group>/<module>/docs/<topic>.md` |
+| A doc that spans only the modules of one group | `<group>/docs/<topic>.md` |
+| A doc that spans groups | `docs/architecture/<topic>.md` |
 | The index | `docs/architecture/README.md` |
 
-Each module, save test-utility modules, also has a `README.md` for humans and a `CLAUDE.md` for agents, both a title
-and one line: the README links to `docs/ARCHITECTURE.md`, and `CLAUDE.md` `@import`s it. Keep content out of both. A
-new module gets all three files, like the other modules, and a row in the index's *Module index*.
+Each module, save test-utility modules, also has a `README.md` for humans and a `CLAUDE.md` for agents. The README holds
+a title, the module's one-line description from its group's README, and a link to `docs/ARCHITECTURE.md`; `CLAUDE.md`
+holds a title and the `@import` of that doc. Agents don't load the module's README, so the copied description costs no
+context. Keep any other architecture-related content out of both.
+
+## Module groups
+
+A module group's `README.md` orients a reader in the group: a human browsing it on GitHub, or an agent, through the
+group's `CLAUDE.md`, which holds a title and `@README.md`. Under the title `` # `<group>` module group ``, the README
+has:
+
+1. one sentence on the group's area;
+2. a table of every module in the group: its name, linked to its `ARCHITECTURE.md`, a one-line description and its root
+   package;
+3. a Mermaid flowchart of the dependencies between its modules, when they have some worth drawing;
+4. links to the docs in the group's `docs/`, if any.
+
+It doesn't link to `module-overview.md`, which agents already have loaded.
+
+`module-overview.md` is always loaded, so it stays short as modules are added. It has a row for each group, and a row
+for each *main* module only: one that a reader needs to find their way across groups. It leaves the packages to the
+group READMEs, and draws the main modules' direct dependencies, leaving out those that others imply.
+
+When a change adds, renames, moves or removes a module, update its three files and its row in its group's README.
+A changed description goes in both its group's README and its own. For a main module, also update its row and its node
+in `module-overview.md`, and the diagram whenever a main module's dependencies change. A new group gets a `README.md`, a
+`CLAUDE.md` and a row in the *Module groups* table of `module-overview.md`.
 
 ## What goes where
 
@@ -32,7 +59,8 @@ new module gets all three files, like the other modules, and a row in the index'
 | Responsibility, key types, flows, threading, open work | the architecture doc |
 | A type's methods, parameters, edge cases and mechanics | its ScalaDoc |
 | `private` and `protected` members | the code, save in rare cases |
-| Which modules depend on which | `build.sbt` and `docs/architecture/module-overview.md` |
+| Which modules depend on which | `build.sbt`, and for the main modules `docs/architecture/module-overview.md` |
+| A module's description and root package | its group's `README.md`; the description is also copied into the module's `README.md` |
 | How the code got here | git, the PRs and the release notes |
 
 Mention a dependency only where it matters to the picture. Avoid documenting `private` and `protected` members; name
@@ -65,17 +93,18 @@ The budget is 1000 words, about two pages. Check it with the bundled script, fro
 python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py [--github] [PATH...]
 ```
 
-With no path it checks every doc under `docs/architecture/` and `<module>/docs/`. Up to 1200 words is OK; 1201–1500
-warns, compacting recommended; above 1500 is an error that fails CI, compacting required. The script is a black box:
-use `--help` for its usage, and don't read its source.
+With no path it checks every doc under `docs/architecture/`, `<group>/docs/` and `<group>/<module>/docs/`. Up to
+1200 words is OK; 1201–1500 warns, compacting recommended; above 1500 is an error that fails CI, compacting required.
+The script is a black box: use `--help` for its usage, and don't read its source.
 
 To compact a doc, in this order: rephrase; remove what ScalaDoc owns; split.
 
 ## Splitting
 
-Split a doc that is over budget and covers several capabilities. Move one capability to `<module>/docs/<topic>.md`,
-which has the same budget. The module's `ARCHITECTURE.md` keeps one sentence summarising it and a link to it.
-`docs/architecture/README.md` lists, under *Other architecture material*, only docs that span modules, and the papers.
+Split a doc that is over budget and covers several capabilities. Move one capability to
+`<group>/<module>/docs/<topic>.md`, which has the same budget. The module's `ARCHITECTURE.md` keeps one sentence
+summarising it and a link to it. `docs/architecture/README.md` lists, under *Other architecture material*, only docs
+that span groups, and the papers.
 
 ## Maintenance checklist
 
@@ -103,3 +132,4 @@ the marker.
 | Mistake | Instead |
 | ------- | ------- |
 | A new section on how a new type works: its steps, the methods it calls, its caching or concurrency | One or two lines under *Key types* giving its role, and its place in the diagram of the flow it joins. Its ScalaDoc holds the rest. |
+| A row in `module-overview.md` for a module that isn't main, or a package there | Its group's `README.md` |

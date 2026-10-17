@@ -1,3 +1,3 @@
-# `tuner` module
+# `tuner` module group
 
-@docs/ARCHITECTURE.md
+@README.md

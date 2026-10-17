@@ -47,9 +47,9 @@ def _err_runner(cmd, log_file):
 
 
 class FixtureRoot:
-    """A temp repo root with a module report and a matching source tree (id == dir)."""
+    """A temp repo root with a module report and a matching source tree (id == its dir's name)."""
 
-    def __init__(self, report_id="sc-midi", source_dir="sc-midi"):
+    def __init__(self, report_id="sc-midi", source_dir="midi/sc-midi"):
         self.root = Path(tempfile.mkdtemp())
         report = self.root / "coverage-reports" / report_id / "scoverage-report" / "scoverage.xml"
         report.parent.mkdir(parents=True, exist_ok=True)
