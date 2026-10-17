@@ -174,7 +174,7 @@ parameters. Then one task measures the coverage floors, and two document the mod
   link helper, run as `bash "$SCRATCH/doc_links.sh" <module>=<dir>…`; the warnings in `$SCRATCH/doc-links-before.txt`;
   the baseline numbers that the other tasks compare against.
 
-- [ ] **Step 1: Check the starting point**
+- [x] **Step 1: Check the starting point**
 
 ```bash
 git switch refactoring/tuner-format-modules
@@ -187,7 +187,7 @@ Expected: no output from `git status`; the log shows this plan's commit on top o
 isn't running, follow `docs/agents/dev-stack.md`. Then run `mcp__metals__list-modules`, which lists 39 build targets,
 and `mcp__metals__compile-full`: success, with only the two deprecation warnings on `TuningService.tunings`.
 
-- [ ] **Step 2: Save the link checker**
+- [x] **Step 2: Save the link checker**
 
 Step 1's plan holds a link checker that checks every relative Markdown link, `#heading` link and `@import` outside
 `issues/` and `docs/agent-evals/`. Extract it, then record the docs baseline:
@@ -202,7 +202,7 @@ python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py | wc -l
 
 Expected: `90`; `0 broken of 269 relative link(s) and import(s)`; `24` docs.
 
-- [ ] **Step 3: Record the red check of step 4**
+- [x] **Step 3: Record the red check of step 4**
 
 ```bash
 rtk proxy git ls-files tuner/tuner/src/main | sed 's#.*/##' | tr '\n' ' '; echo
@@ -211,7 +211,7 @@ rtk proxy git ls-files tuner/tuner/src/main | sed 's#.*/##' | tr '\n' ' '; echo
 Expected: 15 files, among them the 7 `Mpe*.scala`, `MtsTuner.scala`, `MtsMessageGenerator.scala` and
 `MonophonicPitchBendTuner.scala`.
 
-- [ ] **Step 4: Save the ScalaDoc link helper and record the warnings**
+- [x] **Step 4: Save the ScalaDoc link helper and record the warnings**
 
 `sbtn "<module>/doc"` is skipped, printing no warning, when its inputs and its `api/` file set match its last run. Save
 `$SCRATCH/doc_links.sh`:
@@ -244,7 +244,7 @@ cut -d: -f1 "$SCRATCH/doc-links-before.txt" | uniq -c
 
 Expected: `4 composition`, `45 format` and `5 rig`, none from `tuner`. No step fixes these 54.
 
-- [ ] **Step 5: Record the test counts**
+- [x] **Step 5: Record the test counts**
 
 ```bash
 sbtn "tuner/testOnly * -- -oNCXEHLOPQRMWS"
@@ -267,7 +267,7 @@ Then the full suite (*Tests* routine). Expected: `tuner` 500 tests in 10 suites,
 | tuners | `JsonTunerPluginFormatTest` | 33 in 1 |
 | tuning changers | `JsonTuningChangerPluginFormatTest` | 4 in 1 |
 
-- [ ] **Step 6: Record the statements that put the moved types in `format` or `tuner`**
+- [x] **Step 6: Record the statements that put the moved types in `format` or `tuner`**
 
 ```bash
 git grep -nF -e 'which `format` (de)serializes' -e '(that is `format`)' -e '`format` uses to select' \
@@ -316,7 +316,7 @@ Expected: 20 lines, in the docs of `app`, `businessync`, `common` (3), `format`,
   `tuner-mpb`; their Metals build targets `tuner-mpe`, `tuner-mpe-test`, `tuner-mts`, `tuner-mts-test`, `tuner-mpb`,
   `tuner-mpb-test`.
 
-- [ ] **Step 1: Move the files**
+- [x] **Step 1: Move the files**
 
 ```bash
 T=org/calinburloiu/music/microtonalist/tuner
@@ -340,7 +340,7 @@ rtk proxy git diff --cached -M --name-status | cut -f1 | sort | uniq -c
 
 Expected: `19 R100`.
 
-- [ ] **Step 2: Give the moved files their packages and imports**
+- [x] **Step 2: Give the moved files their packages and imports**
 
 | Files | `package` | Imports |
 | ----- | --------- | ------- |
@@ -362,7 +362,7 @@ git grep -n 'tuner/tuner/docs/mpe\|](mpe-tuner.md)' -- ':!issues/' ':!docs/agent
 
 Expected: nothing.
 
-- [ ] **Step 3: Give `tuner-mts` its copy of `TestTunings`**
+- [x] **Step 3: Give `tuner-mts` its copy of `TestTunings`**
 
 `MtsTunerTest` uses only `TestTunings.justCMaj`, and `tuner`'s `TestTunings` stays with `TunerTest`,
 `TuningServiceTest` and `TuningSessionTest`. Create `tuner/tuner-mts/src/test/scala/$T/mts/TestTunings.scala` in
@@ -370,7 +370,7 @@ Expected: nothing.
 `/** Tunings for the tests of `tuner-mts`: a trimmed copy of the `tuner` tests' `TestTunings`. */` and only `justCMaj`,
 copied from `tuner`'s, as `rig`'s copy does.
 
-- [ ] **Step 4: Point the users at the new packages**
+- [x] **Step 4: Point the users at the new packages**
 
 | File | Change |
 | ---- | ------ |
@@ -384,7 +384,7 @@ copied from `tuner`'s, as `rig`'s copy does.
 Explicit names rather than wildcards in the tests: Task 8 moves `JsonTunerPluginFormatTest` into `…tuner.format`, and a
 wildcard import of `…tuner.mpe.*` would then bring its `format` subpackage into scope too.
 
-- [ ] **Step 5: Declare the modules in `build.sbt`**
+- [x] **Step 5: Declare the modules in `build.sbt`**
 
 In `root`'s `aggregate`, add `tunerMpeModule,`, `tunerMtsModule,` and `tunerMpbModule,` after `tunerModule,`. In
 `formatModule`'s `dependsOn`, add `tunerMpbModule,`, `tunerMpeModule,` and `tunerMtsModule,` after `tunerModule,`; in
@@ -410,7 +410,7 @@ lazy val tunerMpeModule = (project in file("tuner/tuner-mpe"))
 
 `tuner` keeps `commonTestUtilsModule % Test` for `TunerTest` and `jsr305` for `Tuner` and the session.
 
-- [ ] **Step 6: Refresh and compile**
+- [x] **Step 6: Refresh and compile**
 
 *Refresh* routine, for `tuner-mpe`, cleaning `tuner`. Expected: 22 projects, the 19 of before and the three new ones;
 45 build targets, the 39 of before and the six new ones. Then:
@@ -424,24 +424,24 @@ Expected: nothing. Then run `mcp__metals__get-usages` with
 `tuner/tuner-mpe/src/` and in `format`'s `JsonMpeTunerPluginFormating` and `JsonTunerPluginFormatTest`; none under
 `tuner/tuner/`.
 
-- [ ] **Step 7: Run the red check (green) and the classpath check**
+- [x] **Step 7: Run the red check (green) and the classpath check**
 
 Rerun Task 1, step 3. Expected:
 `Tuner.scala TunerModule.scala TuningEvent.scala TuningService.scala TuningSession.scala`. Then the *Classpath* routine for `tuner-mpe tuner-mts tuner-mpb`. Expected, for each:
 `base/businessync base/common midi/sc-midi tuner/tuner tuner/tuning`.
 
-- [ ] **Step 8: Check the ScalaDoc links**
+- [x] **Step 8: Check the ScalaDoc links**
 
 *Doc links* routine, with `tuner=tuner/tuner tuner-mpe=tuner/tuner-mpe tuner-mts=tuner/tuner-mts
 tuner-mpb=tuner/tuner-mpb format=format/format rig=rig/rig composition=theory/composition`. Expected: nothing from the
 `comm`.
 
-- [ ] **Step 9: Run the tests**
+- [x] **Step 9: Run the tests**
 
 *Tests* routine, for `tuner-mpe`, `tuner-mts`, `tuner-mpb`, `tuner`, `rig` and `format`. Expected: 386 tests in 4
 suites; 24 in 2; 60 in 1; 30 in 3; 70 in 7; 218 in 23; `17 modules, 1475 tests` and no other line.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 *Commit* routine, with `git add build.sbt tuner rig format AGENTS.md docs` and the message
 `[#366/#380] Move each tuner into a module of its own`. Expected: `12 M` (`build.sbt`, two `rig` tests, five `format`
@@ -463,7 +463,7 @@ so the fix deletes the case, and `format-core` then needs no scale type.
 - Produces: `JsonPreprocessorHttpRefLoader.load` throws `JsonPreprocessorRefLoadException(uri, pathContext, …)` on a
   404, and references no type of the scales.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 In the `"load" should` group, after the two tests there, add a test against the JDK's own HTTP server, which answers
 404 to every request:
@@ -498,7 +498,7 @@ In the `"load" should` group, after the two tests there, add a test against the 
 
 It imports `com.sun.net.httpserver.HttpServer` and `java.net.InetSocketAddress`.
 
-- [ ] **Step 2: Run it to verify it fails**
+- [x] **Step 2: Run it to verify it fails**
 
 ```bash
 sbtn "format/testOnly org.calinburloiu.music.microtonalist.format.JsonPreprocessorHttpRefLoaderTest -- -oNCXEHLOPQRMWS"
@@ -507,16 +507,16 @@ sbtn "format/testOnly org.calinburloiu.music.microtonalist.format.JsonPreprocess
 Expected: 1 of 3 tests fails, because a `ScaleNotFoundException` was thrown instead of a
 `JsonPreprocessorRefLoadException`.
 
-- [ ] **Step 3: Delete the 404 case**
+- [x] **Step 3: Delete the 404 case**
 
 In `JsonPreprocessorHttpRefLoader.load`, delete the line `case 404 => throw new ScaleNotFoundException(uri)`.
 
-- [ ] **Step 4: Run the tests to verify they pass**
+- [x] **Step 4: Run the tests to verify they pass**
 
 Rerun step 2: 3 tests pass. Then the *Tests* routine for `format`. Expected: 219 tests in 23 suites;
 `17 modules, 1476 tests` and no other line.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 *Commit* routine, with `git add format` and the message
 `[#366/#380] Throw JsonPreprocessorRefLoadException when a referenced URL is not found`. Expected: `2 M`.
@@ -541,7 +541,7 @@ parameters, so that `rig-format` depends on the plugin contracts and on no plugi
   tuningChangerFormat: Format[TuningChanger], synchronousAwaitTimeout: FiniteDuration = 1 minute)`; `FormatModule`
   builds it with `JsonTunerPluginFormat.format` and `JsonTuningChangerPluginFormat.format`.
 
-- [ ] **Step 1: Pin `FormatModule`'s rig wiring**
+- [x] **Step 1: Pin `FormatModule`'s rig wiring**
 
 No test reads a rig file through `FormatModule`. This one passes today, and keeps the wiring in check through this
 task and the split. Create `format/format/src/test/resources/format/format-module.mtlist.tracks`:
@@ -584,7 +584,7 @@ sbtn "format/testOnly org.calinburloiu.music.microtonalist.format.FormatModuleIn
 
 Expected: 1 test passes.
 
-- [ ] **Step 2: Add the parameters (stub)**
+- [x] **Step 2: Add the parameters (stub)**
 
 Add `tunerFormat: Format[Tuner]` and `tuningChangerFormat: Format[TuningChanger]` to `JsonRigFormat`'s constructor,
 after `jsonPreprocessor`, unused for now (the companion still builds the formats; the unused-parameter warning is
@@ -602,7 +602,7 @@ synchronousAwaitTimeout)`, and in `JsonRigFormatTest`, `rigFormat` with
 `new JsonRigFormat(NoJsonPreprocessor, JsonTunerPluginFormat.format, JsonTuningChangerPluginFormat.format)`. Run
 `mcp__metals__compile-module` with `module = "format"`: success.
 
-- [ ] **Step 3: Write the failing tests**
+- [x] **Step 3: Write the failing tests**
 
 In `JsonRigFormatTest`, add class-level members, which ignore the plugin JSON to tell the given formats apart from the
 family formats:
@@ -647,7 +647,7 @@ and, at the end of the `"JsonRigFormat" should` group:
     }
 ```
 
-- [ ] **Step 4: Run them to verify they fail**
+- [x] **Step 4: Run them to verify they fail**
 
 ```bash
 sbtn "format/testOnly org.calinburloiu.music.microtonalist.format.JsonRigFormatTest -- -oNCXEHLOPQRMWS"
@@ -656,18 +656,18 @@ sbtn "format/testOnly org.calinburloiu.music.microtonalist.format.JsonRigFormatT
 Expected: the two new tests fail, because `JsonRigFormat` ignores the given formats: the read with an
 `InvalidRigFormatException` for the unknown types, the write with the family format's JSON instead of `"givenTuner"`.
 
-- [ ] **Step 5: Use the parameters**
+- [x] **Step 5: Use the parameters**
 
 Move `trackSpecFormat` and `rigSpecFormat` from the companion into the class, built with the two parameters as their
 implicit tuner and tuning changer formats. The companion drops its `tunerFormat` and `tuningChangerFormat`, whose names
 the parameters now take, and keeps the two track I/O formats. The methods drop their `import JsonRigFormat.…` lines.
 
-- [ ] **Step 6: Run the tests to verify they pass**
+- [x] **Step 6: Run the tests to verify they pass**
 
 Rerun step 4: all tests pass. Then the *Tests* routine for `format`. Expected: 222 tests in 24 suites;
 `17 modules, 1479 tests` and no other line.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 *Commit* routine, with `git add format` and the message
 `[#366/#380] Give JsonRigFormat the tuner and tuning changer formats`. Expected: `3 M` and `2 A`.
@@ -696,12 +696,12 @@ Rerun step 4: all tests pass. Then the *Tests* routine for `format`. Expected: 2
   `JsonPluginFormat`, `JsonCommonMidiFormat`, `MidiNoteFormat`, `PitchClassFormat`, the package object's `filePathOf`,
   `resolveBaseUriWithOverride`, `resolveLibraryUrl`, `ccNumberFormat`, and `JsonFormatTestUtils`.
 
-- [ ] **Step 1: Move the files**
+- [x] **Step 1: Move the files**
 
 Make the three directories, run the three `git mv`s of the **Files**, then
 `rtk proxy git diff --cached -M --name-status | cut -f1 | sort | uniq -c`. Expected: `19 R100`.
 
-- [ ] **Step 2: Declare the modules in `build.sbt`**
+- [x] **Step 2: Declare the modules in `build.sbt`**
 
 In `root`'s `aggregate`, add `formatCoreModule,` and `formatTestUtilsModule,` after `formatModule,`; in `formatModule`'s
 `dependsOn`, `formatCoreModule,` and `formatTestUtilsModule % Test,`. After `formatModule`'s definition, add the two
@@ -725,7 +725,7 @@ lazy val formatTestUtilsModule = (project in file("format/format-test-utils"))
 
 `scalaTest` is in `Compile` scope there, since `JsonFormatTestUtils` extends `AnyWordSpec`.
 
-- [ ] **Step 3: Refresh and compile**
+- [x] **Step 3: Refresh and compile**
 
 *Refresh* routine, for `format-core`, cleaning `format`. Expected: 24 projects; 49 build targets, with `format-core`,
 `format-core-test`, `format-test-utils` and `format-test-utils-test`. Then:
@@ -739,12 +739,12 @@ Expected: nothing. Run `mcp__metals__get-usages` with
 `fqcn = "org.calinburloiu.music.microtonalist.format.JsonPreprocessor"` and `module = "format-core"`. Expected: usages
 under `format/format-core/src/` and `format/format/src/`.
 
-- [ ] **Step 4: Run the classpath check and the tests**
+- [x] **Step 4: Run the classpath check and the tests**
 
 *Classpath* routine for `format-core`. Expected: `base/businessync base/common midi/sc-midi`. *Tests* routine for
 `format-core` and `format`. Expected: 40 tests in 5 suites; 182 in 19; `18 modules, 1479 tests`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 *Commit* routine, with `git add build.sbt format` and the message
 `[#366/#380] Move the format infrastructure into format-core and format-test-utils`. Expected: `1 M` and `19 R100`.
@@ -779,7 +779,7 @@ under `format/format-core/src/` and `format/format/src/`.
   JsonIntervalFormat, JsonIntonationStandardPluginFormat}` in the sbt project `intonation-format`
   (`lazy val intonationFormatModule`).
 
-- [ ] **Step 1: Move the files and copy the resources**
+- [x] **Step 1: Move the files and copy the resources**
 
 Make the directories and run the `git mv`s of the **Files**, then:
 
@@ -793,7 +793,7 @@ rtk proxy git diff --cached -M --name-status | cut -f1 | sort | uniq -c
 Expected: `21 R100`. `DefaultScaleRepoTest` reads the three scales, which `JsonCompositionFormatTest` and
 `JsonRigFormatTest` read too.
 
-- [ ] **Step 2: Give the moved files their package and imports**
+- [x] **Step 2: Give the moved files their package and imports**
 
 Each moved file gets `package org.calinburloiu.music.intonation.format` and these imports:
 
@@ -812,14 +812,14 @@ Each moved file gets `package org.calinburloiu.music.intonation.format` and thes
 
 The others change only their `package`. A test's `import JsonFormatTestUtils.*` resolves through the new import.
 
-- [ ] **Step 3: Split `FormatTestUtils`**
+- [x] **Step 3: Split `FormatTestUtils`**
 
 Create `theory/intonation-format/src/test/scala/$I/FormatTestUtils.scala`, in the new package, with only
 `readScaleFromResources`, moved from `format`'s `FormatTestUtils`, and the ScalaDoc
 `Utilities used for testing the scale formats.` `format`'s `FormatTestUtils` keeps the other two readers and drops the
 imports it no longer uses.
 
-- [ ] **Step 4: Point the users at the new package**
+- [x] **Step 4: Point the users at the new package**
 
 | File | Add the import |
 | ---- | -------------- |
@@ -835,14 +835,14 @@ These imports are absolute, so they stay right when Task 7 moves the composition
 leave its package: they mean the composition repos, so replace them with `[[FileCompositionRepo]]` and
 `[[HttpCompositionRepo]]`.
 
-- [ ] **Step 5: Declare the module in `build.sbt`**
+- [x] **Step 5: Declare the module in `build.sbt`**
 
 In `root`'s `aggregate`, add `intonationFormatModule,` after `intonationModule,`; in `formatModule`'s `dependsOn`,
 `intonationFormatModule,`. After `intonationModule`'s definition, add the module of the Global Constraints' table, with
 `name := "microtonalist-intonation-format"`: it depends on `format-core`, so it isn't part of the standalone
 `intonation` library.
 
-- [ ] **Step 6: Refresh and compile**
+- [x] **Step 6: Refresh and compile**
 
 *Refresh* routine, for `intonation-format`, cleaning `format`. Expected: 25 projects; 51 build targets. Then:
 
@@ -854,14 +854,14 @@ Expected: nothing. Run `mcp__metals__get-usages` with `fqcn = "org.calinburloiu.
 and `module = "intonation-format"`. Expected: usages under `theory/intonation-format/src/` and in `format`'s
 `CompositionRepr`, `JsonCompositionFormat` and `FormatModule`.
 
-- [ ] **Step 7: Run the classpath check and the tests**
+- [x] **Step 7: Run the classpath check and the tests**
 
 *Classpath* routine for `intonation-format`. Expected:
 `base/businessync base/common format/format-core midi/sc-midi theory/intonation`: no `composition`, `rig` or `tuner`.
 *Tests* routine for `intonation-format` and `format`. Expected: 73 tests in 7 suites; 109 in 12;
 `19 modules, 1479 tests`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 *Commit* routine, with `git add build.sbt format theory` and the message
 `[#366/#380] Move the scale formats into intonation-format`. Expected: `8 M` (`build.sbt` and seven `format` files),
@@ -899,7 +899,7 @@ with the compositions, as test data of the module.
   HttpCompositionRepo, JsonCompositionFormat, …}` in the sbt project `composition-format`
   (`lazy val compositionFormatModule`).
 
-- [ ] **Step 1: Move the files and copy the resources**
+- [x] **Step 1: Move the files and copy the resources**
 
 ```bash
 C=theory/composition-format/src/test/resources/format
@@ -916,7 +916,7 @@ Expected: the `ls-files` lists `scales/chromatic.scl`, `scales/minor-just.jscl`,
 `format-module.mtlist.tracks`. Then make the Scala directories, run the `git mv`s of the Scala files and
 `rtk proxy git diff --cached -M --name-status | cut -f1 | sort | uniq -c`. Expected: `43 R100`.
 
-- [ ] **Step 2: Give the moved files their package and imports**
+- [x] **Step 2: Give the moved files their package and imports**
 
 Each moved file gets `package org.calinburloiu.music.microtonalist.composition.format` and these imports:
 
@@ -936,7 +936,7 @@ Each moved file gets `package org.calinburloiu.music.microtonalist.composition.f
 `CompositionFormat`, `CompositionRepo` and `KeyboardMappingFormat` change only their `package`; the explicit imports of
 `…format.JsonConstraints.exclusiveMin` and `…format.PitchClassFormat.InvalidPitchClassError` stay right.
 
-- [ ] **Step 3: Split `FormatTestUtils`**
+- [x] **Step 3: Split `FormatTestUtils`**
 
 Create `theory/composition-format/src/test/scala/$C/FormatTestUtils.scala`, in the new package, with only
 `readCompositionFromResources`, moved from `format`'s `FormatTestUtils`, and the ScalaDoc
@@ -944,18 +944,18 @@ Create `theory/composition-format/src/test/scala/$C/FormatTestUtils.scala`, in t
 `import FormatTestUtils.readCompositionFromResources` finds it in its package. `format`'s `FormatTestUtils` keeps
 `readRigFromResources` and drops the imports it no longer uses.
 
-- [ ] **Step 4: Point `FormatModule` at the new package**
+- [x] **Step 4: Point `FormatModule` at the new package**
 
 Add `…composition.format.{CompositionFormat, CompositionRepo, DefaultCompositionRepo, FileCompositionRepo,
 HttpCompositionRepo, JsonCompositionFormat}` to `FormatModule`'s imports.
 
-- [ ] **Step 5: Declare the module in `build.sbt`**
+- [x] **Step 5: Declare the module in `build.sbt`**
 
 In `root`'s `aggregate`, add `compositionFormatModule,` after `compositionModule,`; in `formatModule`'s `dependsOn`,
 `compositionFormatModule,`. After `compositionModule`'s definition, add the module of the Global Constraints' table:
 `JsonCompositionFormatTest` builds a `Businessync`, hence `businessyncModule % Test`.
 
-- [ ] **Step 6: Refresh and compile**
+- [x] **Step 6: Refresh and compile**
 
 *Refresh* routine, for `composition-format`, cleaning `format`. Expected: 26 projects; 53 build targets. Then:
 
@@ -969,13 +969,13 @@ Expected: nothing. Run `mcp__metals__get-usages` with
 `fqcn = "org.calinburloiu.music.microtonalist.composition.format.CompositionRepo"` and `module = "composition-format"`.
 Expected: usages under `theory/composition-format/src/` and in `format`'s `FormatModule`.
 
-- [ ] **Step 7: Run the classpath check and the tests**
+- [x] **Step 7: Run the classpath check and the tests**
 
 *Classpath* routine for `composition-format`. Expected: `base/businessync base/common format/format-core midi/sc-midi
 theory/composition theory/intonation theory/intonation-format tuner/tuning`. *Tests* routine for `composition-format`
 and `format`. Expected: 50 tests in 6 suites; 59 in 6; `20 modules, 1479 tests`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 *Commit* routine, with `git add build.sbt format theory` and the message
 `[#366/#380] Move the composition formats into composition-format`. Expected: `3 M` (`build.sbt`, `FormatModule`,
@@ -1009,12 +1009,12 @@ the family format and the pedal changer's format, as `JsonTunerPluginFormat` gat
   `…tuner.changer.pedal.format.JsonPedalTuningChangerPluginFormating` (`ccTriggersFormat`, `pedalTuningChangerFormat`,
   `spec: TypeSpec[PedalTuningChanger]`) in `tuning-changer-format` (`lazy val tuningChangerFormatModule`).
 
-- [ ] **Step 1: Move the files**
+- [x] **Step 1: Move the files**
 
 Make the directories, run the `git mv`s of the **Files**, then
 `rtk proxy git diff --cached -M --name-status | cut -f1 | sort | uniq -c`. Expected: `7 R100`.
 
-- [ ] **Step 2: Give the tuner formats their packages and imports**
+- [x] **Step 2: Give the tuner formats their packages and imports**
 
 | File | `package` | Imports and ScalaDoc |
 | ---- | --------- | -------------------- |
@@ -1027,7 +1027,7 @@ Make the directories, run the `git mv`s of the **Files**, then
 In the three `*Formating.scala`, `@see [[JsonTunerPluginFormat]]` becomes
 `@see [[org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat]]`, whose package is no longer theirs.
 
-- [ ] **Step 3: Split `JsonTuningChangerPluginFormat`**
+- [x] **Step 3: Split `JsonTuningChangerPluginFormat`**
 
 `JsonPedalTuningChangerPluginFormating`, in `…tuner.changer.pedal.format`, takes from `JsonTuningChangerPluginFormat`,
 unchanged, the index triggers' reads and writes (private), `ccTriggersFormat`, the implicit
@@ -1055,18 +1055,18 @@ It imports `…format.ccNumberFormat` and `…format.JsonPluginFormat.TypeSpec`.
 tuning changer.` `JsonTuningChangerPluginFormatTest`, in `…tuner.changer.format`, adds `…format.JsonFormatTestUtils`
 and still tests the pedal changer through the family format.
 
-- [ ] **Step 4: Point the users at the new packages**
+- [x] **Step 4: Point the users at the new packages**
 
 Add `…tuner.format.JsonTunerPluginFormat` and `…tuner.changer.format.JsonTuningChangerPluginFormat` to the imports of
 `FormatModule.scala` and `JsonRigFormatTest.scala`.
 
-- [ ] **Step 5: Declare the modules in `build.sbt`**
+- [x] **Step 5: Declare the modules in `build.sbt`**
 
 In `root`'s `aggregate`, add `tunerFormatModule,` after `tunerMpbModule,` and `tuningChangerFormatModule,` after
 `tuningChangerPedalModule,`; in `formatModule`'s `dependsOn`, `tunerFormatModule,` and `tuningChangerFormatModule,`.
 After `tunerMpbModule`'s and `tuningChangerPedalModule`'s definitions, add the modules of the Global Constraints' table.
 
-- [ ] **Step 6: Refresh and compile**
+- [x] **Step 6: Refresh and compile**
 
 *Refresh* routine, for `tuner-format`, cleaning `format`. Expected: 28 projects; 57 build targets. Then:
 
@@ -1079,7 +1079,7 @@ Expected: nothing. Run `mcp__metals__get-usages` with
 `fqcn = "org.calinburloiu.music.microtonalist.tuner.format.JsonTunerPluginFormat"` and `module = "tuner-format"`.
 Expected: usages under `tuner/tuner-format/src/` and in `format`'s `FormatModule` and `JsonRigFormatTest`.
 
-- [ ] **Step 7: Run the classpath check and the tests**
+- [x] **Step 7: Run the classpath check and the tests**
 
 *Classpath* routine for `tuner-format tuning-changer-format`. Expected:
 
@@ -1091,7 +1091,7 @@ tuning-changer-format: base/businessync base/common format/format-core midi/sc-m
 *Tests* routine for `tuner-format`, `tuning-changer-format` and `format`. Expected: 33 tests in 1 suite; 4 in 1; 22 in
 4; `22 modules, 1479 tests`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 *Commit* routine, with `git add build.sbt format tuner` and the message
 `[#366/#380] Move the plugin family formats into tuner-format and tuning-changer-format`. Expected: `3 M`, `1 A` and 7
@@ -1120,7 +1120,7 @@ Task 7):
   JsonTrackInputSpecPluginFormat, JsonTrackOutputSpecPluginFormat}` in the sbt project `rig-format`
   (`lazy val rigFormatModule`); `format`'s final `dependsOn`.
 
-- [ ] **Step 1: Move the files**
+- [x] **Step 1: Move the files**
 
 Make the directories and run the `git mv`s of the **Files**, then:
 
@@ -1131,7 +1131,7 @@ rtk proxy git diff --cached -M --name-status | cut -f1 | sort | uniq -c
 
 Expected: `FormatModule.scala`, `FormatModuleIntegrationTest.scala` and `format-module.mtlist.tracks`; `15 R100`.
 
-- [ ] **Step 2: Give the moved files their package and imports**
+- [x] **Step 2: Give the moved files their package and imports**
 
 Each moved file gets `package org.calinburloiu.music.microtonalist.rig.format` and these imports:
 
@@ -1149,12 +1149,12 @@ Each moved file gets `package org.calinburloiu.music.microtonalist.rig.format` a
 
 `RigFormat` changes only its `package`.
 
-- [ ] **Step 3: Point `FormatModule` at the new package**
+- [x] **Step 3: Point `FormatModule` at the new package**
 
 Add `…rig.format.{DefaultRigRepo, FileRigRepo, HttpRigRepo, JsonRigFormat, LibraryRigRepo, RigFormat}` to
 `FormatModule`'s imports.
 
-- [ ] **Step 4: Declare the module and `format`'s final dependencies in `build.sbt`**
+- [x] **Step 4: Declare the module and `format`'s final dependencies in `build.sbt`**
 
 In `root`'s `aggregate`, add `rigFormatModule,` after `rigModule,`. After `rigModule`'s definition, add the module of
 the Global Constraints' table. Give `formatModule` the `dependsOn` of the Global Constraints, without
@@ -1162,7 +1162,7 @@ the Global Constraints' table. Give `formatModule` the `dependsOn` of the Global
 `MtsOctave1ByteNonRealTimeTuner`, `PedalTuningChanger` and `CommonTestUtils`, hence the three `Test` dependencies. Its
 `coverageSettings` stay until Task 10.
 
-- [ ] **Step 5: Refresh and compile**
+- [x] **Step 5: Refresh and compile**
 
 *Refresh* routine, for `rig-format`, cleaning `format`. Expected: 29 projects; 59 build targets. Then:
 
@@ -1174,7 +1174,7 @@ Expected: only `FormatModule*.class` and `FormatModuleIntegrationTest*.class`. R
 `fqcn = "org.calinburloiu.music.microtonalist.rig.format.RigFormat"` and `module = "rig-format"`. Expected: usages
 under `rig/rig-format/src/` and in `format`'s `FormatModule`.
 
-- [ ] **Step 6: Run the *Done when* criteria of step 5**
+- [x] **Step 6: Run the *Done when* criteria of step 5**
 
 *Classpath* routine for `rig-format format-core intonation-format`, then:
 
@@ -1191,7 +1191,7 @@ intonation-format: base/businessync base/common format/format-core midi/sc-midi 
 microtonalist-format
 ```
 
-- [ ] **Step 7: Check the ScalaDoc links**
+- [x] **Step 7: Check the ScalaDoc links**
 
 *Doc links* routine, with `tuner=tuner/tuner tuner-mpe=tuner/tuner-mpe tuner-mts=tuner/tuner-mts
 tuner-mpb=tuner/tuner-mpb format=format/format format-core=format/format-core
@@ -1199,11 +1199,11 @@ intonation-format=theory/intonation-format composition-format=theory/composition
 tuner-format=tuner/tuner-format tuning-changer-format=tuner/tuning-changer-format rig=rig/rig
 composition=theory/composition`. Expected: nothing from the `comm`.
 
-- [ ] **Step 8: Run the tests**
+- [x] **Step 8: Run the tests**
 
 *Tests* routine for `rig-format` and `format`. Expected: 21 tests in 3 suites; 1 in 1; `23 modules, 1479 tests`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 *Commit* routine, with `git add build.sbt format rig` and the message
 `[#366/#380] Move the rig formats into rig-format`. Expected: `2 M` (`build.sbt`, `FormatModule`), 5 resource renames
@@ -1221,7 +1221,7 @@ composition=theory/composition`. Expected: nothing from the `comm`.
 - Produces: each module's floor; #179 retitled to the format modules; a coverage issue for each tuner module below
   80/80.
 
-- [ ] **Step 1: Measure**
+- [x] **Step 1: Measure**
 
 Invoke the `scoverage-inspector` skill. The coverage scripts don't work through `sbtn`, and take a few minutes:
 
@@ -1239,7 +1239,7 @@ or more for both, the MPE and Monophonic Pitch Bend classes being near 98%; `tun
 modules can't be predicted: their classes lose the coverage that the tests of the other format modules gave them, e.g.
 `DefaultRepoSelector`, which the repos' tests cover, and the `Http*Repo`s are at 0%.
 
-- [ ] **Step 2: Set the floors**
+- [x] **Step 2: Set the floors**
 
 For each module, as the Global Constraints say: `coverageSettings(stmt = 80, branch = 80)` if it reaches 80% for both,
 otherwise its measured coverage minus 3, rounded down, for each number, under the line
@@ -1247,7 +1247,7 @@ otherwise its measured coverage minus 3, rounded down, for each number, under th
 module or `tuner` (step 4). `format`'s line stays. Then rerun step 1's first command. Expected: every module passes its
 floor.
 
-- [ ] **Step 3: Update #179**
+- [x] **Step 3: Update #179**
 
 With the GitHub MCP's `issue_write` (method `update`), retitle #179 `Improve test coverage for the format modules to
 80%` and give it the body, listing with step 1's numbers each format module below 80% for either:
@@ -1263,7 +1263,7 @@ The format modules below are under the 80% coverage target. #380 split them out 
 The configured threshold of each module is set to its current coverage minus a 3% buffer. As coverage improves, the thresholds in `build.sbt` should be raised toward 80%.
 ```
 
-- [ ] **Step 4: Open the tuner modules' coverage issues, if any**
+- [x] **Step 4: Open the tuner modules' coverage issues, if any**
 
 Only for a tuner module or `tuner` below 80% for either, modelled on #377, with step 1's numbers:
 
@@ -1285,7 +1285,7 @@ EOF
 
 Its number goes in the module's `// TODO #<n>` line of step 2.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 *Commit* routine, with `git add build.sbt` and the message `[#366/#380] Set the coverage floors of the new modules`.
 Expected: `1 M`.
@@ -1306,12 +1306,12 @@ Expected: `1 M`.
 - Consumes: the modules of Tasks 2–9; Task 1's link checker.
 - Produces: the docs that Task 12's links and index rows point at.
 
-- [ ] **Step 1: Invoke the `architecture-docs` skill**
+- [x] **Step 1: Invoke the `architecture-docs` skill**
 
 `AGENTS.md` asks for it when a change adds a module. Its maintenance checklist applies to `tuner`'s and `format`'s
 docs, which split. `format`'s doc, which carries a `TODO #360` for not following the conventions, is rewritten to them.
 
-- [ ] **Step 2: Create the README and CLAUDE files**
+- [x] **Step 2: Create the README and CLAUDE files**
 
 For each `<group>/<id>` of the **Files**, `<group>/<id>/README.md`:
 
@@ -1329,7 +1329,7 @@ and `<group>/<id>/CLAUDE.md`:
 @docs/ARCHITECTURE.md
 ```
 
-- [ ] **Step 3: Write the tuner modules' docs**
+- [x] **Step 3: Write the tuner modules' docs**
 
 `tuner/tuner-mpe/docs/ARCHITECTURE.md`:
 
@@ -1392,7 +1392,7 @@ all input onto one output channel and plays one note at a time.
   and clamps the others, with a warning.
 ```
 
-- [ ] **Step 4: Update `tuner`'s and `tuning-changer`'s docs**
+- [x] **Step 4: Update `tuner`'s and `tuning-changer`'s docs**
 
 In `tuner/tuner/docs/ARCHITECTURE.md`, replace:
 
@@ -1438,7 +1438,7 @@ In `tuner/tuning-changer/docs/ARCHITECTURE.md`, replace ``which `format` (de)ser
 ``which [`tuning-changer-format`](../../tuning-changer-format/docs/ARCHITECTURE.md) (de)serializes by its `typeName`.``
 and rewrap the bullet at 120 columns.
 
-- [ ] **Step 5: Write the format modules' docs**
+- [x] **Step 5: Write the format modules' docs**
 
 `format/format/docs/ARCHITECTURE.md`, replacing the whole file:
 
@@ -1619,7 +1619,7 @@ it exists, e.g. `FormatModule`, `RepoSelector`, `DefaultRepoSelector`, `JsonPrep
 `NoJsonPreprocessor`, `TypeSpec`, `AlreadyRead`, `DeferredRead`, `ScaleLossyConversionEvent`, `CompositionRepr`,
 `JsonTrackInputSpecPluginFormat`, `JsonPedalTuningChangerPluginFormating`, `MpeChannelState`, `MtsMessageGenerator`.
 
-- [ ] **Step 6: Check the links, the size budget and the lines**
+- [x] **Step 6: Check the links, the size budget and the lines**
 
 ```bash
 git add tuner format theory rig
@@ -1637,7 +1637,7 @@ more in `format`'s (7 for 2 heading links), 1 in `format-core`'s, 1 in `intonati
 lists 33 docs and exits 0. The `awk` prints only table rows, which can't wrap, and the paper's lines if any; `awk`
 counts bytes, so a line with `—` or `…` may show up to two or four more than its width in characters.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 *Commit* routine, with `git add tuner format theory rig` and the message
 `[#366/#380] Document the tuner and format modules`. Expected: `3 M` and `27 A`.
@@ -1656,7 +1656,7 @@ counts bytes, so a line with `—` or `…` may show up to two or four more than
 **Interfaces:**
 - Consumes: Task 11's docs; Task 1's link checker and grep.
 
-- [ ] **Step 1: Replace `module-overview.md`'s tree**
+- [x] **Step 1: Replace `module-overview.md`'s tree**
 
 ```text
 app
@@ -1685,7 +1685,7 @@ app
 └── config                (HOCON config, depends on common)
 ```
 
-- [ ] **Step 2: Add the modules to the *Packages* table and say who holds the shared packages**
+- [x] **Step 2: Add the modules to the *Packages* table and say who holds the shared packages**
 
 In `module-overview.md`'s *Packages* table, add after the `composition` row:
 
@@ -1722,7 +1722,7 @@ the package. A plugin's format is in a `format` subpackage of the plugin's packa
 `tuning-changer-format` for the tuning changers.
 ```
 
-- [ ] **Step 3: Update the index and the other cross-cutting docs**
+- [x] **Step 3: Update the index and the other cross-cutting docs**
 
 In `docs/architecture/README.md`'s *Module index*, add rows of the form
 ``| `<id>` | [<group>/<id>/docs/ARCHITECTURE.md](../../<group>/<id>/docs/ARCHITECTURE.md) |``:
@@ -1747,7 +1747,7 @@ with:
 In `docs/architecture/data-flow.md`, `→ DefaultCompositionRepo (format module)` becomes
 `→ DefaultCompositionRepo (composition-format module)`: the stage changed module.
 
-- [ ] **Step 4: Fix the module docs that put the moved types in `format`**
+- [x] **Step 4: Fix the module docs that put the moved types in `format`**
 
 In `app/app/docs/ARCHITECTURE.md`'s *Dependencies* block, `app → format → { common, composition, rig, tuner,
 tuning-changer-pedal }` becomes:
@@ -1900,7 +1900,7 @@ It is depended on by `composition` (models compositions in terms of `Scale`/`Int
 and `composition-format` (their JSON formats), `experiments` (research executables over scales), and `app`.
 ```
 
-- [ ] **Step 5: Fix the development docs**
+- [x] **Step 5: Fix the development docs**
 
 In `docs/development/test-conventions.md`, ``because `rig` doesn't depend on `format`.`` becomes
 ``because `rig` doesn't depend on `rig-format`.``. In `docs/development/coverage.md`, ``although `format`'s tests
@@ -1908,7 +1908,7 @@ exercise `common`:`` becomes ``although `format-core`'s tests exercise `common`:
 `bin/mtlist-coverage-modules common format` becomes `bin/mtlist-coverage-modules common format-core`:
 `format-core`'s `DeferrableReadTest` exercises `common`'s `Locking`.
 
-- [ ] **Step 6: Check that the *Packages* table leads the Metals tools to the right module**
+- [x] **Step 6: Check that the *Packages* table leads the Metals tools to the right module**
 
 Run `mcp__metals__get-usages` with each pair below. Expected: a non-empty result for each.
 
@@ -1922,7 +1922,7 @@ Run `mcp__metals__get-usages` with each pair below. Expected: a non-empty result
 | `org.calinburloiu.music.microtonalist.tuner.changer.pedal.format.JsonPedalTuningChangerPluginFormating` | `tuning-changer-format` |
 | `org.calinburloiu.music.microtonalist.tuner.mts.MtsTuner` | `tuner-mts` |
 
-- [ ] **Step 7: Check the links, the lines and the statements**
+- [x] **Step 7: Check the links, the lines and the statements**
 
 ```bash
 python3 "$SCRATCH/check_md_links.py" .
@@ -1937,13 +1937,13 @@ Expected: `0 broken of 326 relative link(s) and import(s)`, 12 more than Task 11
 links in `rig`'s, `composition`'s and `intonation`'s docs; the `awk` prints only table rows. Then rerun Task 1, step 6.
 Expected: nothing. Fix any line it prints.
 
-- [ ] **Step 8: Update #360**
+- [x] **Step 8: Update #360**
 
 #360 lists `format`'s doc among those that don't follow the conventions; Task 11 rewrote it into conforming docs. With
 the GitHub MCP's `issue_write` (method `update`), drop from #360's body the bullet on
 `docs/architecture/format/README.md`, keeping the rest of the body as it is.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 *Commit* routine, with `git add docs app base rig theory` and the message
 `[#366/#380] Point the docs at the tuner and format modules`. Expected: `12 M`.
@@ -1958,11 +1958,11 @@ the GitHub MCP's `issue_write` (method `update`), drop from #360's body the bull
 **Interfaces:**
 - Consumes: everything above; Task 1's baselines.
 
-- [ ] **Step 1: Full test suite**
+- [x] **Step 1: Full test suite**
 
 *Tests* routine, the full suite only. Expected: `23 modules, 1479 tests` and no other line.
 
-- [ ] **Step 2: Lint**
+- [x] **Step 2: Lint**
 
 Lint comes before coverage, so that a reformatted file doesn't leave a stale report behind.
 
@@ -1974,7 +1974,7 @@ rtk proxy git status --short
 Expected: `fixLint` passes. If it reformatted files, commit them:
 `git commit -am "[#366/#380] Format the code" -m "<attribution lines>"`.
 
-- [ ] **Step 3: Coverage**
+- [x] **Step 3: Coverage**
 
 Invoke the `scoverage-inspector` skill, and run the whole workflow, as CI does:
 
@@ -1985,19 +1985,19 @@ bin/mtlist-coverage-all
 Then `bin/mtlist-scoverage-inspector module-summary <m> --overall-only` for each module of Task 10, step 1. Expected:
 every module passes its floor and the aggregate passes its own; each module as Task 10 measured it.
 
-- [ ] **Step 4: The *Done when* criteria**
+- [x] **Step 4: The *Done when* criteria**
 
 Rerun Task 2, step 7 and Task 9, step 6. Expected: the same output.
 
-- [ ] **Step 5: Docs and ScalaDoc links**
+- [x] **Step 5: Docs and ScalaDoc links**
 
 Rerun Task 11, step 6, Task 12, step 7 and Task 9, step 7. Expected: the same results.
 
-- [ ] **Step 6: Metals**
+- [x] **Step 6: Metals**
 
 Run `mcp__metals__list-modules` (59 build targets) and the `get-usages` of Task 12, step 6. Expected: the same results.
 
-- [ ] **Step 7: Hand over**
+- [x] **Step 7: Hand over**
 
 Don't push and don't open a PR. Report to the user the results of the steps above and of the final review, with the
 branch's commits (`git log --oneline 818e6e0..HEAD`), the floors of Task 10 and the issues it updated or opened, and
