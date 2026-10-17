@@ -28,5 +28,17 @@ class BusinessyncTest extends AnyWordSpec with Matchers {
       // When / Then
       "Businessync(com.google.common.eventbus.EventBus()).publish(PlainEvent(1))" should compile
     }
+
+    "handle an event of any type" in {
+      // When / Then
+      "Businessync(com.google.common.eventbus.EventBus()).handle(PlainEvent(1))" should compile
+      "Businessync(com.google.common.eventbus.EventBus()).handleOnUi(PlainEvent(1))" should compile
+    }
+
+    "subscribe to events of any type" in {
+      // When / Then
+      "Businessync(com.google.common.eventbus.EventBus()).subscribe(classOf[PlainEvent], _ => ())" should compile
+      "Businessync(com.google.common.eventbus.EventBus()).subscribeOnUi(classOf[PlainEvent], _ => ())" should compile
+    }
   }
 }
