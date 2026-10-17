@@ -36,7 +36,7 @@ the routing and pass through.
 - **Output RPN selectors** — `MpeTuner`'s record of the parameter it last left selected on each output channel, so
   that a relayed sequence repeats its selector only when needed.
 
-Only `MpeTuner`, `MpeZone*` and `MpeInputMode` are public, because `format` references them; the rest are
+Only `MpeTuner`, `MpeZone*` and `MpeInputMode` are public, because `tuner-format` references them; the rest are
 `private[tuner]`.
 
 ## Reconfigurations

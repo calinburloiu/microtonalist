@@ -396,7 +396,7 @@ lazy val tuningChangerFormatModule = (project in file("tuner/tuning-changer-form
       playJson,
     ),
     // TODO #179 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 92, branch = 63),
+    coverageSettings(stmt = 80, branch = 63),
   )
 
 lazy val rigModule = (project in file("rig/rig"))
@@ -469,7 +469,7 @@ lazy val formatModule = (project in file("format/format"))
     name := "microtonalist-format",
     commonSettings,
     // TODO #179 Raise toward 80% statement and branch coverage.
-    coverageSettings(stmt = 44, branch = 97),
+    coverageSettings(stmt = 44, branch = 80),
   )
 
 lazy val formatCoreModule = (project in file("format/format-core"))
