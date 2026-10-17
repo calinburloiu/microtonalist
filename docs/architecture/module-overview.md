@@ -32,6 +32,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `tuning` | `tuner` | The `Tuning` and `TuningChange` values |
 | `composition` | `theory` | The composition model, which turns scales into tunings |
 | `intonation` | `theory` | Interval math |
+| `sc-midi-javamidi` | `midi` | Java Sound implementation of `sc-midi`, with CoreMIDI4J |
 | `sc-midi` | `midi` | Scala-idiomatic MIDI API |
 | `businessync` | `base` | Event bus and threading |
 | `common` | `base` | Shared utilities |
@@ -68,13 +69,14 @@ flowchart TD
     tuning
   end
   subgraph midiGroup ["midi/"]
+    scMidiJavamidi["sc-midi-javamidi"]
     scMidi["sc-midi"]
   end
   subgraph baseGroup ["base/"]
     businessync
     common
   end
-  app --> config & ui & format
+  app --> config & ui & format & scMidiJavamidi
   format --> composition & rig & tuningChangerPedal
   composition --> intonation & tuning
   rig --> tuner & tuningChanger
@@ -83,7 +85,8 @@ flowchart TD
   tuner --> tuning
   tuningChanger --> tuning
   tuning --> scMidi
-  cli --> scMidi
+  cli --> scMidiJavamidi
+  scMidiJavamidi --> scMidi
   scMidi --> businessync & common
   config --> common
 ```
