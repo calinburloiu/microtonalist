@@ -30,11 +30,12 @@ All types live in package `org.calinburloiu.businessync`.
 
 - **`Businessync`** — the single entry point, constructed with a Guava `EventBus` and injected into the modules that
   need cross-thread communication. It wraps event publish/subscribe and (eventually) thread dispatch.
-- **`BusinessyncEvent`** — the abstract base class for every event posted through the bus, providing a `name` defaulting
-  to the runtime simple class name. Domain events extend it as sealed `case class`/`case object` hierarchies (e.g.
-  `MidiEvent`, `TuningEvent`, `RigEvent`). Because Guava's `EventBus` dispatches by runtime type and walks supertypes,
-  **subscribing to a base class catches all of its subclasses** — e.g. `RigManager` subscribes to `TuningEvent` and
-  receives every concrete subtype.
+- **`BusinessyncEvent`** — the abstract base class of the application's events, providing a `name` defaulting to the
+  runtime simple class name. They extend it as sealed `case class`/`case object` hierarchies (e.g. `TuningEvent`,
+  `RigEvent`). `publish` takes any object, though, so the events of a library that doesn't know the bus, like
+  `sc-midi`'s `MidiEvent`s, go on it too, and `RigManager` subscribes to them all the same. Because Guava's `EventBus`
+  dispatches by runtime type and walks supertypes, **subscribing to a base class catches all of its subclasses** — e.g.
+  `RigManager` subscribes to `TuningEvent` and receives every concrete subtype.
 - **`BusinessyncUiHandler`** — a small `case class` (`run` lambda + `isUiThread` predicate) intended to make UI-thread
   submission *pluggable*: a GUI toolkit supplies the lambda that schedules work onto its event thread. It is defined but
   not yet consumed by `Businessync`.
@@ -96,9 +97,8 @@ design; treat it as planned and subject to change. The headline elements:
 `businessync` has **no application `dependsOn`** — it is a leaf in the dependency graph, alongside `intonation` and
 `common`. Its only third-party dependency is Guava (`EventBus`), plus the inherited common logging stack.
 
-Modules that depend on it: `sc-midi` (defines `MidiEvent`), `sc-midi-javamidi` (publishes `MidiEvent`s), `tuner`
-(publishes `TuningEvent`), `rig` (publishes `RigEvent`, subscribes to `TuningEvent` and `MidiEvent`),
-`intonation-format` (publishes `ScaleLossyConversionEvent`), `format` (hands the instance to `intonation-format`),
-`app` (constructs the instance and wires it in), `cli` (constructs one for `JavaMidiManager`), and transitively `ui`
-(subscribes to `TuningIndexUpdatedEvent`). The instance is created once in `MicrotonalistApp.run` and injected
-everywhere, so a single bus/threading context is shared across the running app.
+Modules that depend on it: `tuner` (publishes `TuningEvent`), `rig` (publishes `RigEvent`, subscribes to `TuningEvent`
+and `MidiEvent`), `intonation-format` (publishes `ScaleLossyConversionEvent`), `format` (hands the instance to
+`intonation-format`), `app` (constructs the instance, wires it in and forwards `JavaMidiManager`'s `MidiEvent`s to it),
+and transitively `ui` (subscribes to `TuningIndexUpdatedEvent`). The instance is created once in
+`MicrotonalistApp.run` and injected everywhere, so a single bus/threading context is shared across the running app.

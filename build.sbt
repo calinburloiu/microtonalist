@@ -542,7 +542,6 @@ lazy val intonationFormatModule = (project in file("theory/intonation-format"))
 lazy val scMidiModule = (project in file("midi/sc-midi"))
   .withId("sc-midi")
   .dependsOn(
-    businessyncModule,
     commonModule,
   )
   .disablePlugins(AssemblyPlugin)
@@ -558,7 +557,6 @@ lazy val scMidiModule = (project in file("midi/sc-midi"))
 lazy val scMidiJavamidiModule = (project in file("midi/sc-midi-javamidi"))
   .withId("sc-midi-javamidi")
   .dependsOn(
-    businessyncModule,
     commonModule,
     commonTestUtilsModule % Test,
     scMidiModule,
