@@ -17,9 +17,8 @@ Each of them but `format-core` is named after the module whose types it (de)seri
 | [`tuner-format`](../../../tuner/tuner-format/docs/ARCHITECTURE.md) | the tuners of a rig's tracks |
 | [`tuning-changer-format`](../../../tuner/tuning-changer-format/docs/ARCHITECTURE.md) | the tuning changers of a rig's tracks |
 
-Each persisted object has a `*Format`, which (de)serializes it from a stream and knows nothing of the stream's source,
-and a `*Repo`, which reads it from a `URI`. Its `Default*Repo` picks a `File*Repo`, an `Http*Repo` or, for scales and
-rigs, a `Library*Repo` by the URI's scheme.
+Each persisted object has a format and a repository; the group's README gives what they are, in
+[*Formats and repositories*](../../README.md#formats-and-repositories), and how they are named.
 
 ## Key types
 
