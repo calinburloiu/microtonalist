@@ -20,7 +20,7 @@ import org.calinburloiu.music.microtonalist.composition.KeyboardMapping
 import org.calinburloiu.music.microtonalist.format.JsonFormatTestUtils
 import play.api.libs.json.*
 
-class KeyboardMappingFormatTest extends JsonFormatTestUtils {
+class JsonKeyboardMappingFormatTest extends JsonFormatTestUtils {
   private val sampleKeyboardMapping = KeyboardMapping(c = Some(0), d = Some(3), e = Some(4), f = Some(6), g = Some(9),
     gSharpOrAFlat = Some(11), b = Some(12))
   private val sampleDenseJsonKeyboardMapping = Json.arr(0, JsNull, 3, JsNull, 4, 6, JsNull, 9, 11, JsNull, JsNull, 12)
@@ -28,7 +28,7 @@ class KeyboardMappingFormatTest extends JsonFormatTestUtils {
   "reads" should {
     "deserialize a dense KeyboardMapping" in {
       assertReads(
-        KeyboardMappingFormat.reads,
+        JsonKeyboardMappingFormat.reads,
         sampleDenseJsonKeyboardMapping,
         sampleKeyboardMapping
       )
@@ -36,7 +36,7 @@ class KeyboardMappingFormatTest extends JsonFormatTestUtils {
 
     "deserialize a sparse KeyboardMapping" in {
       assertReads(
-        KeyboardMappingFormat.format,
+        JsonKeyboardMappingFormat.format,
         Json.obj("C" -> 0, "d" -> 3, "4" -> 4, "F" -> 6, "G" -> 9, "Ab" -> 11, "11" -> 12),
         sampleKeyboardMapping
       )
@@ -56,9 +56,9 @@ class KeyboardMappingFormatTest extends JsonFormatTestUtils {
 
       for (invalidInput <- invalidInputs) {
         assertReadsSingleFailure(
-          KeyboardMappingFormat.reads,
+          JsonKeyboardMappingFormat.reads,
           invalidInput,
-          KeyboardMappingFormat.InvalidKeyboardMapping
+          JsonKeyboardMappingFormat.InvalidKeyboardMapping
         )
       }
     }
@@ -66,7 +66,7 @@ class KeyboardMappingFormatTest extends JsonFormatTestUtils {
 
   "writes" should {
     "serialize a KeyboardMapper in sparse format" in {
-      KeyboardMappingFormat.writes.writes(sampleKeyboardMapping) shouldEqual sampleDenseJsonKeyboardMapping
+      JsonKeyboardMappingFormat.writes.writes(sampleKeyboardMapping) shouldEqual sampleDenseJsonKeyboardMapping
     }
   }
 }

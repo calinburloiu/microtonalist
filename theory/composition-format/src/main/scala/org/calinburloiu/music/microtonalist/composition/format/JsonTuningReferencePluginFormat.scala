@@ -22,7 +22,7 @@ import org.calinburloiu.music.microtonalist.composition.{
   ConcertPitchTuningReference, StandardTuningReference, TuningReference
 }
 import org.calinburloiu.music.microtonalist.format.JsonConstraints.exclusiveMin
-import org.calinburloiu.music.microtonalist.format.{JsonPluginFormat, MidiNoteFormat, PitchClassFormat}
+import org.calinburloiu.music.microtonalist.format.{JsonMidiNoteFormat, JsonPitchClassFormat, JsonPluginFormat}
 import org.calinburloiu.music.scmidi.{DefaultConcertPitchFreq, MidiNote, PitchClass}
 import play.api.libs.functional.syntax.{toApplicativeOps, toFunctionalBuilderOps}
 import play.api.libs.json.*
@@ -42,12 +42,12 @@ case class JsonTuningReferencePluginFormat(
 
   //@formatter:off
   private val standardTypeFormat: Format[StandardTuningReference] = (
-    (__ \ "basePitchClass").format[PitchClass](using PitchClassFormat) and
+    (__ \ "basePitchClass").format[PitchClass](using JsonPitchClassFormat) and
     (__ \ "baseOffset").format[Double](min(-50.0) keepAnd max(50.0))
   )(StandardTuningReference.apply, Tuple.fromProductTyped)
   private val concertPitchTypeFormat: Format[ConcertPitchTuningReference] = (
     (__ \ "concertPitchToBaseInterval").format[Interval] and
-    (__ \ "baseMidiNote").format[MidiNote](using MidiNoteFormat) and
+    (__ \ "baseMidiNote").format[MidiNote](using JsonMidiNoteFormat) and
     (__ \ "concertPitchFrequency").format[Double](exclusiveMin(0.0) keepAnd max(20000.0))
   )(ConcertPitchTuningReference.apply, Tuple.fromProductTyped)
   //@formatter:on

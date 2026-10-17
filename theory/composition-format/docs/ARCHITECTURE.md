@@ -14,5 +14,5 @@ holds or refers to through [`intonation-format`](../../intonation-format/docs/AR
 - **`CompositionRepo`** — reads a composition from a `URI`; `DefaultCompositionRepo` picks the `FileCompositionRepo` or
   the `HttpCompositionRepo` by its scheme. Compositions have no library repository.
 - **Plugin formats** — `JsonTuningMapperPluginFormat`, `JsonTuningReducerPluginFormat`,
-  `JsonTuningReferencePluginFormat` and `JsonSoftChromaticGenusMappingPluginFormat`, with `KeyboardMappingFormat` for a
-  manual tuning mapper's keys.
+  `JsonTuningReferencePluginFormat` and `JsonSoftChromaticGenusMappingPluginFormat`, with `JsonKeyboardMappingFormat`
+  for a manual tuning mapper's keys.

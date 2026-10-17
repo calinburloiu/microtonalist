@@ -29,7 +29,7 @@ object JsonTuningMapperPluginFormat extends JsonPluginFormat[TuningMapper] {
 
   override val defaultTypeName: Option[String] = Some(AutoTypeName)
 
-  private implicit val keyboardMappingFormat: Format[KeyboardMapping] = KeyboardMappingFormat.format
+  private implicit val keyboardMappingFormat: Format[KeyboardMapping] = JsonKeyboardMappingFormat.format
 
   private val manualTuningMapperReprFormat: Format[ManualTuningMapperRepr] = Json.format[ManualTuningMapperRepr]
   private val manualTuningMapperFormat: Format[ManualTuningMapper] = Format(

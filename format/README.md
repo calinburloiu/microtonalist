@@ -35,14 +35,12 @@ A library URI, `microtonalist:///<path>`, resolves `<path>` against the `library
 A format type's name ends in `Format`, and an implementation's starts with its serialization: `Json`, or
 `HuygensFokkerScala` for the `.scl` files of the Huygens-Fokker Foundation's
 [Scala](https://www.huygens-fokker.org/scala/) program, unrelated to the Scala language. E.g. `JsonScaleFormat` and
-`HuygensFokkerScalaScaleFormat` implement `ScaleFormat`. The plugin formats follow the same pattern:
+`HuygensFokkerScalaScaleFormat` implement `ScaleFormat`, and `JsonIntervalFormat` holds the Play JSON `Format`s of
+intervals. The plugin formats follow the same pattern:
 
 - `Json<Family>PluginFormat`, e.g. `JsonTunerPluginFormat`, is the `JsonPluginFormat` of a plugin family;
 - `Json<Plugin>PluginFormatting`, e.g. `JsonMpeTunerPluginFormatting`, holds the `TypeSpec` of a plugin, or those of
   its variants (`JsonMtsTunerPluginFormatting`), which the format of its family gathers.
-
-`Json` also starts the names of most objects that hold the Play JSON `Format`s of values, e.g. `JsonIntervalFormat`,
-but not all, e.g. `MidiNoteFormat` and `KeyboardMappingFormat`.
 
 ## JSON Schemas
 

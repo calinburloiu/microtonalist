@@ -21,6 +21,7 @@ depends on no other format module, and of the application on `common` and `sc-mi
   a plugin's own settings override both.
 - **`DeferrableRead`** — a value already read (`AlreadyRead`) or read later (`DeferredRead`), e.g. a scale that a
   composition refers to by URI. It caches the `Future` of its load.
-- **MIDI value formats** — `JsonCommonMidiFormat`, `MidiNoteFormat`, `PitchClassFormat`, and the package object's
-  `uint7Format` (0–127) and `ccNumberFormat` (0–119, MIDI 1.0 reserving 120–127 for the Channel Mode messages). The
-  [JSON Schemas](../../README.md#json-schemas) mirror the last two as `uint7.schema.json` and `ccNumber.schema.json`.
+- **MIDI value formats** — `JsonCommonMidiFormat`, `JsonMidiNoteFormat`, `JsonPitchClassFormat`, and the package
+  object's `uint7Format` (0–127) and `ccNumberFormat` (0–119, MIDI 1.0 reserving 120–127 for the Channel Mode
+  messages). The [JSON Schemas](../../README.md#json-schemas) mirror the last two as `uint7.schema.json` and
+  `ccNumber.schema.json`.

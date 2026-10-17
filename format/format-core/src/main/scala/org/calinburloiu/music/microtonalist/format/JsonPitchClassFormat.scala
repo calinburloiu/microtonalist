@@ -22,7 +22,7 @@ import play.api.libs.json.*
 
 import scala.util.Try
 
-object PitchClassFormat extends Format[PitchClass] {
+object JsonPitchClassFormat extends Format[PitchClass] {
 
   val InvalidPitchClassError: String = "error.pitchClass.invalid"
 

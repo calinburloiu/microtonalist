@@ -17,13 +17,13 @@
 package org.calinburloiu.music.microtonalist.composition.format
 
 import org.calinburloiu.music.microtonalist.composition.KeyboardMapping
-import org.calinburloiu.music.microtonalist.format.PitchClassFormat.InvalidPitchClassError
+import org.calinburloiu.music.microtonalist.format.JsonPitchClassFormat.InvalidPitchClassError
 import org.calinburloiu.music.scmidi.PitchClass
 import play.api.libs.json.*
 
 import scala.util.{Failure, Success, Try}
 
-object KeyboardMappingFormat {
+object JsonKeyboardMappingFormat {
 
   private[format] val InvalidKeyboardMapping: String = "error.tuningMapper.keyboardMapping.invalid"
 

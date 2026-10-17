@@ -21,7 +21,7 @@ import play.api.libs.functional.syntax.toApplicativeOps
 import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
 
-object MidiNoteFormat extends Format[MidiNote] {
+object JsonMidiNoteFormat extends Format[MidiNote] {
 
   override def reads(json: JsValue): JsResult[MidiNote] = JsPath.read[Int](using min(0) keepAnd max(127))
     .map(MidiNote)
