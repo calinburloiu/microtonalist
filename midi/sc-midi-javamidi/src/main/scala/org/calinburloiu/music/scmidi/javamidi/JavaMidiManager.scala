@@ -65,13 +65,13 @@ import scala.collection.mutable
  * Build one through [[JavaMidiManager.apply]], which starts it once it is constructed; the constructor itself neither
  * publishes nor subscribes.
  *
- * @param eventPublisher Receives the [[MidiEvent]]s, on the thread that made the change and outside the locks of the
- *   manager.
  * @param environment The Java Sound environment to scan and subscribe to; the production default is
  *   [[CoreMidi4JEnvironment]], a fake is what a test passes.
+ * @param eventPublisher Receives the [[MidiEvent]]s, on the thread that made the change and outside the locks of the
+ *   manager.
  */
 @ThreadSafe
-class JavaMidiManager private (eventPublisher: MidiEventPublisher, environment: JavaMidiEnvironment)
+class JavaMidiManager private (environment: JavaMidiEnvironment, eventPublisher: MidiEventPublisher)
   extends MidiManager, Locking, StrictLogging {
 
   import JavaMidiManager.*
@@ -275,14 +275,14 @@ object JavaMidiManager {
   /**
    * Creates a manager, scans the MIDI environment and subscribes to its changes.
    *
-   * @param eventPublisher Receives the [[MidiEvent]]s, on the thread that made the change and outside the locks of the
-   *   manager.
    * @param environment The Java Sound environment to scan and subscribe to.
+   * @param eventPublisher Receives the [[MidiEvent]]s, on the thread that made the change and outside the locks of the
+   *   manager; by default they are published nowhere.
    * @return the manager, fully constructed and watching the environment.
    */
-  def apply(eventPublisher: MidiEventPublisher,
-            environment: JavaMidiEnvironment = CoreMidi4JEnvironment): JavaMidiManager = {
-    val manager = new JavaMidiManager(eventPublisher, environment)
+  def apply(environment: JavaMidiEnvironment = CoreMidi4JEnvironment,
+            eventPublisher: MidiEventPublisher = _ => ()): JavaMidiManager = {
+    val manager = new JavaMidiManager(environment, eventPublisher)
     manager.start()
     manager
   }

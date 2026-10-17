@@ -10,7 +10,7 @@ app
 ├── rig              (setup of per-instrument MIDI tracks, depends on tuner)
 ├── tuner            (MIDI tuning, depends on sc-midi + businessync)
 ├── sc-midi-javamidi (Java Sound implementation of sc-midi, with CoreMIDI4J, depends on sc-midi)
-├── sc-midi          (Scala-idiomatic MIDI API, no event bus)
+├── sc-midi          (Scala-idiomatic MIDI API)
 ├── intonation       (interval math, no application deps)
 ├── businessync      (event bus + threading, no application deps)
 ├── common           (shared utilities)

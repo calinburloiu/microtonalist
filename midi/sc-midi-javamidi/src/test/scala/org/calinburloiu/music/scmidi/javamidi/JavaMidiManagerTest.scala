@@ -87,7 +87,7 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
     val environment: FakeJavaMidiEnvironment = FakeJavaMidiEnvironment()
 
     /** Creates the manager, which scans the devices plugged into [[environment]] so far. */
-    def newManager(): JavaMidiManager = JavaMidiManager(eventPublisher, environment)
+    def newManager(): JavaMidiManager = JavaMidiManager(environment, eventPublisher)
   }
 
   /** The behaviours of the manager for the devices of `endpoint`. */
@@ -462,6 +462,18 @@ class JavaMidiManagerTest extends AnyWordSpec with Matchers with TableDrivenProp
 
       // Then
       environment.subscriberCount shouldEqual 1
+    }
+
+    "publish its events nowhere when given no publisher" in new Fixture {
+      // Given
+      val device: FakeMidiDevice = Input.newDevice(deviceName)
+      environment.plug(device)
+
+      // When
+      val manager: JavaMidiManager = JavaMidiManager(environment)
+
+      // Then
+      manager.isDeviceAvailable(device.id, MidiDirection.Input) shouldBe true
     }
   }
 

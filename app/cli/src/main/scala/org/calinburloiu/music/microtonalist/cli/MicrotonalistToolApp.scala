@@ -35,7 +35,7 @@ object MicrotonalistToolApp {
   def main(args: Array[String]): Unit = {
     args match {
       case Array("midi-devices") =>
-        val midiManager = JavaMidiManager(_ => ())
+        val midiManager = JavaMidiManager()
         try {
           MidiDevicesCliCommand(midiManager).run()
         } finally {
