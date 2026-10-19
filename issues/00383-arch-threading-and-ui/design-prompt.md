@@ -1,0 +1,3 @@
+...
+
+Also read `issues/00383-arch-threading-and-ui/2026-10-20-gap-decisions.md`: it records the decisions that close the open gaps (threading layer, track threads, layered MIDI graph) and takes precedence over `requirements.md` and `track-node-proposal.md`.
