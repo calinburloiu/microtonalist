@@ -1,6 +1,6 @@
 We are working on the architecture for proper threading for the application by using the actor model with Apache Pekko and to migrate the UI to JavaFX.
 
-Why both threading and UI? We will have two fixed threads, one that manages UI and the other that manages business logic. We will also have a dedicated thread for each track in the rig. Proper UI thread managent requires a proper architecture at that area, so we will use MVVM (Model, View, View Model) and JavaFX work great with this architectural pattern.
+Why both threading and UI? We will have two fixed threads, one that manages UI and the other that manages business logic. We will also have a dedicated thread for each track in the rig. Proper UI thread management requires a proper architecture at that area, so we will use MVVM (Model, View, View Model) and JavaFX work great with this architectural pattern.
 
 The work is mostly covered by issue #90, for the threading part, and by issue #99, for the UI part. Read the issues’ descriptions as they contain important information not covered here. Break the work into slices and create sub-issues under the issues mentioned for each slice. Each slice gets its own plan document and its own PR, but the whole work is covered by a single design doc.
 

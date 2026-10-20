@@ -1,6 +1,6 @@
 > Refined by sections 2 and 3 of [`2026-10-20-gap-decisions.md`](2026-10-20-gap-decisions.md), which take precedence.
 
-Today, we have `MidiDeviceHandle` that abstracts a device node in the MIDI graph. Rename it to the more explicit name `DeviceMidiNode`. This opens the gate to the MIDI Graph API improvement planned in issue #310. But tracks that as input and output either devices or other tracks, forming a MIDI graph of tracks and devices. So we are proposing the introduction of a `TrackMidiNode` that abstracts a track node in the MIDI graph.
+Today, we have `MidiDeviceHandle` that abstracts a device node in the MIDI graph. Rename it to the more explicit name `DeviceMidiNode`. This opens the gate to the MIDI Graph API improvement planned in issue #310 (the description there is outdated with the gaps closed in this architecture). But tracks that as input and output either devices or other tracks, forming a MIDI graph of tracks and devices. So we are proposing the introduction of a `TrackMidiNode` that abstracts a track node in the MIDI graph.
 
 The track pipeline (today `pipeline: MidiSerialProcessor` in `RigManager`) can be abstracted in a `TrackPipeline` class.
 
