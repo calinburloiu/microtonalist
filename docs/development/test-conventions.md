@@ -160,19 +160,8 @@ Enforced by scalafix (`DisableSyntax`, `threadSleep`), in production code too, w
 
 ## Shared test utilities
 
-When a test helper is needed across multiple modules, do **not** use sbt's `test->test` configuration dependencies —
-they break scoverage instrumentation under the default class-loader layering. Instead, put the shared helper in the
-`common-test-utils` module (or create a similar `*-test-utils` module if a different scope is required) and depend on
-it from `Test` scope:
-
-```scala
-lazy val myModule = (project in file("my-module"))
-  .dependsOn(commonTestUtils % Test)
-```
-
-`common-test-utils` already provides `CommonTestUtils` (e.g. `uriOfResource`) and `LogCapture`, which captures the
-events of a logger so that a test can assert on log output that tests otherwise discard.
-
-Test-utility modules have `coverageEnabled := false` so that they do not appear in coverage reports.
+Share a test helper between modules, rather than copy it or create a test-utils module, by putting it in the tests of
+the lowest module that has the types it needs and giving each module whose tests use it a
+`% "compile->compile;test->test"` dependency on that module.
 
 Not enforced.

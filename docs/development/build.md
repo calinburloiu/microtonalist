@@ -26,7 +26,7 @@ it too, because it is part of the paths of the fat JARs they run. Upgrade Scala 
 **Convention — project ID equals the name of its folder.** Every project sets `.withId(<folder-name>)` in
 `build.sbt`, so its SBT project ID (used in `sbt "<id>/compile"` / `"<id>/test"`, in `thisProject.value.id`, and thus
 in `coverageDataDir`) always equals the name of its own folder, the leaf of `<group>/<id>/`. IDs may be kebab-case
-(`sc-midi`, `config`, `common-test-utils`). The `build.sbt` `lazy val` name follows the `<camelCaseId>Module`
+(`sc-midi`, `config`, `tuning-changer-pedal`). The `build.sbt` `lazy val` name follows the `<camelCaseId>Module`
 convention (e.g. `scMidiModule` for ID `sc-midi`); it is only used for `.dependsOn`/`.aggregate`. Keep `.withId` and
 the folder name in lockstep when adding or renaming a module — tooling such as the `scoverage-inspector` MCP relies on
 the ID naming the source directory, `<group>/<id>/src/`. See the CONVENTION comment in `build.sbt`.

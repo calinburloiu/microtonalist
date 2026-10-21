@@ -66,7 +66,7 @@ for the **declaration** — not Metals.
    `\b` keeps `Scale` from matching `ScaleFormat`.
 2. By build convention the **sbt module ID is the path segment before `src/`** in the match (the
    module's folder, inside its module group's folder; `build.sbt` enforces this with `.withId(<dir>)`). IDs
-   may be kebab-case (`sc-midi`, `common-test-utils`, `config`). Example:
+   may be kebab-case (`sc-midi`, `tuning-changer-pedal`, `config`). Example:
    `org.calinburloiu.music.microtonalist.config.MainConfigManager` is declared in
    `app/config/src/main/scala/org/calinburloiu/music/microtonalist/config/ConfigManagement.scala` —
    note the file is **not** named `MainConfigManager.scala` — so the module is `config`.

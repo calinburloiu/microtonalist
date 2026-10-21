@@ -128,15 +128,5 @@ private[composition] object TestTunings {
     aSharpOrBFlat = Some(0.0),
   )
 
-  val justCMaj: Tuning = Tuning("Just C Major",
-    c = Some(0.0),
-    d = Some(3.91),
-    e = Some(-13.69),
-    f = Some(-1.96),
-    g = Some(1.96),
-    a = Some(-15.64),
-    b = Some(-11.73)
-  )
-
   val customGlobalFill: Tuning = Tuning((1 to 12).map { v => Some(v.toDouble) })
 }

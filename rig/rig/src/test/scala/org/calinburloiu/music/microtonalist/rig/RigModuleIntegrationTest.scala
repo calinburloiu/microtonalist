@@ -20,7 +20,7 @@ import com.google.common.eventbus.EventBus
 import org.calinburloiu.businessync.Businessync
 import org.calinburloiu.music.microtonalist.tuner.changer.pedal.PedalTuningChanger
 import org.calinburloiu.music.microtonalist.tuner.mts.{MtsMessageGenerator, MtsOctave1ByteNonRealTimeTuner}
-import org.calinburloiu.music.microtonalist.tuner.{TunerModule, Tuning}
+import org.calinburloiu.music.microtonalist.tuner.{TestTunings, TunerModule, Tuning}
 import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc, MidiMsg}
 import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiDirection, MidiManager, MidiSplitter}
 import org.scalamock.stubs.{Stub, Stubs}
