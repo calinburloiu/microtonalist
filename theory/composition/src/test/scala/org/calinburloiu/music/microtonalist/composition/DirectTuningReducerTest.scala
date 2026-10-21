@@ -16,7 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.composition
 
-import org.calinburloiu.music.microtonalist.composition.TestTunings.{bEvic, customGlobalFill, eSegah, justCMaj}
+import org.calinburloiu.music.microtonalist.composition.TestTunings.{bEvic, customGlobalFill, eSegah}
+import org.calinburloiu.music.microtonalist.tuner.TestTunings.justCMaj
 import org.calinburloiu.music.microtonalist.tuner.Tuning
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec

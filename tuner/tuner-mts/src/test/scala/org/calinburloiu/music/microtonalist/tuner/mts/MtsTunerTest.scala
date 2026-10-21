@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner.mts
 
-import org.calinburloiu.music.microtonalist.tuner.Tuning
+import org.calinburloiu.music.microtonalist.tuner.{TestTunings, Tuning}
 import org.calinburloiu.music.scmidi.MidiNote
 import org.calinburloiu.music.scmidi.message.{MidiMsg, NoteOnMidiMsg, SysExMidiMsg}
 import org.scalamock.scalatest.MockFactory
