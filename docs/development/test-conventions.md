@@ -160,27 +160,8 @@ Enforced by scalafix (`DisableSyntax`, `threadSleep`), in production code too, w
 
 ## Shared test utilities
 
-When the tests of several modules need a helper, put it in the tests of the lowest module that has the types it needs.
-Each module whose tests use it depends on that module with `test->test`:
-
-```scala
-lazy val myModule = (project in file("my-group/my-module"))
-  .withId("my-module")
-  .dependsOn(commonModule % "compile->compile;test->test")
-```
-
-Only `test->test` dependencies bring test classes, and a chain of them brings those of every module along it: `rig`'s
-tests see `common`'s through `tuner`'s, while a plain dependency on `tuner` brings none. Don't rely on a chain; declare a
-`test->test` dependency on each module whose helpers the tests use. The dependency also brings that module's test
-resources, which `getResource` can't tell apart from the module's own when they share a path, so give them different
-paths.
-
-The shared helpers:
-
-- `common`: `CommonTestUtils` (e.g. `uriOfResource`), and `LogCapture`, which captures the events of a logger so that a
-  test can assert on log output that tests otherwise discard;
-- `tuning`: `TestTunings`, a few just intonation tunings;
-- `tuner`: `FakeTuner`, a `Tuner` that returns canned messages and records what it is asked to do;
-- `format-core`: `JsonFormatTestUtils`.
+Share a test helper between modules, rather than copy it or create a test-utils module, by putting it in the tests of
+the lowest module that has the types it needs and giving each module whose tests use it a
+`% "compile->compile;test->test"` dependency on that module.
 
 Not enforced.

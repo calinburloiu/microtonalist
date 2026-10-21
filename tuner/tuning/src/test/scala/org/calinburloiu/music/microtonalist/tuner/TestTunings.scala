@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.tuner
 
-/** Just intonation tunings shared by the tests of several modules. */
+/** Tunings shared by the tests of the modules that tune. */
 object TestTunings {
   val justCMaj: Tuning = Tuning("Just C Major",
     c = Some(0.0),
