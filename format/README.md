@@ -8,10 +8,9 @@ their wiring for the application. Each other format module sits in the group of 
 | ------ | ----------- | ------------ |
 | [`format`](format/docs/ARCHITECTURE.md) | Wires the format modules into the repositories that `app` reads compositions, scales and rigs from | `org.calinburloiu.music.microtonalist.format` |
 | [`format-core`](format-core/docs/ARCHITECTURE.md) | What the format modules share: picking a repository by URI scheme, resolving `$ref` references, (de)serializing plugins and the JSON formats of MIDI values | `org.calinburloiu.music.microtonalist.format` |
-| `format-test-utils` | Test helpers shared by the tests of the format modules, such as `JsonFormatTestUtils` | `org.calinburloiu.music.microtonalist.format` |
 
-The three modules share their package: `format` holds `FormatModule`, `format-test-utils` holds `JsonFormatTestUtils`,
-and `format-core` holds the rest.
+The two modules share their package: `format` holds `FormatModule`, and `format-core` holds the rest. `format-core`'s
+tests hold `JsonFormatTestUtils`, which the tests of the format modules share.
 
 ## Formats and repositories
 

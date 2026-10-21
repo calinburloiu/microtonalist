@@ -1,2 +1,4 @@
 -J--add-exports=java.desktop/com.sun.media.sound=ALL-UNNAMED
 -J--sun-misc-unsafe-memory-access=allow
+# The launcher's default 1 GB heap runs out while the coverage commands compile every module at once.
+-mem 4096

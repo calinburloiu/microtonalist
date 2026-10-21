@@ -40,7 +40,7 @@ import scoverage.ScoverageKeys.*
  * enabled.
  *
  * `coverageThresholds` prints a table of the minimum statement and branch coverage percentages configured for each
- * module aggregated by root (excluding modules with coverage disabled, e.g. `common-test-utils`). Useful for agents and
+ * module aggregated by root (excluding modules with coverage disabled, e.g. `experiments`). Useful for agents and
  * developers who need to check thresholds without reading `build.sbt`.
  */
 object Coverage {
@@ -142,8 +142,8 @@ object Coverage {
       if (!includedIds.contains(ref.project)) None
       else {
         // A module participates iff it enforces a coverage minimum (the `coverageSettings` helper in
-        // `build.sbt` sets `coverageFailOnMinimum := true`). Test-utility modules such as
-        // `common-test-utils` never call it and are excluded. `coverageEnabled` can't be used here: it
+        // `build.sbt` sets `coverageFailOnMinimum := true`). Modules without tests, such as
+        // `experiments`, never call it and are excluded. `coverageEnabled` can't be used here: it
         // defaults to false for every module outside an active `coverage` session.
         val enforcesMinimum = extracted.getOpt(ref / coverageFailOnMinimum).contains(true)
         if (!enforcesMinimum) None

@@ -58,7 +58,6 @@ lazy val root = (project in file("."))
   .aggregate(
     businessyncModule,
     commonModule,
-    commonTestUtilsModule,
     compositionModule,
     compositionFormatModule,
     intonationModule,
@@ -78,7 +77,6 @@ lazy val root = (project in file("."))
     rigFormatModule,
     formatModule,
     formatCoreModule,
-    formatTestUtilsModule,
     uiModule,
     appModule,
     cliModule,
@@ -108,28 +106,12 @@ lazy val businessyncModule = (project in file("base/businessync"))
 
 lazy val commonModule = (project in file("base/common"))
   .withId("common")
-  .dependsOn(
-    commonTestUtilsModule % Test,
-  )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-common",
     commonSettings,
     // TODO #175 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 50, branch = 22),
-  )
-
-lazy val commonTestUtilsModule = (project in file("base/common-test-utils"))
-  .withId("common-test-utils")
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-common-test-utils",
-    commonSettings,
-    libraryDependencies ++= Seq(
-      slf4jApi,
-    ),
-    // Test infrastructure — exclude from coverage measurement.
-    coverageEnabled := false,
   )
 
 lazy val compositionModule = (project in file("theory/composition"))
@@ -154,10 +136,9 @@ lazy val compositionFormatModule = (project in file("theory/composition-format")
   .withId("composition-format")
   .dependsOn(
     businessyncModule % Test,
-    commonTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
     compositionModule,
-    formatCoreModule,
-    formatTestUtilsModule % Test,
+    formatCoreModule % "compile->compile;test->test",
     intonationFormatModule,
     intonationModule,
     scMidiModule,
@@ -192,9 +173,8 @@ lazy val intonationFormatModule = (project in file("theory/intonation-format"))
   .withId("intonation-format")
   .dependsOn(
     businessyncModule,
-    commonTestUtilsModule % Test,
-    formatCoreModule,
-    formatTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
+    formatCoreModule % "compile->compile;test->test",
     intonationModule,
   )
   .disablePlugins(AssemblyPlugin)
@@ -227,8 +207,7 @@ lazy val scMidiModule = (project in file("midi/sc-midi"))
 lazy val scMidiJavamidiModule = (project in file("midi/sc-midi-javamidi"))
   .withId("sc-midi-javamidi")
   .dependsOn(
-    commonModule,
-    commonTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
     scMidiModule,
   )
   .disablePlugins(AssemblyPlugin)
@@ -249,8 +228,7 @@ lazy val tunerModule = (project in file("tuner/tuner"))
   .withId("tuner")
   .dependsOn(
     businessyncModule,
-    commonModule,
-    commonTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
     scMidiModule,
     tuningModule,
   )
@@ -268,8 +246,7 @@ lazy val tunerModule = (project in file("tuner/tuner"))
 lazy val tunerFormatModule = (project in file("tuner/tuner-format"))
   .withId("tuner-format")
   .dependsOn(
-    formatCoreModule,
-    formatTestUtilsModule % Test,
+    formatCoreModule % "compile->compile;test->test",
     scMidiModule,
     tunerModule,
     tunerMpbModule,
@@ -289,7 +266,7 @@ lazy val tunerFormatModule = (project in file("tuner/tuner-format"))
 lazy val tunerMpbModule = (project in file("tuner/tuner-mpb"))
   .withId("tuner-mpb")
   .dependsOn(
-    commonTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
     scMidiModule,
     tunerModule,
     tuningModule,
@@ -304,7 +281,7 @@ lazy val tunerMpbModule = (project in file("tuner/tuner-mpb"))
 lazy val tunerMpeModule = (project in file("tuner/tuner-mpe"))
   .withId("tuner-mpe")
   .dependsOn(
-    commonTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
     scMidiModule,
     tunerModule,
     tuningModule,
@@ -366,8 +343,7 @@ lazy val tuningChangerModule = (project in file("tuner/tuning-changer"))
 lazy val tuningChangerFormatModule = (project in file("tuner/tuning-changer-format"))
   .withId("tuning-changer-format")
   .dependsOn(
-    formatCoreModule,
-    formatTestUtilsModule % Test,
+    formatCoreModule % "compile->compile;test->test",
     scMidiModule,
     tuningChangerModule,
     tuningChangerPedalModule,
@@ -424,9 +400,8 @@ lazy val rigModule = (project in file("rig/rig"))
 lazy val rigFormatModule = (project in file("rig/rig-format"))
   .withId("rig-format")
   .dependsOn(
-    commonTestUtilsModule % Test,
-    formatCoreModule,
-    formatTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
+    formatCoreModule % "compile->compile;test->test",
     rigModule,
     scMidiModule,
     tunerFormatModule % Test,
@@ -453,7 +428,7 @@ lazy val formatModule = (project in file("format/format"))
   .withId("format")
   .dependsOn(
     businessyncModule,
-    commonTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
     compositionFormatModule,
     formatCoreModule,
     intonationFormatModule,
@@ -479,7 +454,6 @@ lazy val formatCoreModule = (project in file("format/format-core"))
   .withId("format-core")
   .dependsOn(
     commonModule,
-    formatTestUtilsModule % Test,
     scMidiModule,
   )
   .disablePlugins(AssemblyPlugin)
@@ -491,20 +465,6 @@ lazy val formatCoreModule = (project in file("format/format-core"))
     ),
     // TODO #179 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 65, branch = 63),
-  )
-
-lazy val formatTestUtilsModule = (project in file("format/format-test-utils"))
-  .withId("format-test-utils")
-  .disablePlugins(AssemblyPlugin)
-  .settings(
-    name := "microtonalist-format-test-utils",
-    commonSettings,
-    libraryDependencies ++= Seq(
-      playJson,
-      scalaTest,
-    ),
-    // Test infrastructure — exclude from coverage measurement.
-    coverageEnabled := false,
   )
 
 lazy val uiModule = (project in file("ui/ui"))
@@ -529,8 +489,7 @@ lazy val appModule = (project in file("app/app"))
   .dependsOn(
     configModule,
     businessyncModule,
-    commonModule,
-    commonTestUtilsModule % Test,
+    commonModule % "compile->compile;test->test",
     compositionModule,
     intonationModule % Test,
     formatModule,

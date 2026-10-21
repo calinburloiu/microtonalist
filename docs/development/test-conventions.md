@@ -160,19 +160,21 @@ Enforced by scalafix (`DisableSyntax`, `threadSleep`), in production code too, w
 
 ## Shared test utilities
 
-When a test helper is needed across multiple modules, do **not** use sbt's `test->test` configuration dependencies —
-they break scoverage instrumentation under the default class-loader layering. Instead, put the shared helper in the
-`common-test-utils` module (or create a similar `*-test-utils` module if a different scope is required) and depend on
-it from `Test` scope:
+When the tests of several modules need a helper, put it in the tests of the lowest module that has the types it needs.
+Each module whose tests use it depends on that module with `test->test`:
 
 ```scala
-lazy val myModule = (project in file("my-module"))
-  .dependsOn(commonTestUtils % Test)
+lazy val myModule = (project in file("my-group/my-module"))
+  .withId("my-module")
+  .dependsOn(commonModule % "compile->compile;test->test")
 ```
 
-`common-test-utils` already provides `CommonTestUtils` (e.g. `uriOfResource`) and `LogCapture`, which captures the
-events of a logger so that a test can assert on log output that tests otherwise discard.
+The dependency isn't transitive: a module's tests see another module's test classes only through a dependency of their
+own. It also brings that module's test resources, which `getResource` can't tell apart from the module's own when they
+share a path, so keep each module's test resources under a folder that no other module uses.
 
-Test-utility modules have `coverageEnabled := false` so that they do not appear in coverage reports.
+`common`'s tests provide `CommonTestUtils` (e.g. `uriOfResource`) and `LogCapture`, which captures the events of a
+logger so that a test can assert on log output that tests otherwise discard. `format-core`'s tests provide
+`JsonFormatTestUtils`.
 
 Not enforced.

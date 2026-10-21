@@ -30,7 +30,6 @@ object Dependencies {
   val scalaLoggingVersion = "3.9.6"
   val scalaMockVersion = "7.6.0"
   val scalaTestVersion = "3.2.20"
-  val slf4jVersion = "2.0.19" // Brought by logback
   val typesafeConfigVersion = "1.3.4" // Brought by ficus
 
   // # Dependency definitions
@@ -50,6 +49,5 @@ object Dependencies {
   // is no longer part of the scalamock artifact.
   val scalaMock = "org.scalamock" %% "scalamock-scalatest" % scalaMockVersion
   val scalaTest = "org.scalatest" %% "scalatest" % scalaTestVersion
-  val slf4jApi = "org.slf4j" % "slf4j-api" % slf4jVersion
   val typesafeConfig = "com.typesafe" % "config" % typesafeConfigVersion
 }
