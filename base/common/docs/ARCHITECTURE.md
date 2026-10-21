@@ -42,10 +42,8 @@ to macOS** — see notes below.
 
 ## Dependencies
 
-`common` has no `dependsOn`. Externally it uses only the inherited common logging/test stack. It is depended on directly
-by `config`, `composition`, `tuner`, `tuning-changer`, `rig`, `format-core`, `sc-midi`, `sc-midi-javamidi`, and `app`,
-and transitively by every other module but `intonation`, `businessync` and `experiments`. Its tests hold
-`CommonTestUtils` and `LogCapture`, which the tests of other modules share through `test->test` dependencies.
+`common` has no `dependsOn`. Externally it uses only the inherited common logging/test stack. Every module but
+`intonation`, `businessync` and `experiments` depends on it.
 
 ## Notes / subject to change
 

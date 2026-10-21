@@ -172,8 +172,8 @@ lazy val myModule = (project in file("my-group/my-module"))
 Only `test->test` dependencies bring test classes, and a chain of them brings those of every module along it: `rig`'s
 tests see `common`'s through `tuner`'s, while a plain dependency on `tuner` brings none. Don't rely on a chain; declare a
 `test->test` dependency on each module whose helpers the tests use. The dependency also brings that module's test
-resources, which `getResource` can't tell apart from the module's own when they share a path, so keep each module's
-test resources under a folder that no other module uses.
+resources, which `getResource` can't tell apart from the module's own when they share a path, so give them different
+paths.
 
 The shared helpers:
 
