@@ -120,7 +120,7 @@ lazy val compositionModule = (project in file("theory/composition"))
     commonModule,
     intonationModule,
     scMidiModule,
-    tuningModule,
+    tuningModule % "compile->compile;test->test",
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -230,7 +230,7 @@ lazy val tunerModule = (project in file("tuner/tuner"))
     businessyncModule,
     commonModule % "compile->compile;test->test",
     scMidiModule,
-    tuningModule,
+    tuningModule % "compile->compile;test->test",
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -298,7 +298,7 @@ lazy val tunerMtsModule = (project in file("tuner/tuner-mts"))
   .dependsOn(
     scMidiModule,
     tunerModule,
-    tuningModule,
+    tuningModule % "compile->compile;test->test",
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -380,9 +380,9 @@ lazy val rigModule = (project in file("rig/rig"))
     businessyncModule,
     commonModule,
     scMidiModule,
-    tunerModule,
+    tunerModule % "compile->compile;test->test",
     tunerMtsModule % Test,
-    tuningModule,
+    tuningModule % "compile->compile;test->test",
     tuningChangerModule,
     tuningChangerPedalModule % Test,
   )

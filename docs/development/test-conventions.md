@@ -169,12 +169,18 @@ lazy val myModule = (project in file("my-group/my-module"))
   .dependsOn(commonModule % "compile->compile;test->test")
 ```
 
-The dependency isn't transitive: a module's tests see another module's test classes only through a dependency of their
-own. It also brings that module's test resources, which `getResource` can't tell apart from the module's own when they
-share a path, so keep each module's test resources under a folder that no other module uses.
+Only `test->test` dependencies bring test classes, and a chain of them brings those of every module along it: `rig`'s
+tests see `common`'s through `tuner`'s, while a plain dependency on `tuner` brings none. Don't rely on a chain; declare a
+`test->test` dependency on each module whose helpers the tests use. The dependency also brings that module's test
+resources, which `getResource` can't tell apart from the module's own when they share a path, so keep each module's
+test resources under a folder that no other module uses.
 
-`common`'s tests provide `CommonTestUtils` (e.g. `uriOfResource`) and `LogCapture`, which captures the events of a
-logger so that a test can assert on log output that tests otherwise discard. `format-core`'s tests provide
-`JsonFormatTestUtils`.
+The shared helpers:
+
+- `common`: `CommonTestUtils` (e.g. `uriOfResource`), and `LogCapture`, which captures the events of a logger so that a
+  test can assert on log output that tests otherwise discard;
+- `tuning`: `TestTunings`, a few just intonation tunings;
+- `tuner`: `FakeTuner`, a `Tuner` that returns canned messages and records what it is asked to do;
+- `format-core`: `JsonFormatTestUtils`.
 
 Not enforced.

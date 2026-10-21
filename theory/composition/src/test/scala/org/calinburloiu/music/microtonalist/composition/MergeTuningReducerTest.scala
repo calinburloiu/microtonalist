@@ -23,6 +23,7 @@ import org.scalatest.wordspec.AnyWordSpec
 class MergeTuningReducerTest extends AnyWordSpec with Matchers {
 
   import org.calinburloiu.music.microtonalist.composition.TestTunings.*
+  import org.calinburloiu.music.microtonalist.tuner.TestTunings.justCMaj
 
   private val reducer = MergeTuningReducer()
 

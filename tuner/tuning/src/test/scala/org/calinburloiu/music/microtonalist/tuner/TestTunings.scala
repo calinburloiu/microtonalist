@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 Calin-Andrei Burloiu
+ * Copyright 2025 Calin-Andrei Burloiu
  *
  *    Licensed under the Apache License, Version 2.0 (the "License");
  *    you may not use this file except in compliance with the License.
@@ -14,11 +14,9 @@
  *    limitations under the License.
  */
 
-package org.calinburloiu.music.microtonalist.tuner.mts
+package org.calinburloiu.music.microtonalist.tuner
 
-import org.calinburloiu.music.microtonalist.tuner.Tuning
-
-/** Tunings for the tests of `tuner-mts`: a trimmed copy of the `tuner` tests' `TestTunings`. */
+/** Just intonation tunings shared by the tests of the modules that tune. */
 object TestTunings {
   val justCMaj: Tuning = Tuning("Just C Major",
     c = Some(0.0),
@@ -28,5 +26,26 @@ object TestTunings {
     g = Some(1.96),
     a = Some(-15.64),
     b = Some(-11.73)
+  )
+
+  val justCRast: Tuning = Tuning("Just C Rast",
+    c = Some(0.0),
+    d = Some(3.91),
+    e = Some(-13.69),
+    f = Some(-1.96),
+    g = Some(1.96),
+    a = Some(5.87),
+    aSharpOrBFlat = Some(-3.91),
+    b = Some(-11.73)
+  )
+
+  val justDUssak: Tuning = Tuning("Just D Ussak",
+    d = Some(3.91),
+    e = Some(-45.45),
+    f = Some(-1.96),
+    g = Some(1.96),
+    a = Some(5.87),
+    aSharpOrBFlat = Some(-3.91),
+    c = Some(0.0)
   )
 }
