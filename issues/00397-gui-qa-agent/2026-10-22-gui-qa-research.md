@@ -3,8 +3,8 @@
 - **Date:** 2026-10-22
 - **Commit:** `89b5f06d`
 - **Issue:** #397. Related: #99, #383.
-- **Trimmed version:** [`2026-10-22-gui-qa-in-process.md`](2026-10-22-gui-qa-in-process.md), in-process mode only,
-  without OS screenshots.
+- **Guide:** [`2026-10-22-gui-qa-in-process-guide.md`](2026-10-22-gui-qa-in-process-guide.md), for testing the
+  initial GUI of #99 by hand in process, headless, before any of the tooling below exists.
 
 ## Problem
 
