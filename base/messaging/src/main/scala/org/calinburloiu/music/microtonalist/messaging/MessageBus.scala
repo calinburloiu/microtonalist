@@ -193,8 +193,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   /**
-   * The id of the command that caused the message that the calling thread runs, or `None` off the Business and UI
-   * Threads or for a message that no command caused.
+   * The id of the command that caused the message that the calling thread runs, or `None` outside a Business or UI
+   * message, such as in code that the UI toolkit calls directly, or for a message that no command caused.
    */
   private[messaging] def causingCommandId: Option[Long] = cause.map(_.commandId)
 
@@ -254,25 +254,30 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   private def runBusinessMessage(message: BusinessMessage): Unit = BlockContext.withBlockContext(businessBlockContext) {
     businessCause = message.cause
-    val (handlerReply, bodyFailure) = message match {
-      case CommandMessage(command, handler, _) =>
-        val outcome = runCommand(command, handler)
-        (outcome.toOption.flatten.map(command -> _), outcome.failed.toOption)
-      case eventMessage: EventMessage => (None, deliver(eventMessage))
-      case ContinuationMessage(runnable, _) =>
-        runnable.run()
-        val reported = continuationFailure
-        continuationFailure = None
-        (None, reported)
-    }
+    try {
+      val (handlerReply, bodyFailure) = message match {
+        case CommandMessage(command, handler, _) =>
+          val outcome = runCommand(command, handler)
+          (outcome.toOption.flatten.map(command -> _), outcome.failed.toOption)
+        case eventMessage: EventMessage => (None, deliver(eventMessage))
+        case ContinuationMessage(runnable, _) =>
+          runnable.run()
+          (None, continuationFailure)
+      }
 
-    var failure = bodyFailure
-    while (localEvents.nonEmpty) {
-      val subscriberFailure = deliver(localEvents.dequeue())
-      failure = failure.orElse(subscriberFailure)
-    }
+      var failure = bodyFailure
+      while (localEvents.nonEmpty) {
+        val subscriberFailure = deliver(localEvents.dequeue())
+        failure = failure.orElse(subscriberFailure)
+      }
 
-    settleReply(message.cause, handlerReply, failure)
+      // Inside the try, since it reads the cause when it continues a pending handler's reply.
+      settleReply(message.cause, handlerReply, failure)
+    } finally {
+      businessCause = None
+      localEvents.clear()
+      continuationFailure = None
+    }
   }
 
   /**
@@ -309,9 +314,14 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   private def runUiMessage(message: UiMessage): Unit = BlockContext.withBlockContext(uiBlockContext) {
     uiCause = message.cause
-    message match {
-      case eventMessage: EventMessage => deliver(eventMessage)
-      case ContinuationMessage(runnable, _) => runnable.run()
+    try {
+      message match {
+        case eventMessage: EventMessage => deliver(eventMessage)
+        case ContinuationMessage(runnable, _) => runnable.run()
+      }
+    } finally {
+      // The toolkit also runs code on this thread outside the messages, which no command caused.
+      uiCause = None
     }
   }
 

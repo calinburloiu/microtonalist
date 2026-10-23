@@ -111,8 +111,8 @@ object ManualRuntime {
   val MaxDrainedMessages: Int = 10000
 
   /**
-   * Returns the id of the command that caused the message of `messageBus` that the calling thread runs, or `None` off
-   * its Business and UI Threads or for a message that no command caused.
+   * Returns the id of the command that caused the message of `messageBus` that the calling thread runs, or `None`
+   * outside its Business and UI messages or for a message that no command caused.
    */
   def causingCommandId(using messageBus: MessageBus): Option[Long] = messageBus.causingCommandId
 }

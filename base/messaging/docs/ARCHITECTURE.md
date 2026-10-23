@@ -67,7 +67,8 @@ is skipped.
 
 Each `dispatch` and `ask` gives its command an id, from a counter per bus. The messages it causes carry the id: its
 handler's, the deliveries of the events published there and by their subscribers, and the continuations started
-there. The stamp is internal for now; tests read it with `ManualRuntime.causingCommandId`.
+there. What is published or started outside the messages, including by code that the toolkit runs on the UI Thread,
+carries none. The stamp is internal for now; tests read it with `ManualRuntime.causingCommandId`.
 
 ### Continuations
 

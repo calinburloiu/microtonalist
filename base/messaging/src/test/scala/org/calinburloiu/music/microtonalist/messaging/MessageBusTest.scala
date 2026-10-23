@@ -21,7 +21,7 @@ import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.util.concurrent.CompletableFuture
+import java.util.concurrent.{CompletableFuture, ExecutorService, Executors}
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future, Promise}
@@ -62,6 +62,68 @@ object MessageBusTest {
     val messageBus: MessageBus = MessageBus(runtime)
     given MessageBus = messageBus
     val log: mutable.ArrayBuffer[String] = mutable.ArrayBuffer()
+  }
+
+  /**
+   * A [[MessagingRuntime]] over a [[ManualRuntime]] whose UI mailbox also counts `toolkitThread` as its thread outside
+   * its messages, as a production runtime counts the UI toolkit's thread.
+   */
+  final class ToolkitRuntime(manualRuntime: ManualRuntime, toolkitThread: Thread) extends MessagingRuntime {
+    override def startMailbox[M <: AnyRef](name: String, priority: Int)(handler: M => Unit): Mailbox[M] =
+      manualRuntime.startMailbox(name, priority)(handler)
+
+    override def startUiMailbox[M <: AnyRef](handler: M => Unit): Mailbox[M] = {
+      val mailbox = manualRuntime.startUiMailbox(handler)
+      new Mailbox[M] {
+        override def enqueue(message: M): Unit = mailbox.enqueue(message)
+
+        override def isCurrentThread: Boolean = mailbox.isCurrentThread || Thread.currentThread() == toolkitThread
+
+        override def stop(): Future[Unit] = mailbox.stop()
+      }
+    }
+  }
+
+  /**
+   * A fixture whose bus runs on a [[ToolkitRuntime]], with the thread of the single-thread executor `toolkit` as the
+   * toolkit's thread; its messages run when the test drains `runtime`.
+   */
+  final class ToolkitFixture {
+    val toolkit: ExecutorService = Executors.newSingleThreadExecutor()
+    private val toolkitThread: Thread = CompletableFuture.supplyAsync(() => Thread.currentThread(), toolkit).join()
+    val runtime: ManualRuntime = ManualRuntime()
+    val messageBus: MessageBus = MessageBus(ToolkitRuntime(runtime, toolkitThread))
+    given MessageBus = messageBus
+
+    /**
+     * Runs `body` on the toolkit's thread outside any message, as the UI toolkit runs UI code, and returns its result.
+     */
+    def onToolkit[T](body: => T): T = CompletableFuture.supplyAsync(() => body, toolkit).join()
+
+    /**
+     * Asks a request whose handler publishes an event to a UI subscriber and returns a `Future` that never completes,
+     * drains, and returns the pending reply; the UI Thread's last message was thus caused by the request.
+     */
+    def askWithUiEvent(): Future[String] = {
+      messageBus.handleRequest(classOf[Later]) { _ =>
+        messageBus.publish(Dog("Rex"))
+        Promise[String]().future
+      }
+      messageBus.subscribeOnUi(classOf[Dog])(_ => ())
+      val reply = messageBus.ask(Later())
+      runtime.drainAll()
+      reply
+    }
+  }
+
+  /** Runs `test` with a new [[ToolkitFixture]], then shuts its toolkit's thread down. */
+  def withToolkitFixture(test: ToolkitFixture => Unit): Unit = {
+    val fixture = ToolkitFixture()
+    try {
+      test(fixture)
+    } finally {
+      fixture.toolkit.shutdown()
+    }
   }
 }
 
@@ -544,6 +606,36 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         stamps shouldEqual Seq("business" -> None, "ui" -> None)
         ManualRuntime.causingCommandId(using messageBus) shouldBe None
       }
+
+      "stamp nothing published off the Business Thread after a command's message" in new Fixture {
+        // Given
+        private var stamp: Option[Option[Long]] = None
+        messageBus.handle(classOf[Retune])(_ => ())
+        messageBus.subscribe(classOf[Dog])(_ => stamp = Some(ManualRuntime.causingCommandId(using messageBus)))
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // When
+        CompletableFuture.runAsync(() => messageBus.publish(Dog("Rex"))).join()
+        runtime.drainAll()
+
+        // Then
+        stamp shouldEqual Some(None)
+      }
+
+      "stamp nothing that the toolkit runs on the UI Thread outside a message" in withToolkitFixture { fixture =>
+        import fixture.*
+        // Given
+        askWithUiEvent()
+
+        // When
+        val onUi = onToolkit(Try(messageBus.requireUiThread()).isSuccess)
+        val stamp = onToolkit(ManualRuntime.causingCommandId(using messageBus))
+
+        // Then
+        onUi shouldBe true
+        stamp shouldBe None
+      }
     }
 
     "asking a request" should {
@@ -639,6 +731,24 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         // Then
         reply.value.get.failed.get.getMessage shouldEqual "bite"
       }
+
+      "keep the reply pending when the toolkit publishes an event whose Business subscriber throws" in
+        withToolkitFixture { fixture =>
+          import fixture.*
+          // Given
+          val reply = askWithUiEvent()
+          messageBus.subscribe(classOf[Wolf])(_ => throw RuntimeException("bite"))
+
+          // When
+          val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+            onToolkit(messageBus.publish(Wolf("Grey")))
+            runtime.drainAll()
+          }
+
+          // Then
+          events.failuresAt(Level.ERROR) shouldEqual Seq(("A subscriber of Wolf(Grey) failed.", Some("bite")))
+          reply.isCompleted shouldBe false
+        }
 
       "accept a request asked from another thread" in new Fixture {
         // Given

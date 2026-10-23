@@ -321,6 +321,20 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
     }
 
+    "stamp nothing on a continuation that the toolkit starts outside a message" in withToolkitFixture { fixture =>
+      import fixture.{given, *}
+      // Given
+      askWithUiEvent()
+      var stamp: Option[Option[Long]] = None
+
+      // When
+      onToolkit(Future.unit.onCompleteOnUi(_ => stamp = Some(ManualRuntime.causingCommandId)))
+      runtime.drainAll()
+
+      // Then
+      stamp shouldEqual Some(None)
+    }
+
     "refuse a UI continuation off the UI Thread" in new Fixture {
       // Given
       private val completed = Future.successful(1)
