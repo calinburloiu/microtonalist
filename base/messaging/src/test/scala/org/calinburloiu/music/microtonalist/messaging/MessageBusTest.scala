@@ -40,6 +40,14 @@ object MessageBusTest {
 
   case class Explode() extends Command
 
+  abstract class Animal
+
+  trait Pet
+
+  case class Dog(name: String) extends Animal with Pet
+
+  case class Wolf(name: String) extends Animal
+
   abstract class Fixture {
     val runtime: ManualRuntime = ManualRuntime()
     val messageBus: MessageBus = MessageBus(runtime)
@@ -183,6 +191,247 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "throw from requireBusinessThread off the Business Thread" in new Fixture {
         // When / Then
         an[IllegalStateException] should be thrownBy messageBus.requireBusinessThread()
+      }
+    }
+
+    "publishing an event" should {
+      "start the UI mailbox after the Business one" in new Fixture {
+        // When / Then
+        runtime.mailboxes.map(_.name) shouldEqual Seq("Business", "UI")
+      }
+
+      "deliver an event to a Business subscriber on the Business Thread once the Business mailbox drains" in
+        new Fixture {
+          // Given
+          private var onBusiness = false
+          messageBus.subscribe(classOf[Dog]) { dog =>
+            log += dog.name
+            onBusiness = Try(messageBus.requireBusinessThread()).isSuccess
+          }
+
+          // When
+          messageBus.publish(Dog("Rex"))
+
+          // Then
+          log shouldBe empty
+
+          // When
+          runtime.drainAll()
+
+          // Then
+          log shouldEqual Seq("Rex")
+          onBusiness shouldBe true
+        }
+
+      "deliver an event to the subscribers of its class and of its supertypes, classes and traits" in new Fixture {
+        // Given
+        messageBus.subscribe(classOf[Animal])(event => log += s"animal $event")
+        messageBus.subscribe(classOf[Pet])(event => log += s"pet $event")
+        messageBus.subscribe(classOf[Dog])(event => log += s"dog $event")
+        messageBus.subscribe(classOf[Wolf])(event => log += s"wolf $event")
+
+        // When
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("animal Dog(Rex)", "pet Dog(Rex)", "dog Dog(Rex)")
+      }
+
+      "deliver an event of any class" in new Fixture {
+        // Given
+        messageBus.subscribe(classOf[String])(event => log += event)
+
+        // When
+        messageBus.publish("plain")
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("plain")
+      }
+
+      "deliver an event once per matching subscription, in subscription order" in new Fixture {
+        // Given
+        private val record: AnyRef => Unit = event => log += s"twice $event"
+        messageBus.subscribe(classOf[Animal])(event => log += s"animal $event")
+        messageBus.subscribe(classOf[Pet])(record)
+        messageBus.subscribe(classOf[Animal])(record)
+
+        // When
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("animal Dog(Rex)", "twice Dog(Rex)", "twice Dog(Rex)")
+      }
+
+      "deliver the events a handler publishes after it returns and before the next command" in new Fixture {
+        // Given
+        messageBus.handle(classOf[Retune]) { retune =>
+          messageBus.publish(Dog(s"d${retune.index}"))
+          log += s"retune ${retune.index}"
+        }
+        messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
+
+        // When
+        messageBus.dispatch(Retune(1))
+        messageBus.dispatch(Retune(2))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("retune 1", "d1", "retune 2", "d2")
+      }
+
+      "deliver the events published while draining in the same drain" in new Fixture {
+        // Given
+        messageBus.handle(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.handle(classOf[Reset])(_ => log += "reset")
+        messageBus.subscribe(classOf[Dog]) { dog =>
+          log += dog.name
+          messageBus.publish(Wolf("Grey"))
+        }
+        messageBus.subscribe(classOf[Wolf])(wolf => log += wolf.name)
+
+        // When
+        messageBus.dispatch(Retune(1))
+        messageBus.dispatch(Reset())
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("Rex", "Grey", "reset")
+      }
+
+      "enqueue an event to the UI mailbox as soon as it's published" in new Fixture {
+        // Given
+        private var uiQueued = false
+        messageBus.subscribeOnUi(classOf[Dog])(_ => ())
+        messageBus.handle(classOf[Retune]) { _ =>
+          messageBus.publish(Dog("Rex"))
+          uiQueued = !runtime.mailbox("UI").isEmpty
+        }
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.mailbox("Business").drain()
+
+        // Then
+        uiQueued shouldBe true
+      }
+
+      "deliver events to UI subscribers on the UI Thread, in publish order" in new Fixture {
+        // Given
+        private var onUi = false
+        messageBus.subscribeOnUi(classOf[Dog]) { dog =>
+          log += dog.name
+          onUi = Try(messageBus.requireUiThread()).isSuccess
+        }
+        messageBus.handle(classOf[Retune]) { _ =>
+          messageBus.publish(Dog("a"))
+          messageBus.publish(Dog("b"))
+        }
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.mailbox("Business").drain()
+
+        // Then
+        log shouldBe empty
+
+        // When
+        runtime.mailbox("UI").drain()
+
+        // Then
+        log shouldEqual Seq("a", "b")
+        onUi shouldBe true
+      }
+
+      "not deliver to a cancelled subscription" in new Fixture {
+        // Given
+        messageBus.subscribe(classOf[Dog])(dog => log += dog.name).cancel()
+
+        // When
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+
+        // Then
+        log shouldBe empty
+      }
+
+      "not deliver an event published before its subscription was cancelled" in new Fixture {
+        // Given
+        private val business = messageBus.subscribe(classOf[Dog])(dog => log += s"business ${dog.name}")
+        private val ui = messageBus.subscribeOnUi(classOf[Dog])(dog => log += s"ui ${dog.name}")
+        messageBus.publish(Dog("Rex"))
+
+        // When
+        business.cancel()
+        ui.cancel()
+        runtime.drainAll()
+
+        // Then
+        log shouldBe empty
+      }
+
+      "give a subscription made while delivering an event the events published after it" in new Fixture {
+        // Given
+        messageBus.subscribe(classOf[Wolf]) { _ =>
+          messageBus.subscribe(classOf[Dog])(dog => log += s"new ${dog.name}")
+          messageBus.publish(Dog("after"))
+        }
+
+        // When
+        messageBus.publish(Dog("before"))
+        messageBus.publish(Wolf("Grey"))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("new after")
+      }
+
+      "log a failing Business subscriber and still run the others" in new Fixture {
+        // Given
+        messageBus.subscribe(classOf[Dog])(_ => throw RuntimeException("bite"))
+        messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+          messageBus.publish(Dog("Rex"))
+          runtime.drainAll()
+        }
+
+        // Then
+        events.failuresAt(Level.ERROR) shouldEqual Seq(("A subscriber of Dog(Rex) failed.", Some("bite")))
+        log shouldEqual Seq("Rex")
+      }
+
+      "log a failing UI subscriber and still run the others" in new Fixture {
+        // Given
+        messageBus.subscribeOnUi(classOf[Dog])(_ => throw RuntimeException("bite"))
+        messageBus.subscribeOnUi(classOf[Dog])(dog => log += dog.name)
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+          messageBus.publish(Dog("Rex"))
+          runtime.drainAll()
+        }
+
+        // Then
+        events.failuresAt(Level.ERROR) shouldEqual Seq(("A subscriber of Dog(Rex) failed.", Some("bite")))
+        log shouldEqual Seq("Rex")
+      }
+
+      "throw from requireUiThread off the UI Thread" in new Fixture {
+        // Given
+        private var inHandler: Option[Try[Unit]] = None
+        messageBus.handle(classOf[Retune])(_ => inHandler = Some(Try(messageBus.requireUiThread())))
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        an[IllegalStateException] should be thrownBy messageBus.requireUiThread()
+        inHandler.get.failed.get shouldBe an[IllegalStateException]
       }
     }
   }

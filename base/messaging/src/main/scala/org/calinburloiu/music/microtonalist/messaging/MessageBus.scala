@@ -19,26 +19,35 @@ package org.calinburloiu.music.microtonalist.messaging
 import com.typesafe.scalalogging.StrictLogging
 
 import javax.annotation.concurrent.ThreadSafe
+import scala.collection.mutable
 import scala.util.control.NonFatal
 
 /**
  * Runs the [[Command]]s dispatched from any thread on the Business Thread, the thread of the `Business` mailbox, which
- * runs one message at a time.
+ * runs one message at a time, and delivers the events published from any thread to their subscribers, on the Business
+ * Thread or on the UI Thread, the thread of the `UI` mailbox.
  *
- * Constructing it starts the `Business` mailbox, at `Thread.NORM_PRIORITY`. An exception that a handler throws is
- * logged at ERROR, and the mailbox goes on with its next message.
+ * Constructing it starts the `Business` mailbox, at `Thread.NORM_PRIORITY`, then the `UI` mailbox. An exception that a
+ * handler or a subscriber throws is logged at ERROR, and its mailbox goes on.
  *
  * @param runtime starts the mailboxes
  */
 @ThreadSafe
 class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
-  import MessageBus.CommandMessage
+  import MessageBus.{BusinessMessage, CommandMessage, EventMessage, UiMessage}
 
   private val commandHandlers: CommandHandlers = CommandHandlers()
 
-  private val business: Mailbox[CommandMessage] =
-    runtime.startMailbox[CommandMessage]("Business", Thread.NORM_PRIORITY)(runBusinessMessage)
+  private val subscribers: Subscribers = Subscribers()
+
+  /** The events published by the running Business message, touched only on the Business Thread. */
+  private val localEvents: mutable.Queue[EventMessage] = mutable.Queue()
+
+  private val business: Mailbox[BusinessMessage] =
+    runtime.startMailbox[BusinessMessage]("Business", Thread.NORM_PRIORITY)(runBusinessMessage)
+
+  private val ui: Mailbox[UiMessage] = runtime.startUiMailbox[UiMessage](runUiMessage)
 
   /**
    * Queues a command to run on the Business Thread, after the messages already queued there, even when called from it.
@@ -60,21 +69,98 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   /**
+   * Delivers an event to the subscribers of its class and of its supertypes subscribed by now, once per subscription,
+   * in subscription order on each thread.
+   *
+   * Published from the Business Thread, it reaches the Business subscribers after the running message, before the next
+   * one; otherwise, after the messages already queued on the Business Thread. It reaches the UI subscribers after the
+   * messages already queued on the UI Thread.
+   */
+  def publish(event: AnyRef): Unit = {
+    val (uiSubscribers, businessSubscribers) = subscribers.matching(event).partition(_.onUi)
+
+    if (uiSubscribers.nonEmpty) {
+      ui.enqueue(EventMessage(event, uiSubscribers))
+    }
+
+    if (businessSubscribers.nonEmpty) {
+      val message = EventMessage(event, businessSubscribers)
+      if (business.isCurrentThread) {
+        localEvents.enqueue(message)
+      } else {
+        business.enqueue(message)
+      }
+    }
+  }
+
+  /**
+   * Subscribes a handler, which runs on the Business Thread, to the events of `eventClass` and of its subtypes
+   * published from now on.
+   */
+  def subscribe[E <: AnyRef](eventClass: Class[E])(handler: E => Unit): Subscription =
+    subscribers.add(eventClass, onUi = false, handler)
+
+  /**
+   * Subscribes a handler, which runs on the UI Thread, to the events of `eventClass` and of its subtypes published from
+   * now on.
+   */
+  def subscribeOnUi[E <: AnyRef](eventClass: Class[E])(handler: E => Unit): Subscription =
+    subscribers.add(eventClass, onUi = true, handler)
+
+  /**
    * Checks that the calling thread is the Business Thread.
    *
    * @throws IllegalStateException if it isn't
    */
   def requireBusinessThread(): Unit = {
-    if (!business.isCurrentThread) {
-      throw IllegalStateException(s"Expected the Business Thread, but running on ${Thread.currentThread().getName}.")
+    requireThread(business, "Business")
+  }
+
+  /**
+   * Checks that the calling thread is the UI Thread.
+   *
+   * @throws IllegalStateException if it isn't
+   */
+  def requireUiThread(): Unit = {
+    requireThread(ui, "UI")
+  }
+
+  private def requireThread(mailbox: Mailbox[?], threadName: String): Unit = {
+    if (!mailbox.isCurrentThread) {
+      throw IllegalStateException(s"Expected the $threadName Thread, but running on ${Thread.currentThread().getName}.")
     }
   }
 
-  private def runBusinessMessage(message: CommandMessage): Unit = {
+  private def runBusinessMessage(message: BusinessMessage): Unit = {
+    message match {
+      case CommandMessage(command, handler) => runCommand(command, handler)
+      case eventMessage: EventMessage => deliver(eventMessage)
+    }
+
+    while (localEvents.nonEmpty) {
+      deliver(localEvents.dequeue())
+    }
+  }
+
+  private def runUiMessage(message: UiMessage): Unit = message match {
+    case eventMessage: EventMessage => deliver(eventMessage)
+  }
+
+  private def runCommand(command: Command, handler: Command => Unit): Unit = {
     try {
-      message.handler(message.command)
+      handler(command)
     } catch {
-      case NonFatal(exception) => logger.error(s"The handler of ${message.command} failed.", exception)
+      case NonFatal(exception) => logger.error(s"The handler of $command failed.", exception)
+    }
+  }
+
+  private def deliver(message: EventMessage): Unit = {
+    for (subscriber <- message.subscribers if subscriber.isActive) {
+      try {
+        subscriber.deliver(message.event)
+      } catch {
+        case NonFatal(exception) => logger.error(s"A subscriber of ${message.event} failed.", exception)
+      }
     }
   }
 }
@@ -84,6 +170,17 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
  */
 object MessageBus {
 
+  /** A message of the Business mailbox. */
+  private[messaging] sealed trait BusinessMessage
+
+  /** A message of the UI mailbox. */
+  private[messaging] sealed trait UiMessage
+
   /** A message of the Business mailbox that runs a command with its resolved handler. */
   private[messaging] final case class CommandMessage(command: Command, handler: Command => Unit)
+    extends BusinessMessage
+
+  /** A message, of either mailbox, that delivers an event to the subscribers matched when it was published. */
+  private[messaging] final case class EventMessage(event: AnyRef, subscribers: Vector[Subscribers.Subscriber])
+    extends BusinessMessage with UiMessage
 }
