@@ -53,8 +53,8 @@ sequenceDiagram
 1. **Body.** An event it publishes for Business subscribers joins a local queue; one for UI subscribers is enqueued
    to the UI mailbox at once.
 2. **Drain.** The Business subscribers of the queued events run, and the events they publish join the queue. So no
-   subscriber runs nested in the publisher's code, and everything a command causes on Business runs before the next
-   message.
+   subscriber runs nested in the publisher's code, and the Business subscribers of every event the message publishes,
+   directly or through those subscribers, run before the next message.
 3. **Reply.** An `ask`'s reply completes with the outcome of the handler's `Future` if it has completed by then;
    otherwise in a Business message of its own, once it completes. Either way, the events published up to the reply
    reach their subscribers first, and a `mapOnUi` continuation of the reply runs after the UI ones.
