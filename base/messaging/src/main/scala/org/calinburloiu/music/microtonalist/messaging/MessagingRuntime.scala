@@ -51,7 +51,7 @@ trait MessagingRuntime {
 }
 
 /**
- * A queue of messages that runs them one at a time on a thread of its own.
+ * A queue of messages that runs them one at a time on its thread: a thread of its own, or the UI toolkit's.
  *
  * An [[Urgent]] message overtakes the non-urgent ones queued; each kind keeps its arrival order.
  *

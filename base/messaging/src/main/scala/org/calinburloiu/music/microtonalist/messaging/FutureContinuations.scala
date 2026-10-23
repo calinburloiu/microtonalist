@@ -19,14 +19,8 @@ package org.calinburloiu.music.microtonalist.messaging
 import scala.concurrent.Future
 import scala.util.Try
 
-/**
- * Continuations of a `Future` that run on the Business Thread or on the UI Thread, each in a message of its own on that
- * thread, stamped with the command that caused the message that started it.
- *
- * Like a handler, a Business continuation's published events reach their Business subscribers after it, and an
- * exception thrown on the Business Thread by its `onComplete…` function or by those subscribers fails the reply of the
- * `ask` that caused it.
- */
+// The contract that the continuations share is in MessageBus's ScalaDoc, since scaladoc drops a comment on an extension
+// group.
 extension [T](future: Future[T])(using messageBus: MessageBus) {
 
   /**

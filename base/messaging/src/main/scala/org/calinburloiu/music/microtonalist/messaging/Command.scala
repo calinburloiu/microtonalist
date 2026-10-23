@@ -25,6 +25,8 @@ trait Command
 /**
  * A [[Command]] whose handler replies with a value of type `R`, which [[MessageBus.ask]] returns.
  *
+ * Type arguments are erased, so the handler of a generic request class serves it for every type argument.
+ *
  * @tparam R the type of the reply
  */
 trait Request[R] extends Command

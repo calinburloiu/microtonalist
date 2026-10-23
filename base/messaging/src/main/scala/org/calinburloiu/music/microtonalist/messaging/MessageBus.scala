@@ -22,8 +22,8 @@ import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.concurrent.ThreadSafe
 import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait, ExecutionContext, Future, Promise}
-import scala.util.control.NonFatal
 import scala.util.Try
+import scala.util.control.NonFatal
 
 /**
  * Runs the [[Command]]s dispatched from any thread on the Business Thread, the thread of the `Business` mailbox, which
@@ -34,9 +34,11 @@ import scala.util.Try
  * handler, a subscriber or an `onComplete…` continuation throws is logged at ERROR, and its mailbox goes on; on the
  * Business Thread, it also fails the reply of the [[Request]] whose `ask` caused it.
  *
- * Neither thread blocks: inside a handler, a subscriber or a continuation, `Await` on a `Future` that hasn't completed
- * throws `IllegalStateException` instead of waiting. Such code continues the `Future` with `mapOnBusiness`,
- * `flatMapOnBusiness`, `onCompleteOnBusiness`, `mapOnUi` or `onCompleteOnUi`.
+ * Inside a Business or UI message, `Await` on a `Future` that hasn't completed, and `scala.concurrent.blocking`, throw
+ * `IllegalStateException` instead of blocking the thread; blocking by other means, such as on a latch, isn't caught.
+ * Such code continues the `Future` with `mapOnBusiness`, `flatMapOnBusiness`, `onCompleteOnBusiness`, `mapOnUi` or
+ * `onCompleteOnUi`, each of which runs in a message of its own on its thread. On the Business Thread, the events that a
+ * continuation publishes reach their Business subscribers after it, as a handler's do.
  *
  * @param runtime starts the mailboxes
  */
@@ -94,13 +96,12 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   /**
-   * Queues a request to run on the Business Thread, like [[dispatch]], and returns its reply, which completes on the
-   * Business Thread once the handler's `Future` has completed, not before the events published by the handler, or by
-   * the Business continuation that completed that `Future`, reached their Business subscribers.
+   * Queues a request to run on the Business Thread, like [[dispatch]], and returns its reply.
    *
-   * The reply fails with the first exception thrown on the Business Thread, before it completes, by the handler, by an
-   * `onCompleteOnBusiness` function or by a Business subscriber that the request caused; otherwise, it completes with
-   * the outcome of the handler's `Future`.
+   * The reply completes on the Business Thread with the outcome of the handler's `Future`, once the events published by
+   * the handler, or by the Business continuation that completed that `Future`, have reached their Business subscribers.
+   * It fails instead with the first exception thrown on the Business Thread before it completes, by the handler, by an
+   * `onCompleteOnBusiness` function or by a Business subscriber that the request caused.
    *
    * @throws IllegalStateException on the calling thread, if no handler or several match the request's class, or if its
    *   handler was registered with [[handle]]
@@ -115,7 +116,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
     val reply = Promise[Any]()
     business.enqueue(CommandMessage(request, handler, Some(Cause(nextCommandId.getAndIncrement(), Some(reply)))))
-    // The handler of `request` replies with a `Future[R]`, so the reply holds an `R`.
+    // The handler of `request`'s class replies with a `Future[R]`, save for a generic request class, whose one handler
+    // serves every type argument (see `Request`).
     reply.future.asInstanceOf[Future[R]]
   }
 
@@ -123,8 +125,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * Registers the handler of the requests of `requestClass` and of its subtypes, which runs on the Business Thread and
    * replies with a `Future`. A handler with a value at hand returns it in `Future.successful`.
    *
-   * A request [[dispatch]]ed instead of asked runs its handler and drops its reply, logging at ERROR, like a thrown
-   * exception, a `Future` that fails.
+   * A request [[dispatch]]ed instead of asked runs its handler and drops its reply; a failure of the handler's
+   * `Future`, then or later, is logged at ERROR like a thrown exception.
    *
    * @throws IllegalArgumentException if `requestClass` is, extends or is extended by a class that already has a handler
    */
@@ -198,14 +200,15 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /**
    * An `ExecutionContext` that runs each task in a Business message of its own, stamped with the cause of the message
-   * that the calling thread runs.
+   * that the calling thread runs. It logs a failure that a task reports as `A continuation failed.`, and keeps it to
+   * fail the reply of the causing `ask` once the message's drain is over.
    */
   private[messaging] def businessContinuations: ExecutionContext =
     continuations(business, cause)(exception => continuationFailure = continuationFailure.orElse(Some(exception)))
 
   /**
    * An `ExecutionContext` that runs each task in a UI message of its own, stamped with the cause of the message that
-   * the calling thread runs.
+   * the calling thread runs. It only logs a failure that a task reports, as `A continuation failed.`.
    */
   private[messaging] def uiContinuations: ExecutionContext = continuations(ui, cause)(_ => ())
 
@@ -337,7 +340,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 }
 
 /**
- * The internals of [[MessageBus]].
+ * Holds the private message types of [[MessageBus]]'s mailboxes.
  */
 object MessageBus {
 
