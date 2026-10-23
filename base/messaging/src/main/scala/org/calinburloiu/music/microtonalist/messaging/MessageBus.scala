@@ -30,9 +30,10 @@ import scala.util.control.NonFatal
  * runs one message at a time, and delivers the events published from any thread to their subscribers, on the Business
  * Thread or on the UI Thread, the thread of the `UI` mailbox.
  *
- * Constructing it starts the `Business` mailbox, at `Thread.NORM_PRIORITY`, then the `UI` mailbox. An exception that a
- * handler, a subscriber or an `onComplete…` continuation throws is logged at ERROR, and its mailbox goes on; on the
- * Business Thread, it also fails the reply of the [[Request]] whose `ask` caused it.
+ * Constructing it starts the `Business` mailbox, at `Thread.NORM_PRIORITY`, then the `UI` mailbox, so it must not be
+ * constructed on the UI toolkit's thread, which that start waits for. An exception that a handler, a subscriber or an
+ * `onComplete…` continuation throws is logged at ERROR, and its mailbox goes on; on the Business Thread, it also fails
+ * the reply of the [[Request]] whose `ask` caused it.
  *
  * Inside a Business or UI message, `Await` on a `Future` that hasn't completed, and `scala.concurrent.blocking`, throw
  * `IllegalStateException` instead of blocking the thread; blocking by other means, such as on a latch, isn't caught.
