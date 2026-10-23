@@ -31,8 +31,8 @@ import scala.util.Try
  * Thread or on the UI Thread, the thread of the `UI` mailbox.
  *
  * Constructing it starts the `Business` mailbox, at `Thread.NORM_PRIORITY`, then the `UI` mailbox. An exception that a
- * handler or a subscriber throws is logged at ERROR, and its mailbox goes on; on the Business Thread, it also fails the
- * reply of the [[Request]] whose `ask` caused it.
+ * handler, a subscriber or an `onComplete…` continuation throws is logged at ERROR, and its mailbox goes on; on the
+ * Business Thread, it also fails the reply of the [[Request]] whose `ask` caused it.
  *
  * @param runtime starts the mailboxes
  */
@@ -86,10 +86,12 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /**
    * Queues a request to run on the Business Thread, like [[dispatch]], and returns its reply, which completes on the
-   * Business Thread, not before the events published by its handler reached their Business subscribers.
+   * Business Thread once the handler's `Future` has completed, not before the events published by the handler, or by
+   * the Business continuation that completed that `Future`, reached their Business subscribers.
    *
-   * The reply fails with the first exception thrown on the Business Thread by the handler or by those subscribers;
-   * otherwise, it completes with the outcome of the handler's `Future`.
+   * The reply fails with the first exception thrown on the Business Thread, before it completes, by the handler, by an
+   * `onCompleteOnBusiness` function or by a Business subscriber that the request caused; otherwise, it completes with
+   * the outcome of the handler's `Future`.
    *
    * @throws IllegalStateException on the calling thread, if no handler or several match the request's class, or if its
    *   handler was registered with [[handle]]
