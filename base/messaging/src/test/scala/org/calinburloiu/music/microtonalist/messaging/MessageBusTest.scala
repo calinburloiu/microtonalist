@@ -23,10 +23,14 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
-import scala.concurrent.Future
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, Future, Promise}
 import scala.util.{Success, Try}
 
 object MessageBusTest {
+  /** How long an `Await` in a test waits, which happens only when the bus fails to refuse it. */
+  private val RefusedAwaitTimeout: FiniteDuration = 1.second
+
   sealed trait TunerCommand extends Command
 
   case class Retune(index: Int) extends TunerCommand
@@ -710,6 +714,102 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         // When / Then
         an[IllegalArgumentException] should be thrownBy
           messageBus.handleRequest(classOf[Echo])(echo => Future.successful(echo.text))
+      }
+    }
+
+    "awaiting a Future" should {
+      "throw instead of blocking in a Business handler" in new Fixture {
+        // Given
+        private var attempt: Option[Try[Int]] = None
+        messageBus.handle(classOf[Retune]) { _ =>
+          attempt = Some(Try(Await.result(Promise[Int]().future, RefusedAwaitTimeout)))
+        }
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        attempt.get.failed.get shouldBe an[IllegalStateException]
+      }
+
+      "throw instead of deadlocking when a handler awaits an ask's reply" in new Fixture {
+        // Given
+        private var attempt: Option[Try[String]] = None
+        messageBus.handleRequest(classOf[Echo])(echo => Future.successful(echo.text))
+        messageBus.handle(classOf[Retune]) { _ =>
+          attempt = Some(Try(Await.result(messageBus.ask(Echo("hi")), RefusedAwaitTimeout)))
+        }
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        attempt.get.failed.get shouldBe an[IllegalStateException]
+      }
+
+      "throw instead of blocking in a Business subscriber" in new Fixture {
+        // Given
+        private var attempt: Option[Try[Int]] = None
+        messageBus.handle(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.subscribe(classOf[Dog]) { _ =>
+          attempt = Some(Try(Await.result(Promise[Int]().future, RefusedAwaitTimeout)))
+        }
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        attempt.get.failed.get shouldBe an[IllegalStateException]
+      }
+
+      "throw instead of blocking in a Business continuation" in new Fixture {
+        // Given
+        private var attempt: Option[Try[Int]] = None
+        messageBus.handle(classOf[Retune]) { _ =>
+          Future.unit.onCompleteOnBusiness { _ =>
+            attempt = Some(Try(Await.result(Promise[Int]().future, RefusedAwaitTimeout)))
+          }
+        }
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        attempt.get.failed.get shouldBe an[IllegalStateException]
+      }
+
+      "throw instead of blocking in a UI subscriber" in new Fixture {
+        // Given
+        private var attempt: Option[Try[Int]] = None
+        messageBus.subscribeOnUi(classOf[Dog]) { _ =>
+          attempt = Some(Try(Await.result(Promise[Int]().future, RefusedAwaitTimeout)))
+        }
+
+        // When
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+
+        // Then
+        attempt.get.failed.get shouldBe an[IllegalStateException]
+      }
+
+      "return the result of a completed Future in a handler" in new Fixture {
+        // Given
+        private var attempt: Option[Try[Int]] = None
+        messageBus.handle(classOf[Retune]) { _ =>
+          attempt = Some(Try(Await.result(Future.successful(1), RefusedAwaitTimeout)))
+        }
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        attempt shouldEqual Some(Success(1))
       }
     }
   }

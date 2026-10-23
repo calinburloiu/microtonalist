@@ -21,7 +21,7 @@ import com.typesafe.scalalogging.StrictLogging
 import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.concurrent.ThreadSafe
 import scala.collection.mutable
-import scala.concurrent.{ExecutionContext, Future, Promise}
+import scala.concurrent.{BlockContext, CanAwait, ExecutionContext, Future, Promise}
 import scala.util.control.NonFatal
 import scala.util.Try
 
@@ -33,6 +33,10 @@ import scala.util.Try
  * Constructing it starts the `Business` mailbox, at `Thread.NORM_PRIORITY`, then the `UI` mailbox. An exception that a
  * handler, a subscriber or an `onComplete…` continuation throws is logged at ERROR, and its mailbox goes on; on the
  * Business Thread, it also fails the reply of the [[Request]] whose `ask` caused it.
+ *
+ * Neither thread blocks: inside a handler, a subscriber or a continuation, `Await` on a `Future` that hasn't completed
+ * throws `IllegalStateException` instead of waiting. Such code continues the `Future` with `mapOnBusiness`,
+ * `flatMapOnBusiness`, `onCompleteOnBusiness`, `mapOnUi` or `onCompleteOnUi`.
  *
  * @param runtime starts the mailboxes
  */
@@ -59,6 +63,11 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /** The failure reported by the running Business continuation, touched only on the Business Thread. */
   private var continuationFailure: Option[Throwable] = None
+
+  private val businessBlockContext: BlockContext =
+    refusingBlockContext("Business", "mapOnBusiness, flatMapOnBusiness or onCompleteOnBusiness")
+
+  private val uiBlockContext: BlockContext = refusingBlockContext("UI", "mapOnUi or onCompleteOnUi")
 
   private val business: Mailbox[BusinessMessage] =
     runtime.startMailbox[BusinessMessage]("Business", Thread.NORM_PRIORITY)(runBusinessMessage)
@@ -225,13 +234,22 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     }
   }
 
+  /**
+   * A `BlockContext` that refuses to block the thread named `threadName`, which `Await` consults only for a `Future`
+   * that hasn't completed.
+   */
+  private def refusingBlockContext(threadName: String, continuations: String): BlockContext = new BlockContext {
+    override def blockOn[T](thunk: => T)(using CanAwait): T = throw IllegalStateException(
+      s"Cannot await on the $threadName Thread, which must not block; continue the Future with $continuations.")
+  }
+
   private def requireThread(mailbox: Mailbox[?], threadName: String): Unit = {
     if (!mailbox.isCurrentThread) {
       throw IllegalStateException(s"Expected the $threadName Thread, but running on ${Thread.currentThread().getName}.")
     }
   }
 
-  private def runBusinessMessage(message: BusinessMessage): Unit = {
+  private def runBusinessMessage(message: BusinessMessage): Unit = BlockContext.withBlockContext(businessBlockContext) {
     businessCause = message.cause
     val (handlerReply, bodyFailure) = message match {
       case CommandMessage(command, handler, _) =>
@@ -286,7 +304,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     }
   }
 
-  private def runUiMessage(message: UiMessage): Unit = {
+  private def runUiMessage(message: UiMessage): Unit = BlockContext.withBlockContext(uiBlockContext) {
     uiCause = message.cause
     message match {
       case eventMessage: EventMessage => deliver(eventMessage)
