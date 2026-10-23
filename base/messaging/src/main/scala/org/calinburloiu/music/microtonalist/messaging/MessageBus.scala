@@ -101,7 +101,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * The reply completes on the Business Thread with the outcome of the handler's `Future`, once the events published by
    * the handler, or by the Business continuation that completed that `Future`, have reached their Business subscribers.
    * It fails instead with the first exception thrown on the Business Thread before it completes, by the handler, by an
-   * `onCompleteOnBusiness` function or by a Business subscriber that the request caused.
+   * `onCompleteOnBusiness` function or by a Business subscriber that the request caused. A failure of the handler's
+   * `Future` after that is logged at ERROR like a thrown exception.
    *
    * @throws IllegalStateException on the calling thread, if no handler or several match the request's class, or if its
    *   handler was registered with [[handle]]
@@ -281,34 +282,33 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   /**
-   * Fails the reply of `cause` with `failure`, if any, or else completes it with the outcome of the handler's reply, at
+   * Fails the reply of `cause` with `failure`, if any, then completes it with the outcome of the handler's reply, at
    * once if it has completed, otherwise in a Business message of its own once it completes; the first outcome wins.
    */
   private def settleReply(cause: Option[Cause],
                           handlerReply: Option[(Command, Future[Any])],
                           failure: Option[Throwable]): Unit = {
-    (cause.flatMap(_.reply), failure) match {
-      case (Some(reply), Some(exception)) => reply.tryFailure(exception)
-      case _ =>
-        for ((command, future) <- handlerReply) {
-          future.value match {
-            case Some(outcome) => completeReply(cause, command, outcome)
-            case None =>
-              future.onComplete(completeReply(cause, command, _))(using businessContinuations)
-          }
-        }
+    for (reply <- cause.flatMap(_.reply); exception <- failure) {
+      reply.tryFailure(exception)
+    }
+
+    for ((command, future) <- handlerReply) {
+      future.value match {
+        case Some(outcome) => completeReply(cause, command, outcome)
+        case None =>
+          future.onComplete(completeReply(cause, command, _))(using businessContinuations)
+      }
     }
   }
 
   /**
-   * Completes the reply of `cause` with the outcome of its handler's reply; without a reply to carry it, a failed
-   * outcome is logged.
+   * Completes the reply of `cause` with the outcome of its handler's reply; a failed outcome that no reply carries,
+   * since there is none or it has already completed, is logged.
    */
   private def completeReply(cause: Option[Cause], command: Command, outcome: Try[Any]): Unit = {
-    cause.flatMap(_.reply) match {
-      case Some(reply) => reply.tryComplete(outcome)
-      case None =>
-        outcome.failed.foreach(exception => logger.error(s"The handler of $command failed.", exception))
+    val isCarried = cause.flatMap(_.reply).exists(_.tryComplete(outcome))
+    if (!isCarried) {
+      outcome.failed.foreach(exception => logger.error(s"The handler of $command failed.", exception))
     }
   }
 

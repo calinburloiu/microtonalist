@@ -120,8 +120,6 @@ object ManualRuntime {
 /**
  * A [[Mailbox]] of a [[ManualRuntime]], which runs its messages only when drained.
  *
- * After [[stop]], [[enqueue]] drops its message.
- *
  * @param name the name it was started with
  * @param priority the thread priority it was started with, or `None` for the UI mailbox
  * @tparam M the type of the messages

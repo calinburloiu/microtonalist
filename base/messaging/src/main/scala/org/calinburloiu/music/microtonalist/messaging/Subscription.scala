@@ -23,7 +23,8 @@ package org.calinburloiu.music.microtonalist.messaging
 trait Subscription {
 
   /**
-   * Stops the deliveries to the subscriber, including those of the events already published but not delivered yet.
+   * Stops the deliveries to the subscriber. Called on the subscriber's thread, it also stops those of the events
+   * already published but not delivered yet; from another thread, a delivery already under way may still run.
    *
    * Idempotent and safe to call from any thread.
    */

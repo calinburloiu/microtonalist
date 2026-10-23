@@ -161,7 +161,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       messageBus.handleRequest(classOf[Echo])(_ => input.future)
 
       // When
-      private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+      private val (_, events) = capturingBusLogs {
         messageBus.dispatch(Echo("hi"))
         runtime.drainAll()
         input.failure(RuntimeException("late"))
@@ -235,7 +235,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       }
 
       // When
-      private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+      private val (reply, events) = capturingBusLogs {
         val reply = messageBus.ask(Later())
         runtime.drainAll()
         reply
@@ -243,6 +243,50 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
 
       // Then
       reply.value.get.failed.get.getMessage shouldEqual "boom"
+      events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
+    }
+
+    "log the handler's Future that fails after a continuation failed the reply" in new Fixture {
+      // Given
+      private val pending = Promise[String]()
+      messageBus.handleRequest(classOf[Later]) { _ =>
+        Future.unit.onCompleteOnBusiness(_ => throw RuntimeException("boom"))
+        pending.future
+      }
+
+      // When
+      private val (reply, events) = capturingBusLogs {
+        val reply = messageBus.ask(Later())
+        runtime.drainAll()
+        pending.failure(RuntimeException("late"))
+        runtime.drainAll()
+        reply
+      }
+
+      // Then
+      reply.value.get.failed.get.getMessage shouldEqual "boom"
+      events.failuresAt(Level.ERROR) shouldEqual Seq(
+        ("A continuation failed.", Some("boom")),
+        ("The handler of Later() failed.", Some("late")))
+    }
+
+    "stay silent when the handler's Future succeeds after a continuation failed the reply" in new Fixture {
+      // Given
+      private val pending = Promise[String]()
+      messageBus.handleRequest(classOf[Later]) { _ =>
+        Future.unit.onCompleteOnBusiness(_ => throw RuntimeException("boom"))
+        pending.future
+      }
+
+      // When
+      private val (_, events) = capturingBusLogs {
+        messageBus.ask(Later())
+        runtime.drainAll()
+        pending.success("late")
+        runtime.drainAll()
+      }
+
+      // Then
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
     }
 
@@ -312,7 +356,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       messageBus.subscribeOnUi(classOf[Dog])(_ => Future.unit.onCompleteOnUi(_ => throw RuntimeException("boom")))
 
       // When
-      private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+      private val (_, events) = capturingBusLogs {
         messageBus.publish(Dog("Rex"))
         runtime.drainAll()
       }

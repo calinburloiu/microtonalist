@@ -57,7 +57,7 @@ sequenceDiagram
    directly or through those subscribers, run before the next message.
 3. **Reply.** An `ask`'s reply completes with the outcome of the handler's `Future` if it has completed by then;
    otherwise in a Business message of its own, once it completes. Either way, the events published up to the reply
-   reach their subscribers first, and a `mapOnUi` continuation of the reply runs after the UI ones.
+   reach their Business subscribers first, and a `mapOnUi` continuation of the reply runs after the UI ones.
 
 An event published off the Business Thread is enqueued to the Business mailbox. Subscribers are matched when the event
 is published: a thread with no matching subscriber gets no message, and a subscription cancelled before its delivery
@@ -86,13 +86,14 @@ An exception thrown on either thread is logged at ERROR, with the exception, and
 
 | Thrown by | Logged as |
 | --------- | --------- |
-| A handler, or the `Future` of a request sent with `dispatch`, failing at once or later | `The handler of <command> failed.` |
+| A handler, or a request's `Future` whose failure no reply carries, such as one sent with `dispatch`, failing at once or later | `The handler of <command> failed.` |
 | A subscriber; the other subscribers still run | `A subscriber of <event> failed.` |
 | An `onComplete…` continuation | `A continuation failed.` |
 
 On Business, the first of them also fails the reply of the `ask` that caused it, once the message's drain is over. On
 the UI Thread it is only logged, since the reply has usually completed by then. The failed `Future` of an asked request
-isn't logged, since the reply carries it, and a `map…` continuation that throws fails the `Future` it returns.
+isn't logged, since the reply carries it, unless the reply has already failed; and a `map…` or `flatMap…`
+continuation that throws fails the `Future` it returns.
 
 ## Threading
 

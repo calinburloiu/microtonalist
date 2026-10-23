@@ -20,6 +20,9 @@ import scala.concurrent.Future
 
 /**
  * Starts the [[Mailbox]]es that the messaging runs its messages in.
+ *
+ * A mailbox's handler must catch its own non-fatal exceptions: what a runtime does with one that escapes is
+ * unspecified.
  */
 trait MessagingRuntime {
 
@@ -41,7 +44,7 @@ trait MessagingRuntime {
    * Starts the mailbox of the UI toolkit's thread.
    *
    * Returns only once the mailbox has recorded its thread, since the toolkit also calls UI code there outside the
-   * mailbox's messages.
+   * mailbox's messages. Must not be called on the UI toolkit's thread, since it waits for that thread.
    *
    * @param handler runs each message, on the UI toolkit's thread
    * @tparam M the type of the messages
@@ -60,7 +63,7 @@ trait MessagingRuntime {
 trait Mailbox[-M <: AnyRef] {
 
   /**
-   * Queues a message to run on the mailbox's thread.
+   * Queues a message to run on the mailbox's thread; after [[stop]], drops it.
    *
    * Safe to call from any thread.
    *
@@ -69,7 +72,10 @@ trait Mailbox[-M <: AnyRef] {
   def enqueue(message: M): Unit
 
   /**
-   * Tells whether the calling thread is the mailbox's.
+   * Tells whether the calling thread is the mailbox's. For the UI mailbox, it is true on the UI toolkit's thread also
+   * outside the mailbox's messages.
+   *
+   * Safe to call from any thread.
    */
   def isCurrentThread: Boolean
 
