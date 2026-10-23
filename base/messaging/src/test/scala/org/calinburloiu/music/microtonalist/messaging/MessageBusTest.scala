@@ -23,7 +23,8 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
-import scala.util.Try
+import scala.concurrent.Future
+import scala.util.{Success, Try}
 
 object MessageBusTest {
   sealed trait TunerCommand extends Command
@@ -39,6 +40,8 @@ object MessageBusTest {
   case class Unhandled() extends Command
 
   case class Explode() extends Command
+
+  case class Echo(text: String) extends Request[String]
 
   abstract class Animal
 
@@ -533,6 +536,159 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         // Then
         stamps shouldEqual Seq("business" -> None, "ui" -> None)
         ManualRuntime.causingCommandId(using messageBus) shouldBe None
+      }
+    }
+
+    "asking a request" should {
+      "complete the reply with the result of the request's handler once the Business mailbox drains" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo])(echo => Future.successful(echo.text))
+
+        // When
+        private val reply = messageBus.ask(Echo("hi"))
+
+        // Then
+        reply.isCompleted shouldBe false
+
+        // When
+        runtime.drainAll()
+
+        // Then
+        reply.value shouldEqual Some(Success("hi"))
+      }
+
+      "complete the reply only after the events its handler published reached their Business subscribers" in
+        new Fixture {
+          // Given
+          private var reply: Future[String] = Future.never
+          private var completedAtDelivery: Option[Boolean] = None
+          messageBus.handleRequest(classOf[Echo]) { echo =>
+            messageBus.publish(Dog("Rex"))
+            Future.successful(echo.text)
+          }
+          messageBus.subscribe(classOf[Dog])(_ => completedAtDelivery = Some(reply.isCompleted))
+
+          // When
+          reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+
+          // Then
+          completedAtDelivery shouldEqual Some(false)
+          reply.value shouldEqual Some(Success("hi"))
+        }
+
+      "deliver the events a handler published before throwing, then fail the reply and log" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo]) { _ =>
+          messageBus.publish(Dog("Rex"))
+          throw RuntimeException("boom")
+        }
+        messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
+
+        // When
+        private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        log shouldEqual Seq("Rex")
+        reply.value.get.failed.get.getMessage shouldEqual "boom"
+        events.failuresAt(Level.ERROR) shouldEqual Seq(("The handler of Echo(hi) failed.", Some("boom")))
+      }
+
+      "fail the reply when the handler's Future fails" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo])(_ => Future.failed(RuntimeException("nope")))
+
+        // When
+        private val reply = messageBus.ask(Echo("hi"))
+        runtime.drainAll()
+
+        // Then
+        reply.value.get.failed.get.getMessage shouldEqual "nope"
+      }
+
+      "fail the reply when a Business subscriber of its events throws" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo]) { echo =>
+          messageBus.publish(Dog("Rex"))
+          Future.successful(echo.text)
+        }
+        messageBus.subscribe(classOf[Dog])(_ => throw RuntimeException("bite"))
+
+        // When
+        private val (reply, _) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        reply.value.get.failed.get.getMessage shouldEqual "bite"
+      }
+
+      "accept a request asked from another thread" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo])(echo => Future.successful(echo.text))
+
+        // When
+        private val reply = CompletableFuture.supplyAsync(() => messageBus.ask(Echo("hi"))).join()
+        runtime.drainAll()
+
+        // Then
+        reply.value shouldEqual Some(Success("hi"))
+      }
+
+      "give an asked request the next id of the dispatch counter" in new Fixture {
+        // Given
+        private val ids = mutable.ArrayBuffer[Option[Long]]()
+        messageBus.handle(classOf[Retune])(_ => ids += ManualRuntime.causingCommandId(using messageBus))
+        messageBus.handleRequest(classOf[Echo]) { echo =>
+          ids += ManualRuntime.causingCommandId(using messageBus)
+          Future.successful(echo.text)
+        }
+
+        // When
+        messageBus.dispatch(Retune(1))
+        messageBus.ask(Echo("hi"))
+        runtime.drainAll()
+
+        // Then
+        ids shouldEqual Seq(Some(1L), Some(2L))
+      }
+
+      "run a request's handler and drop its reply when the request is dispatched" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo]) { echo =>
+          log += echo.text
+          Future.successful(echo.text)
+        }
+
+        // When
+        messageBus.dispatch(Echo("hi"))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("hi")
+      }
+
+      "throw on the caller's thread when asking a request whose handler was registered with handle" in new Fixture {
+        // Given
+        messageBus.handle(classOf[Echo])(_ => ())
+
+        // When / Then
+        an[IllegalStateException] should be thrownBy messageBus.ask(Echo("hi"))
+      }
+
+      "reject a request handler for a class that already has one" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo])(echo => Future.successful(echo.text))
+
+        // When / Then
+        an[IllegalArgumentException] should be thrownBy
+          messageBus.handleRequest(classOf[Echo])(echo => Future.successful(echo.text))
       }
     }
   }

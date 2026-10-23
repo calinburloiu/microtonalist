@@ -21,6 +21,8 @@ import com.typesafe.scalalogging.StrictLogging
 import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.concurrent.ThreadSafe
 import scala.collection.mutable
+import scala.concurrent.{Future, Promise}
+import scala.util.Try
 import scala.util.control.NonFatal
 
 /**
@@ -29,14 +31,16 @@ import scala.util.control.NonFatal
  * Thread or on the UI Thread, the thread of the `UI` mailbox.
  *
  * Constructing it starts the `Business` mailbox, at `Thread.NORM_PRIORITY`, then the `UI` mailbox. An exception that a
- * handler or a subscriber throws is logged at ERROR, and its mailbox goes on.
+ * handler or a subscriber throws is logged at ERROR, and its mailbox goes on; on the Business Thread, it also fails the
+ * reply of the [[Request]] whose `ask` caused it.
  *
  * @param runtime starts the mailboxes
  */
 @ThreadSafe
 class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
-  import MessageBus.{BusinessMessage, CommandMessage, EventMessage, UiMessage}
+  import CommandHandlers.CommandHandler
+  import MessageBus.{BusinessMessage, Cause, CommandMessage, EventMessage, UiMessage}
 
   private val commandHandlers: CommandHandlers = CommandHandlers()
 
@@ -44,11 +48,11 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   private val nextCommandId: AtomicLong = AtomicLong(1)
 
-  /** The causing command id of the running Business message, touched only on the Business Thread. */
-  private var businessCausingCommandId: Option[Long] = None
+  /** The cause of the running Business message, touched only on the Business Thread. */
+  private var businessCause: Option[Cause] = None
 
-  /** The causing command id of the running UI message, touched only on the UI Thread. */
-  private var uiCausingCommandId: Option[Long] = None
+  /** The cause of the running UI message, touched only on the UI Thread. */
+  private var uiCause: Option[Cause] = None
 
   /** The events published by the running Business message, touched only on the Business Thread. */
   private val localEvents: mutable.Queue[EventMessage] = mutable.Queue()
@@ -65,7 +69,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    */
   def dispatch(command: Command): Unit = {
     val handler = commandHandlers.resolve(command.getClass)
-    business.enqueue(CommandMessage(command, handler, Some(nextCommandId.getAndIncrement())))
+    business.enqueue(CommandMessage(command, handler, Some(Cause(nextCommandId.getAndIncrement(), None))))
   }
 
   /**
@@ -78,6 +82,42 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   /**
+   * Queues a request to run on the Business Thread, like [[dispatch]], and returns its reply, which completes on the
+   * Business Thread, not before the events published by its handler reached their Business subscribers.
+   *
+   * The reply fails with the first exception thrown on the Business Thread by the handler or by those subscribers;
+   * otherwise, it completes with the outcome of the handler's `Future`.
+   *
+   * @throws IllegalStateException on the calling thread, if no handler or several match the request's class, or if its
+   *   handler was registered with [[handle]]
+   */
+  def ask[R](request: Request[R]): Future[R] = {
+    val handler = commandHandlers.resolve(request.getClass)
+    handler match {
+      case _: CommandHandler.Plain => throw IllegalStateException(
+          s"Cannot ask ${request.getClass.getName}, whose handler was registered with handle and gives no reply.")
+      case _: CommandHandler.Replying =>
+    }
+
+    val reply = Promise[Any]()
+    business.enqueue(CommandMessage(request, handler, Some(Cause(nextCommandId.getAndIncrement(), Some(reply)))))
+    // The handler of `request` replies with a `Future[R]`, so the reply holds an `R`.
+    reply.future.asInstanceOf[Future[R]]
+  }
+
+  /**
+   * Registers the handler of the requests of `requestClass` and of its subtypes, which runs on the Business Thread and
+   * replies with a `Future`. A handler with a value at hand returns it in `Future.successful`.
+   *
+   * A request [[dispatch]]ed instead of asked runs its handler, and its reply is dropped.
+   *
+   * @throws IllegalArgumentException if `requestClass` is, extends or is extended by a class that already has a handler
+   */
+  def handleRequest[R, C <: Request[R]](requestClass: Class[C])(handler: C => Future[R]): Unit = {
+    commandHandlers.registerRequest(requestClass, handler)
+  }
+
+  /**
    * Delivers an event to the subscribers of its class and of its supertypes subscribed by now, once per subscription,
    * in subscription order on each thread.
    *
@@ -87,7 +127,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    */
   def publish(event: AnyRef): Unit = {
     val (uiSubscribers, businessSubscribers) = subscribers.matching(event).partition(_.onUi)
-    val stamp = causingCommandId
+    val stamp = cause
 
     if (uiSubscribers.nonEmpty) {
       ui.enqueue(EventMessage(event, uiSubscribers, stamp))
@@ -139,11 +179,14 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * The id of the command that caused the message that the calling thread runs, or `None` off the Business and UI
    * Threads or for a message that no command caused.
    */
-  private[messaging] def causingCommandId: Option[Long] = {
+  private[messaging] def causingCommandId: Option[Long] = cause.map(_.commandId)
+
+  /** The cause of the message that the calling thread runs, or `None` where [[causingCommandId]] is `None`. */
+  private def cause: Option[Cause] = {
     if (business.isCurrentThread) {
-      businessCausingCommandId
+      businessCause
     } else if (ui.isCurrentThread) {
-      uiCausingCommandId
+      uiCause
     } else {
       None
     }
@@ -156,40 +199,64 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   private def runBusinessMessage(message: BusinessMessage): Unit = {
-    businessCausingCommandId = message.causingCommandId
-    message match {
-      case CommandMessage(command, handler, _) => runCommand(command, handler)
-      case eventMessage: EventMessage => deliver(eventMessage)
+    businessCause = message.cause
+    val (handlerReply, bodyFailure) = message match {
+      case CommandMessage(command, handler, _) =>
+        val outcome = runCommand(command, handler)
+        (outcome.toOption.flatten, outcome.failed.toOption)
+      case eventMessage: EventMessage => (None, deliver(eventMessage))
     }
 
+    var failure = bodyFailure
     while (localEvents.nonEmpty) {
-      deliver(localEvents.dequeue())
+      val subscriberFailure = deliver(localEvents.dequeue())
+      failure = failure.orElse(subscriberFailure)
+    }
+
+    settleReply(message.cause, handlerReply, failure)
+  }
+
+  /**
+   * Fails the reply of `cause` with `failure`, if any, or else completes it with the outcome of the handler's reply, if
+   * it has completed; the first outcome wins.
+   */
+  private def settleReply(cause: Option[Cause], handlerReply: Option[Future[Any]], failure: Option[Throwable]): Unit = {
+    for (reply <- cause.flatMap(_.reply)) {
+      failure match {
+        case Some(exception) => reply.tryFailure(exception)
+        case None => handlerReply.flatMap(_.value).foreach(reply.tryComplete)
+      }
     }
   }
 
   private def runUiMessage(message: UiMessage): Unit = {
-    uiCausingCommandId = message.causingCommandId
+    uiCause = message.cause
     message match {
       case eventMessage: EventMessage => deliver(eventMessage)
     }
   }
 
-  private def runCommand(command: Command, handler: Command => Unit): Unit = {
-    try {
-      handler(command)
-    } catch {
-      case NonFatal(exception) => logger.error(s"The handler of $command failed.", exception)
-    }
+  /** Runs a command's handler, logging its failure, and returns the reply of a request handler. */
+  private def runCommand(command: Command, handler: CommandHandler): Try[Option[Future[Any]]] = {
+    val outcome = Try(handler.run(command))
+    outcome.failed.foreach(exception => logger.error(s"The handler of $command failed.", exception))
+    outcome
   }
 
-  private def deliver(message: EventMessage): Unit = {
+  /** Delivers an event to its active subscribers, logging their failures, and returns the first one. */
+  private def deliver(message: EventMessage): Option[Throwable] = {
+    var failure: Option[Throwable] = None
     for (subscriber <- message.subscribers if subscriber.isActive) {
       try {
         subscriber.deliver(message.event)
       } catch {
-        case NonFatal(exception) => logger.error(s"A subscriber of ${message.event} failed.", exception)
+        case NonFatal(exception) =>
+          logger.error(s"A subscriber of ${message.event} failed.", exception)
+          failure = failure.orElse(Some(exception))
       }
     }
+
+    failure
   }
 }
 
@@ -198,9 +265,17 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
  */
 object MessageBus {
 
-  /** A message of a mailbox, stamped with the id of the command that caused it, if any. */
+  /**
+   * What caused a message: the id of a command, with the reply of the `ask` that sent it, if one did.
+   *
+   * @param commandId the id of the command
+   * @param reply the reply of the `ask` that sent the command, or `None` for a dispatched command
+   */
+  private[messaging] final case class Cause(commandId: Long, reply: Option[Promise[Any]])
+
+  /** A message of a mailbox, stamped with its cause, if a command caused it. */
   private[messaging] sealed trait StampedMessage {
-    def causingCommandId: Option[Long]
+    def cause: Option[Cause]
   }
 
   /** A message of the Business mailbox. */
@@ -211,12 +286,12 @@ object MessageBus {
 
   /** A message of the Business mailbox that runs a command with its resolved handler, stamped with its own id. */
   private[messaging] final case class CommandMessage(command: Command,
-                                                     handler: Command => Unit,
-                                                     causingCommandId: Option[Long]) extends BusinessMessage
+                                                     handler: CommandHandlers.CommandHandler,
+                                                     cause: Option[Cause]) extends BusinessMessage
 
   /** A message, of either mailbox, that delivers an event to the subscribers matched when it was published. */
   private[messaging] final case class EventMessage(event: AnyRef,
                                                    subscribers: Vector[Subscribers.Subscriber],
-                                                   causingCommandId: Option[Long])
+                                                   cause: Option[Cause])
     extends BusinessMessage with UiMessage
 }

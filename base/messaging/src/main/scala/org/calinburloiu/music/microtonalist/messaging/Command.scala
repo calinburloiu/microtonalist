@@ -21,3 +21,10 @@ package org.calinburloiu.music.microtonalist.messaging
  * supertype of it.
  */
 trait Command
+
+/**
+ * A [[Command]] whose handler replies with a value of type `R`, which [[MessageBus.ask]] returns.
+ *
+ * @tparam R the type of the reply
+ */
+trait Request[R] extends Command
