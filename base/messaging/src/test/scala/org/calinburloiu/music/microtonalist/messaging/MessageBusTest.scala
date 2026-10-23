@@ -598,16 +598,20 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         events.failuresAt(Level.ERROR) shouldEqual Seq(("The handler of Echo(hi) failed.", Some("boom")))
       }
 
-      "fail the reply when the handler's Future fails" in new Fixture {
+      "fail the reply without logging when the handler's Future fails" in new Fixture {
         // Given
         messageBus.handleRequest(classOf[Echo])(_ => Future.failed(RuntimeException("nope")))
 
         // When
-        private val reply = messageBus.ask(Echo("hi"))
-        runtime.drainAll()
+        private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+          reply
+        }
 
         // Then
         reply.value.get.failed.get.getMessage shouldEqual "nope"
+        events.failuresAt(Level.ERROR) shouldBe empty
       }
 
       "fail the reply when a Business subscriber of its events throws" in new Fixture {
@@ -672,6 +676,20 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
         // Then
         log shouldEqual Seq("hi")
+      }
+
+      "log the failure of a dispatched request's Future" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo])(_ => Future.failed(RuntimeException("nope")))
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+          messageBus.dispatch(Echo("hi"))
+          runtime.drainAll()
+        }
+
+        // Then
+        events.failuresAt(Level.ERROR) shouldEqual Seq(("The handler of Echo(hi) failed.", Some("nope")))
       }
 
       "throw on the caller's thread when asking a request whose handler was registered with handle" in new Fixture {

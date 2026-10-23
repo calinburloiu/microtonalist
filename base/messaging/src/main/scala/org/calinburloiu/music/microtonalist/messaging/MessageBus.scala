@@ -22,8 +22,8 @@ import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.concurrent.ThreadSafe
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
-import scala.util.Try
 import scala.util.control.NonFatal
+import scala.util.{Failure, Try}
 
 /**
  * Runs the [[Command]]s dispatched from any thread on the Business Thread, the thread of the `Business` mailbox, which
@@ -109,7 +109,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * Registers the handler of the requests of `requestClass` and of its subtypes, which runs on the Business Thread and
    * replies with a `Future`. A handler with a value at hand returns it in `Future.successful`.
    *
-   * A request [[dispatch]]ed instead of asked runs its handler, and its reply is dropped.
+   * A request [[dispatch]]ed instead of asked runs its handler and drops its reply, logging at ERROR, like a thrown
+   * exception, a `Future` that has failed by the end of the handler's message.
    *
    * @throws IllegalArgumentException if `requestClass` is, extends or is extended by a class that already has a handler
    */
@@ -203,7 +204,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     val (handlerReply, bodyFailure) = message match {
       case CommandMessage(command, handler, _) =>
         val outcome = runCommand(command, handler)
-        (outcome.toOption.flatten, outcome.failed.toOption)
+        (outcome.toOption.flatten.map(command -> _), outcome.failed.toOption)
       case eventMessage: EventMessage => (None, deliver(eventMessage))
     }
 
@@ -218,14 +219,21 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /**
    * Fails the reply of `cause` with `failure`, if any, or else completes it with the outcome of the handler's reply, if
-   * it has completed; the first outcome wins.
+   * it has completed; the first outcome wins. Without a reply to carry it, a handler's reply that has failed is logged.
    */
-  private def settleReply(cause: Option[Cause], handlerReply: Option[Future[Any]], failure: Option[Throwable]): Unit = {
-    for (reply <- cause.flatMap(_.reply)) {
-      failure match {
-        case Some(exception) => reply.tryFailure(exception)
-        case None => handlerReply.flatMap(_.value).foreach(reply.tryComplete)
-      }
+  private def settleReply(cause: Option[Cause],
+                          handlerReply: Option[(Command, Future[Any])],
+                          failure: Option[Throwable]): Unit = {
+    cause.flatMap(_.reply) match {
+      case Some(reply) =>
+        failure match {
+          case Some(exception) => reply.tryFailure(exception)
+          case None => handlerReply.flatMap(_._2.value).foreach(reply.tryComplete)
+        }
+      case None =>
+        for ((command, future) <- handlerReply; case Failure(exception) <- future.value) {
+          logger.error(s"The handler of $command failed.", exception)
+        }
     }
   }
 
