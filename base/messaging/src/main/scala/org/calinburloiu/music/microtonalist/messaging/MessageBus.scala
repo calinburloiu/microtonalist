@@ -21,9 +21,9 @@ import com.typesafe.scalalogging.StrictLogging
 import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.concurrent.ThreadSafe
 import scala.collection.mutable
-import scala.concurrent.{Future, Promise}
+import scala.concurrent.{ExecutionContext, Future, Promise}
 import scala.util.control.NonFatal
-import scala.util.{Failure, Try}
+import scala.util.Try
 
 /**
  * Runs the [[Command]]s dispatched from any thread on the Business Thread, the thread of the `Business` mailbox, which
@@ -40,7 +40,7 @@ import scala.util.{Failure, Try}
 class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   import CommandHandlers.CommandHandler
-  import MessageBus.{BusinessMessage, Cause, CommandMessage, EventMessage, UiMessage}
+  import MessageBus.{BusinessMessage, Cause, CommandMessage, ContinuationMessage, EventMessage, UiMessage}
 
   private val commandHandlers: CommandHandlers = CommandHandlers()
 
@@ -56,6 +56,9 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /** The events published by the running Business message, touched only on the Business Thread. */
   private val localEvents: mutable.Queue[EventMessage] = mutable.Queue()
+
+  /** The failure reported by the running Business continuation, touched only on the Business Thread. */
+  private var continuationFailure: Option[Throwable] = None
 
   private val business: Mailbox[BusinessMessage] =
     runtime.startMailbox[BusinessMessage]("Business", Thread.NORM_PRIORITY)(runBusinessMessage)
@@ -110,7 +113,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * replies with a `Future`. A handler with a value at hand returns it in `Future.successful`.
    *
    * A request [[dispatch]]ed instead of asked runs its handler and drops its reply, logging at ERROR, like a thrown
-   * exception, a `Future` that has failed by the end of the handler's message.
+   * exception, a `Future` that fails.
    *
    * @throws IllegalArgumentException if `requestClass` is, extends or is extended by a class that already has a handler
    */
@@ -182,6 +185,13 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    */
   private[messaging] def causingCommandId: Option[Long] = cause.map(_.commandId)
 
+  /**
+   * An `ExecutionContext` that runs each task in a Business message of its own, stamped with the cause of the message
+   * that the calling thread runs.
+   */
+  private[messaging] def businessContinuations: ExecutionContext =
+    continuations(business, cause)(exception => continuationFailure = continuationFailure.orElse(Some(exception)))
+
   /** The cause of the message that the calling thread runs, or `None` where [[causingCommandId]] is `None`. */
   private def cause: Option[Cause] = {
     if (business.isCurrentThread) {
@@ -190,6 +200,20 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
       uiCause
     } else {
       None
+    }
+  }
+
+  /**
+   * An `ExecutionContext` that queues each task to `mailbox`, stamped with `stamp`, and logs the failure that a task
+   * reports, then passes it to `keepFailure` on the mailbox's thread.
+   */
+  private def continuations(mailbox: Mailbox[ContinuationMessage], stamp: Option[Cause])(
+      keepFailure: Throwable => Unit): ExecutionContext = new ExecutionContext {
+    override def execute(runnable: Runnable): Unit = mailbox.enqueue(ContinuationMessage(runnable, stamp))
+
+    override def reportFailure(exception: Throwable): Unit = {
+      logger.error("A continuation failed.", exception)
+      keepFailure(exception)
     }
   }
 
@@ -206,6 +230,11 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
         val outcome = runCommand(command, handler)
         (outcome.toOption.flatten.map(command -> _), outcome.failed.toOption)
       case eventMessage: EventMessage => (None, deliver(eventMessage))
+      case ContinuationMessage(runnable, _) =>
+        runnable.run()
+        val reported = continuationFailure
+        continuationFailure = None
+        (None, reported)
     }
 
     var failure = bodyFailure
@@ -218,22 +247,34 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   /**
-   * Fails the reply of `cause` with `failure`, if any, or else completes it with the outcome of the handler's reply, if
-   * it has completed; the first outcome wins. Without a reply to carry it, a handler's reply that has failed is logged.
+   * Fails the reply of `cause` with `failure`, if any, or else completes it with the outcome of the handler's reply, at
+   * once if it has completed, otherwise in a Business message of its own once it completes; the first outcome wins.
    */
   private def settleReply(cause: Option[Cause],
                           handlerReply: Option[(Command, Future[Any])],
                           failure: Option[Throwable]): Unit = {
+    (cause.flatMap(_.reply), failure) match {
+      case (Some(reply), Some(exception)) => reply.tryFailure(exception)
+      case _ =>
+        for ((command, future) <- handlerReply) {
+          future.value match {
+            case Some(outcome) => completeReply(cause, command, outcome)
+            case None =>
+              future.onComplete(completeReply(cause, command, _))(using businessContinuations)
+          }
+        }
+    }
+  }
+
+  /**
+   * Completes the reply of `cause` with the outcome of its handler's reply; without a reply to carry it, a failed
+   * outcome is logged.
+   */
+  private def completeReply(cause: Option[Cause], command: Command, outcome: Try[Any]): Unit = {
     cause.flatMap(_.reply) match {
-      case Some(reply) =>
-        failure match {
-          case Some(exception) => reply.tryFailure(exception)
-          case None => handlerReply.flatMap(_._2.value).foreach(reply.tryComplete)
-        }
+      case Some(reply) => reply.tryComplete(outcome)
       case None =>
-        for ((command, future) <- handlerReply; case Failure(exception) <- future.value) {
-          logger.error(s"The handler of $command failed.", exception)
-        }
+        outcome.failed.foreach(exception => logger.error(s"The handler of $command failed.", exception))
     }
   }
 
@@ -302,4 +343,8 @@ object MessageBus {
                                                    subscribers: Vector[Subscribers.Subscriber],
                                                    cause: Option[Cause])
     extends BusinessMessage with UiMessage
+
+  /** A message that runs a task of a `Future`'s continuation. */
+  private[messaging] final case class ContinuationMessage(runnable: Runnable, cause: Option[Cause])
+    extends BusinessMessage
 }

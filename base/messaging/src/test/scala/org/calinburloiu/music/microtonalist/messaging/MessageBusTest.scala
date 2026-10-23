@@ -43,6 +43,8 @@ object MessageBusTest {
 
   case class Echo(text: String) extends Request[String]
 
+  case class Later() extends Request[String]
+
   abstract class Animal
 
   trait Pet
@@ -54,6 +56,7 @@ object MessageBusTest {
   abstract class Fixture {
     val runtime: ManualRuntime = ManualRuntime()
     val messageBus: MessageBus = MessageBus(runtime)
+    given MessageBus = messageBus
     val log: mutable.ArrayBuffer[String] = mutable.ArrayBuffer()
   }
 }
