@@ -20,12 +20,12 @@ import scala.concurrent.Future
 import scala.util.Try
 
 /**
- * Continuations of a `Future` that run on the Business Thread, each in a Business message of its own, stamped with the
- * command that caused the message that started it.
+ * Continuations of a `Future` that run on the Business Thread or on the UI Thread, each in a message of its own on that
+ * thread, stamped with the command that caused the message that started it.
  *
- * Like a handler, a continuation's published events reach their Business subscribers after it, and an exception thrown
- * on the Business Thread by its `onComplete…` function or by those subscribers fails the reply of the `ask` that caused
- * it.
+ * Like a handler, a Business continuation's published events reach their Business subscribers after it, and an
+ * exception thrown on the Business Thread by its `onComplete…` function or by those subscribers fails the reply of the
+ * `ask` that caused it.
  */
 extension [T](future: Future[T])(using messageBus: MessageBus) {
 
@@ -64,5 +64,29 @@ extension [T](future: Future[T])(using messageBus: MessageBus) {
   def onCompleteOnBusiness(f: Try[T] => Unit): Unit = {
     messageBus.requireBusinessThread()
     future.onComplete(f)(using messageBus.businessContinuations)
+  }
+
+  /**
+   * Maps the `Future`'s value with `f` on the UI Thread, once it completes; a failure skips `f`.
+   *
+   * @return a `Future` that completes with the result of `f`, or fails with the `Future`'s failure or with the
+   *   exception that `f` throws
+   * @throws IllegalStateException off the UI Thread
+   */
+  def mapOnUi[U](f: T => U): Future[U] = {
+    messageBus.requireUiThread()
+    future.map(f)(using messageBus.uiContinuations)
+  }
+
+  /**
+   * Calls `f` with the `Future`'s outcome on the UI Thread, once it completes.
+   *
+   * An exception that `f` throws is only logged at ERROR, as `A continuation failed.`.
+   *
+   * @throws IllegalStateException off the UI Thread
+   */
+  def onCompleteOnUi(f: Try[T] => Unit): Unit = {
+    messageBus.requireUiThread()
+    future.onComplete(f)(using messageBus.uiContinuations)
   }
 }

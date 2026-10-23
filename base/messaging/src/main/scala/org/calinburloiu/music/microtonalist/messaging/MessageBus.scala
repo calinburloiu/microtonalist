@@ -194,6 +194,12 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   private[messaging] def businessContinuations: ExecutionContext =
     continuations(business, cause)(exception => continuationFailure = continuationFailure.orElse(Some(exception)))
 
+  /**
+   * An `ExecutionContext` that runs each task in a UI message of its own, stamped with the cause of the message that
+   * the calling thread runs.
+   */
+  private[messaging] def uiContinuations: ExecutionContext = continuations(ui, cause)(_ => ())
+
   /** The cause of the message that the calling thread runs, or `None` where [[causingCommandId]] is `None`. */
   private def cause: Option[Cause] = {
     if (business.isCurrentThread) {
@@ -284,6 +290,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     uiCause = message.cause
     message match {
       case eventMessage: EventMessage => deliver(eventMessage)
+      case ContinuationMessage(runnable, _) => runnable.run()
     }
   }
 
@@ -346,7 +353,7 @@ object MessageBus {
                                                    cause: Option[Cause])
     extends BusinessMessage with UiMessage
 
-  /** A message that runs a task of a `Future`'s continuation. */
+  /** A message, of either mailbox, that runs a task of a `Future`'s continuation. */
   private[messaging] final case class ContinuationMessage(runnable: Runnable, cause: Option[Cause])
-    extends BusinessMessage
+    extends BusinessMessage with UiMessage
 }

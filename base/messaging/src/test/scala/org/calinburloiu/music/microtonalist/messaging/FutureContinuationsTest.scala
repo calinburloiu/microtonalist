@@ -263,4 +263,78 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       onUi.get.failed.get shouldBe an[IllegalStateException]
     }
   }
+
+  "the UI continuations" should {
+    "run a mapOnUi continuation of an ask's reply after the UI subscribers of its events" in new Fixture {
+      // Given
+      messageBus.handleRequest(classOf[Echo]) { echo =>
+        messageBus.publish(Dog(echo.text))
+        Future.successful(echo.text)
+      }
+      messageBus.subscribeOnUi(classOf[Dog])(dog => log += s"event ${dog.name}")
+      messageBus.subscribeOnUi(classOf[Wolf]) { wolf =>
+        messageBus.ask(Echo(wolf.name)).mapOnUi(text => log += s"reply $text")
+      }
+
+      // When
+      messageBus.publish(Wolf("Grey"))
+      runtime.drainAll()
+
+      // Then
+      log shouldEqual Seq("event Grey", "reply Grey")
+    }
+
+    "run mapOnUi's and onCompleteOnUi's functions on the UI Thread" in new Fixture {
+      // Given
+      private var output: Future[Int] = Future.never
+      private var mappedOnUi = false
+      private var completedOnUi = false
+      messageBus.subscribeOnUi(classOf[Dog]) { _ =>
+        output = Future.successful(1).mapOnUi { value =>
+          mappedOnUi = Try(messageBus.requireUiThread()).isSuccess
+          value * 2
+        }
+        Future.successful(1).onCompleteOnUi(_ => completedOnUi = Try(messageBus.requireUiThread()).isSuccess)
+      }
+
+      // When
+      messageBus.publish(Dog("Rex"))
+      runtime.drainAll()
+
+      // Then
+      output.value shouldEqual Some(Success(2))
+      mappedOnUi shouldBe true
+      completedOnUi shouldBe true
+    }
+
+    "log an onCompleteOnUi function that throws" in new Fixture {
+      // Given
+      messageBus.subscribeOnUi(classOf[Dog])(_ => Future.unit.onCompleteOnUi(_ => throw RuntimeException("boom")))
+
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+      }
+
+      // Then
+      events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
+    }
+
+    "refuse a UI continuation off the UI Thread" in new Fixture {
+      // Given
+      private val completed = Future.successful(1)
+      private var onBusiness: Option[Try[Future[Int]]] = None
+      messageBus.handle(classOf[Retune])(_ => onBusiness = Some(Try(completed.mapOnUi(identity))))
+
+      // When
+      messageBus.dispatch(Retune(1))
+      runtime.drainAll()
+
+      // Then
+      an[IllegalStateException] should be thrownBy completed.mapOnUi(identity)
+      an[IllegalStateException] should be thrownBy completed.onCompleteOnUi(_ => ())
+      onBusiness.get.failed.get shouldBe an[IllegalStateException]
+    }
+  }
 }
