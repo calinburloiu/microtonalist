@@ -19,7 +19,7 @@ a test drains on its own thread; slice 2 (#387) implements it with Pekko.
 
 **Tech Stack:** Scala 3.9, sbt 1, ScalaTest 3 (`AnyWordSpec`), scala-logging, JSR 305 annotations.
 
-**Spec:** [`2026-10-20-design.md`](2026-10-20-design.md), section 1 and the slice 1 entry of *Delivery*.
+**Spec:** [`2026-10-20-design.md`](../00383-arch-threading-and-ui/2026-10-20-design.md), section 1 and the slice 1 entry of *Delivery*.
 
 ## Global Constraints
 
