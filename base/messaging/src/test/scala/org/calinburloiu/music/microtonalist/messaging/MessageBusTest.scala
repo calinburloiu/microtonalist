@@ -434,5 +434,106 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         inHandler.get.failed.get shouldBe an[IllegalStateException]
       }
     }
+
+    "stamping the causing command" should {
+      "give each dispatched command the next id of one counter" in new Fixture {
+        // Given
+        private val ids = mutable.ArrayBuffer[Option[Long]]()
+        messageBus.handle(classOf[Retune])(_ => ids += ManualRuntime.causingCommandId(using messageBus))
+
+        // When
+        (1 to 3).foreach(index => messageBus.dispatch(Retune(index)))
+        runtime.drainAll()
+
+        // Then
+        ids shouldEqual Seq(Some(1L), Some(2L), Some(3L))
+      }
+
+      "stamp the events a handler publishes with its command's id, for Business and UI subscribers" in new Fixture {
+        // Given
+        private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
+        messageBus.handle(classOf[Retune]) { _ =>
+          stamps += "handler" -> ManualRuntime.causingCommandId(using messageBus)
+          messageBus.publish(Dog("Rex"))
+        }
+        messageBus.subscribe(classOf[Dog])(_ =>
+          stamps += "business" -> ManualRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnUi(classOf[Dog])(_ => stamps += "ui" -> ManualRuntime.causingCommandId(using messageBus))
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        stamps shouldEqual Seq("handler" -> Some(1L), "business" -> Some(1L), "ui" -> Some(1L))
+      }
+
+      "keep the stamp of the events that Business subscribers publish while draining" in new Fixture {
+        // Given
+        private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
+        messageBus.handle(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.subscribe(classOf[Dog])(_ => messageBus.publish(Wolf("Grey")))
+        messageBus.subscribe(classOf[Wolf])(_ =>
+          stamps += "business" -> ManualRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnUi(classOf[Wolf])(_ => stamps += "ui" -> ManualRuntime.causingCommandId(using messageBus))
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        stamps shouldEqual Seq("business" -> Some(1L), "ui" -> Some(1L))
+      }
+
+      "keep the stamp of the events that UI subscribers publish" in new Fixture {
+        // Given
+        private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
+        messageBus.handle(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.subscribeOnUi(classOf[Dog])(_ => messageBus.publish(Wolf("Grey")))
+        messageBus.subscribe(classOf[Wolf])(_ =>
+          stamps += "business" -> ManualRuntime.causingCommandId(using messageBus))
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        stamps shouldEqual Seq("business" -> Some(1L))
+      }
+
+      "give a command that a handler dispatches an id of its own" in new Fixture {
+        // Given
+        private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
+        messageBus.handle(classOf[Retune]) { _ =>
+          stamps += "retune" -> ManualRuntime.causingCommandId(using messageBus)
+          messageBus.dispatch(Reset())
+        }
+        messageBus.handle(classOf[Reset])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.subscribe(classOf[Dog])(_ => stamps += "dog" -> ManualRuntime.causingCommandId(using messageBus))
+
+        // When
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        stamps shouldEqual Seq("retune" -> Some(1L), "dog" -> Some(2L))
+      }
+
+      "stamp nothing published off the Business and UI Threads" in new Fixture {
+        // Given
+        private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
+        messageBus.subscribe(classOf[Dog])(_ =>
+          stamps += "business" -> ManualRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnUi(classOf[Dog])(_ => stamps += "ui" -> ManualRuntime.causingCommandId(using messageBus))
+
+        // When
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+
+        // Then
+        stamps shouldEqual Seq("business" -> None, "ui" -> None)
+        ManualRuntime.causingCommandId(using messageBus) shouldBe None
+      }
+    }
   }
 }

@@ -18,6 +18,7 @@ package org.calinburloiu.music.microtonalist.messaging
 
 import com.typesafe.scalalogging.StrictLogging
 
+import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.concurrent.ThreadSafe
 import scala.collection.mutable
 import scala.util.control.NonFatal
@@ -41,6 +42,14 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   private val subscribers: Subscribers = Subscribers()
 
+  private val nextCommandId: AtomicLong = AtomicLong(1)
+
+  /** The causing command id of the running Business message, touched only on the Business Thread. */
+  private var businessCausingCommandId: Option[Long] = None
+
+  /** The causing command id of the running UI message, touched only on the UI Thread. */
+  private var uiCausingCommandId: Option[Long] = None
+
   /** The events published by the running Business message, touched only on the Business Thread. */
   private val localEvents: mutable.Queue[EventMessage] = mutable.Queue()
 
@@ -56,7 +65,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    */
   def dispatch(command: Command): Unit = {
     val handler = commandHandlers.resolve(command.getClass)
-    business.enqueue(CommandMessage(command, handler))
+    business.enqueue(CommandMessage(command, handler, Some(nextCommandId.getAndIncrement())))
   }
 
   /**
@@ -78,13 +87,14 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    */
   def publish(event: AnyRef): Unit = {
     val (uiSubscribers, businessSubscribers) = subscribers.matching(event).partition(_.onUi)
+    val stamp = causingCommandId
 
     if (uiSubscribers.nonEmpty) {
-      ui.enqueue(EventMessage(event, uiSubscribers))
+      ui.enqueue(EventMessage(event, uiSubscribers, stamp))
     }
 
     if (businessSubscribers.nonEmpty) {
-      val message = EventMessage(event, businessSubscribers)
+      val message = EventMessage(event, businessSubscribers, stamp)
       if (business.isCurrentThread) {
         localEvents.enqueue(message)
       } else {
@@ -125,6 +135,20 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     requireThread(ui, "UI")
   }
 
+  /**
+   * The id of the command that caused the message that the calling thread runs, or `None` off the Business and UI
+   * Threads or for a message that no command caused.
+   */
+  private[messaging] def causingCommandId: Option[Long] = {
+    if (business.isCurrentThread) {
+      businessCausingCommandId
+    } else if (ui.isCurrentThread) {
+      uiCausingCommandId
+    } else {
+      None
+    }
+  }
+
   private def requireThread(mailbox: Mailbox[?], threadName: String): Unit = {
     if (!mailbox.isCurrentThread) {
       throw IllegalStateException(s"Expected the $threadName Thread, but running on ${Thread.currentThread().getName}.")
@@ -132,8 +156,9 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   private def runBusinessMessage(message: BusinessMessage): Unit = {
+    businessCausingCommandId = message.causingCommandId
     message match {
-      case CommandMessage(command, handler) => runCommand(command, handler)
+      case CommandMessage(command, handler, _) => runCommand(command, handler)
       case eventMessage: EventMessage => deliver(eventMessage)
     }
 
@@ -142,8 +167,11 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     }
   }
 
-  private def runUiMessage(message: UiMessage): Unit = message match {
-    case eventMessage: EventMessage => deliver(eventMessage)
+  private def runUiMessage(message: UiMessage): Unit = {
+    uiCausingCommandId = message.causingCommandId
+    message match {
+      case eventMessage: EventMessage => deliver(eventMessage)
+    }
   }
 
   private def runCommand(command: Command, handler: Command => Unit): Unit = {
@@ -170,17 +198,25 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
  */
 object MessageBus {
 
+  /** A message of a mailbox, stamped with the id of the command that caused it, if any. */
+  private[messaging] sealed trait StampedMessage {
+    def causingCommandId: Option[Long]
+  }
+
   /** A message of the Business mailbox. */
-  private[messaging] sealed trait BusinessMessage
+  private[messaging] sealed trait BusinessMessage extends StampedMessage
 
   /** A message of the UI mailbox. */
-  private[messaging] sealed trait UiMessage
+  private[messaging] sealed trait UiMessage extends StampedMessage
 
-  /** A message of the Business mailbox that runs a command with its resolved handler. */
-  private[messaging] final case class CommandMessage(command: Command, handler: Command => Unit)
-    extends BusinessMessage
+  /** A message of the Business mailbox that runs a command with its resolved handler, stamped with its own id. */
+  private[messaging] final case class CommandMessage(command: Command,
+                                                     handler: Command => Unit,
+                                                     causingCommandId: Option[Long]) extends BusinessMessage
 
   /** A message, of either mailbox, that delivers an event to the subscribers matched when it was published. */
-  private[messaging] final case class EventMessage(event: AnyRef, subscribers: Vector[Subscribers.Subscriber])
+  private[messaging] final case class EventMessage(event: AnyRef,
+                                                   subscribers: Vector[Subscribers.Subscriber],
+                                                   causingCommandId: Option[Long])
     extends BusinessMessage with UiMessage
 }
