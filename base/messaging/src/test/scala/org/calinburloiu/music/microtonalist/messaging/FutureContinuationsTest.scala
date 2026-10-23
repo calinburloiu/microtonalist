@@ -161,7 +161,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       messageBus.handleRequest(classOf[Echo])(_ => input.future)
 
       // When
-      private val (_, events) = capturingBusLogs {
+      private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
         messageBus.dispatch(Echo("hi"))
         runtime.drainAll()
         input.failure(RuntimeException("late"))
@@ -235,7 +235,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       }
 
       // When
-      private val (reply, events) = capturingBusLogs {
+      private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
         val reply = messageBus.ask(Later())
         runtime.drainAll()
         reply
@@ -255,7 +255,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       }
 
       // When
-      private val (reply, events) = capturingBusLogs {
+      private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
         val reply = messageBus.ask(Later())
         runtime.drainAll()
         pending.failure(RuntimeException("late"))
@@ -279,7 +279,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       }
 
       // When
-      private val (_, events) = capturingBusLogs {
+      private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
         messageBus.ask(Later())
         runtime.drainAll()
         pending.success("late")
@@ -356,7 +356,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       messageBus.subscribeOnUi(classOf[Dog])(_ => Future.unit.onCompleteOnUi(_ => throw RuntimeException("boom")))
 
       // When
-      private val (_, events) = capturingBusLogs {
+      private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
         messageBus.publish(Dog("Rex"))
         runtime.drainAll()
       }

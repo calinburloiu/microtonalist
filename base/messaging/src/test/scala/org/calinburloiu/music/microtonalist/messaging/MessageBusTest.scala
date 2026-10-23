@@ -17,7 +17,6 @@
 package org.calinburloiu.music.microtonalist.messaging
 
 import ch.qos.logback.classic.Level
-import ch.qos.logback.classic.spi.ILoggingEvent
 import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -57,15 +56,6 @@ object MessageBusTest {
   case class Dog(name: String) extends Animal with Pet
 
   case class Wolf(name: String) extends Animal
-
-  /**
-   * Captures the logs of [[MessageBus]] with `LogCapture.capturing`, one capture at a time: the suites of this module
-   * capture that same logger, possibly in parallel, and a capture that ends restores the logger's level under the
-   * others.
-   */
-  def capturingBusLogs[R](body: => R): (R, Seq[ILoggingEvent]) = synchronized {
-    LogCapture.capturing(classOf[MessageBus].getName)(body)
-  }
 
   abstract class Fixture {
     val runtime: ManualRuntime = ManualRuntime()
@@ -259,7 +249,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         messageBus.handle(classOf[Retune])(retune => log += s"retune ${retune.index}")
 
         // When
-        private val (_, events) = capturingBusLogs {
+        private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
           messageBus.dispatch(Explode())
           messageBus.dispatch(Retune(1))
           runtime.drainAll()
@@ -476,7 +466,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
 
         // When
-        private val (_, events) = capturingBusLogs {
+        private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
           messageBus.publish(Dog("Rex"))
           runtime.drainAll()
         }
@@ -492,7 +482,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         messageBus.subscribeOnUi(classOf[Dog])(dog => log += dog.name)
 
         // When
-        private val (_, events) = capturingBusLogs {
+        private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
           messageBus.publish(Dog("Rex"))
           runtime.drainAll()
         }
@@ -695,7 +685,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
 
         // When
-        private val (reply, events) = capturingBusLogs {
+        private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
           val reply = messageBus.ask(Echo("hi"))
           runtime.drainAll()
           reply
@@ -712,7 +702,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         messageBus.handleRequest(classOf[Echo])(_ => Future.failed(RuntimeException("nope")))
 
         // When
-        private val (reply, events) = capturingBusLogs {
+        private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
           val reply = messageBus.ask(Echo("hi"))
           runtime.drainAll()
           reply
@@ -732,7 +722,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         messageBus.subscribe(classOf[Dog])(_ => throw RuntimeException("bite"))
 
         // When
-        private val (reply, events) = capturingBusLogs {
+        private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
           val reply = messageBus.ask(Echo("hi"))
           runtime.drainAll()
           reply
@@ -753,7 +743,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         messageBus.subscribe(classOf[Dog])(_ => throw RuntimeException("bite"))
 
         // When
-        private val (reply, events) = capturingBusLogs {
+        private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
           val reply = messageBus.ask(Later())
           runtime.drainAll()
           pending.failure(RuntimeException("late"))
@@ -776,7 +766,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
           messageBus.subscribe(classOf[Wolf])(_ => throw RuntimeException("bite"))
 
           // When
-          val (_, events) = capturingBusLogs {
+          val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
             onToolkit(messageBus.publish(Wolf("Grey")))
             runtime.drainAll()
           }
@@ -836,7 +826,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         messageBus.handleRequest(classOf[Echo])(_ => Future.failed(RuntimeException("nope")))
 
         // When
-        private val (_, events) = capturingBusLogs {
+        private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
           messageBus.dispatch(Echo("hi"))
           runtime.drainAll()
         }
