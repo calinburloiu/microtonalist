@@ -58,6 +58,7 @@ lazy val root = (project in file("."))
   .aggregate(
     businessyncModule,
     commonModule,
+    messagingModule,
     compositionModule,
     compositionFormatModule,
     intonationModule,
@@ -112,6 +113,21 @@ lazy val commonModule = (project in file("base/common"))
     commonSettings,
     // TODO #175 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 50, branch = 22),
+  )
+
+lazy val messagingModule = (project in file("base/messaging"))
+  .withId("messaging")
+  .dependsOn(
+    commonModule % "compile->compile;test->test",
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-messaging",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      jsr305,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
   )
 
 lazy val compositionModule = (project in file("theory/composition"))

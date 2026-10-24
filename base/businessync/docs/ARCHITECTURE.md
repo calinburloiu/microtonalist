@@ -22,7 +22,8 @@ GUI. Domain and UI modules depend on it, never the other way around.
 > either stubbed (`???`) or runs work inline on the caller's thread. The richer multi-thread, queue-based, sequentially
 > consistent design described in issue [#90](https://github.com/calinburloiu/microtonalist/issues/90) is **planned, not
 > yet built**. Treat the multi-thread API described under [Threading model](#threading-model) as the *target*, not
-> current behavior.
+> current behavior. Its replacement is the [`messaging`](../../messaging/docs/ARCHITECTURE.md) module, which the other
+> modules move to in #388.
 
 ## Key types
 
