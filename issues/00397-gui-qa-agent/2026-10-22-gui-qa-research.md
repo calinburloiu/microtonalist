@@ -1,6 +1,7 @@
 # GUI QA agent: research
 
-- **Date:** 2026-10-22; MIDI design, permissions and modes revised on 2026-10-24, at commit `c0bd0df4`
+- **Date:** 2026-10-22; MIDI design, permissions and modes revised on 2026-10-24, at commit `c0bd0df4`; MCP library
+  settled on 2026-10-25, at commit `cca2c673`
 - **Commit:** `89b5f06d`
 - **Issue:** #397. Related: #99, #383.
 - **Guide:** [`2026-10-22-gui-qa-in-process-guide.md`](2026-10-22-gui-qa-in-process-guide.md), for testing the
@@ -34,7 +35,8 @@ runs it, and how a human runs the same test plan.
 6. A QA MCP server in Scala starts the app with the driver and the MIDI ports, and serves the driver's tools.
 7. MIDI goes through virtual ports that the server opens with `sendmidi` and `receivemidi`. The IAC buses were dropped;
    see [MIDI](#midi).
-8. Our own MCP library, on play-json, in a new `mcp` module group, covering only the MCP features we need.
+8. The QA server is built on the official MCP Java SDK, through the `mcp` module that all our MCP servers share; see
+   [MCP library](#mcp-library).
 9. The agent sends SendMIDI commands and reads ReceiveMIDI's text. It decodes the tuning output with a script from the
    skill, written from the MIDI specification; see [Reading the output](#reading-the-output).
 10. The agent has Bash, Read and Write besides the QA server's tools, under rules in its prompt; see
@@ -197,26 +199,14 @@ The `.pkg` versions weren't part of either. These versions have quirks:
 
 ## MCP library
 
-A new module group, `mcp`, holds our own MCP code on play-json, starting with `mcp-core`. It covers only what the QA
-server needs:
+The QA server uses the official MCP Java SDK through the `mcp` module, like every MCP server of the project.
+[`docs/research/mcp.md`](../../docs/research/mcp.md) gives the choice of library, the JSON bridge to play-json, the
+module and its tests. What the QA server takes from them:
 
-- JSON-RPC 2.0 messages and errors;
-- `initialize`, with protocol version negotiation, and `notifications/initialized`;
-- `ping`;
-- `tools/list`, with each tool's input JSON Schema, and `tools/call`, returning text and image content or a tool error;
-- the stdio transport.
-
-It depends on play-json, not on Play Framework, since stdio has no HTTP. A transport on Play comes later, in a module
-of its own, with the app's MCP server for users. The MCP specification gets two or three revisions a year; tests that
-drive our server with an official client, the Java SDK's or chimp's as a test-only dependency, catch the drift.
-
-No MCP library for Play exists. The JVM ones:
-
-| Library | Basis | Transports | Status |
-| ------- | ----- | ---------- | ------ |
-| [chimp](https://github.com/softwaremill/chimp) (SoftwareMill) | Scala 3, Tapir, sttp, circe | stdio, Streamable HTTP | Apache 2.0, 103 stars, active, 0.6.0; a Pekko module and a client |
-| [fast-mcp-scala](https://github.com/TJC-LP/fast-mcp-scala) | Scala 3, ZIO, the Java SDK | stdio, HTTP | MIT, 24 stars |
-| [Java SDK](https://github.com/modelcontextprotocol/java-sdk) (official) | Java, Reactor, Jackson by default | stdio, Streamable HTTP | MIT, 3.7k stars, maintained with Spring AI |
+- the stdio transport, with the server's log on standard error, since standard output carries the protocol;
+- tools with JSON arguments and results, through the module's helper;
+- tools that return an image inline, as an `ImageContent`: the snapshots and the OS screenshots. There are several,
+  so the helper gets a form for them.
 
 ## In-process driver
 
@@ -408,7 +398,7 @@ And the log has no ERROR
 - `.claude/skills/gui-qa/`: `SKILL.md`, with the procedure, the agent's rules and the MIDI layouts; the test plan
   template; the shared fixtures (composition, rig file, config); and the decoder script, with its tests.
 - `.claude/agents/gui-qa.md`.
-- The `mcp` module group, with `mcp-core`.
+- The `mcp` module group, with the `mcp` module; see [MCP library](#mcp-library).
 - The QA MCP server, with the MIDI ports, and the driver.
 - The `CLAUDE.md` changes above.
 - `docs/development/gui-qa.md`.
@@ -416,7 +406,8 @@ And the log has no ERROR
 ## Risks
 
 - The headless platform is experimental, so an OpenJFX upgrade may break the driver.
-- The MCP specification moves, and `mcp-core` must follow the parts we use.
+- The Java SDK's major releases break its tool API, and a new server API is on its way. The `mcp` module keeps an
+  upgrade out of the tools; see [`docs/research/mcp.md`](../../docs/research/mcp.md#upgrades).
 - Only stand-ins were driven in process. The real app's JavaFX GUI doesn't exist yet: #99 builds it.
 - SendMIDI and ReceiveMIDI have quirks in the versions tested, and the `.pkg` versions are untested; see
   [MIDI verification](#midi-verification). The skill records the versions known to work.
@@ -460,9 +451,11 @@ And the log has no ERROR
 - **Other tools for virtual ports:** [midicat](https://gitlab.com/gomidi/tools/-/tree/main/midicat) opens existing
   ports only, and has no macOS binary; [mot](https://github.com/JorenSix/mot) creates virtual ports only in its OSC
   bridges, and installs with `cargo` only; RtMidi's wrappers, such as `python-rtmidi`, are libraries, not tools.
-- **A QA server in Python,** like `scoverage-inspector`: the official Python SDK and no library to write. But the server
-  isn't thin scripting, and Python would duplicate the driver's protocol in a second language, outside the sbt build's
-  TDD and coverage, and leave the library for the app's MCP server still to write.
+- **A QA server in Python,** like `scoverage-inspector`, on the official Python SDK. But the server isn't thin
+  scripting, and Python would duplicate the driver's protocol in a second language, outside the sbt build's TDD and
+  coverage.
+- **Our own MCP library on play-json,** in the `mcp` module group: see the alternatives in
+  [`docs/research/mcp.md`](../../docs/research/mcp.md#alternatives-considered).
 - **A debug port in the app** that dumps the scene graph and fires events: more deterministic, but a test backdoor in
   production code. The driver does the same from a Java agent, loaded only by QA.
 - **TestFX smoke tests:** #99 keeps them as a fallback if wiring bugs slip through.
