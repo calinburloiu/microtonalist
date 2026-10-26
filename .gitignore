@@ -94,3 +94,6 @@ __pycache__/
 # absolute paths. Keep the file: once both files are gone, Metals picks a new port under running Claude Code sessions.
 .mcp.json
 
+
+# The latency suite's machine-specific settings (devices, machine name), see perf/perf/docs/ARCHITECTURE.md
+perf/perf/src/test/resources/perf.local.json
