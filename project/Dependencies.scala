@@ -21,9 +21,10 @@ object Dependencies {
   val coreMidi4jVersion = "1.6"
   val ficusVersion = "1.5.2"
   val guavaVersion = "33.7.2-jre"
-  // A version "brought by" a library is the one that library depends on: keep them in step, so that declaring it
-  // changes nothing.
-  val jacksonVersion = "2.14.3" // Brought by play-json
+  // The MCP Java SDK's; every Jackson artifact is pinned to it: see docs/research/mcp.md#dependencies
+  val jacksonVersion = "2.21.1"
+  // Annotations have no patch version since 2.20.
+  val jacksonAnnotationsVersion = "2.21"
   val jsr305Version = "3.0.2"
   val logbackVersion = "1.6.4"
   // Pinned: the QA driver relies on the experimental headless platform.
@@ -32,6 +33,8 @@ object Dependencies {
   val scalaLoggingVersion = "3.9.6"
   val scalaMockVersion = "7.6.0"
   val scalaTestVersion = "3.2.20"
+  // A version "brought by" a library is the one that library depends on: keep them in step, so that declaring it
+  // changes nothing.
   val typesafeConfigVersion = "1.3.4" // Brought by ficus
 
   // # Dependency definitions
@@ -39,6 +42,15 @@ object Dependencies {
   val ficus = "com.iheart" %% "ficus" % ficusVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
   val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion
+  // Pins every Jackson artifact of the build to one minor version: Jackson doesn't support mixing them.
+  val jacksonOverrides: Seq[ModuleID] = Seq(
+    jacksonCore,
+    "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,
+    "com.fasterxml.jackson.core" % "jackson-annotations" % jacksonAnnotationsVersion,
+    "com.fasterxml.jackson.datatype" % "jackson-datatype-jdk8" % jacksonVersion,
+    "com.fasterxml.jackson.datatype" % "jackson-datatype-jsr310" % jacksonVersion,
+    "com.fasterxml.jackson.dataformat" % "jackson-dataformat-yaml" % jacksonVersion,
+  )
   // OpenJFX publishes its native code in a JAR per platform, selected by a classifier.
   val javafxClassifier: String = {
     val osName = sys.props.getOrElse("os.name", "").toLowerCase
