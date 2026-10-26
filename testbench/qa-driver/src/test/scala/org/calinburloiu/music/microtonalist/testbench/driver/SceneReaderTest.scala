@@ -41,6 +41,11 @@ class SceneReaderTest extends AnyWordSpec with Matchers with BeforeAndAfterAll {
     }
   }
 
+  private def handler: RequestHandler = {
+    val executor = FxExecutor()
+    RequestHandler(executor, RobotInput(executor))
+  }
+
   private def dump(window: Option[Int]): JsObject = fx(SceneReader.dump(window))
 
   /** The dump lines of the first window. */
@@ -139,7 +144,7 @@ class SceneReaderTest extends AnyWordSpec with Matchers with BeforeAndAfterAll {
     // These don't compare the answer to a second reading, since the stage may gain focus in between.
     "answer Windows with the windows" in withStandIn { _ =>
       // When
-      val windows = (RequestHandler(FxExecutor()).handle(Windows) \ "windows").as[JsArray].value
+      val windows = (handler.handle(Windows) \ "windows").as[JsArray].value
 
       // Then
       windows.map { window => (window \ "title").as[String] } shouldBe Seq("Stand-in")
@@ -147,7 +152,7 @@ class SceneReaderTest extends AnyWordSpec with Matchers with BeforeAndAfterAll {
 
     "answer Dump with the scene graph" in withStandIn { _ =>
       // When
-      val windows = (RequestHandler(FxExecutor()).handle(Dump(None)) \ "windows").as[JsArray].value
+      val windows = (handler.handle(Dump(None)) \ "windows").as[JsArray].value
 
       // Then
       windows.map { window => (window \ "title").as[String] } shouldBe Seq("Stand-in")

@@ -27,7 +27,7 @@ object QaDriverAgent {
    */
   def premain(args: String): Unit = {
     val fx = FxExecutor()
-    val thread = Thread(DriverLink(Path.of(args), RequestHandler(fx), fx), "qa-driver")
+    val thread = Thread(DriverLink(Path.of(args), RequestHandler(fx, RobotInput(fx)), fx), "qa-driver")
     thread.setDaemon(true)
     thread.start()
   }
