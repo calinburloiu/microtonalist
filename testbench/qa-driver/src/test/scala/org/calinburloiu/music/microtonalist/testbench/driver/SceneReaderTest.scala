@@ -136,14 +136,22 @@ class SceneReaderTest extends AnyWordSpec with Matchers with BeforeAndAfterAll {
   }
 
   "RequestHandler" should {
+    // These don't compare the answer to a second reading, since the stage may gain focus in between.
     "answer Windows with the windows" in withStandIn { _ =>
-      // When / Then
-      RequestHandler(FxExecutor()).handle(Windows) shouldBe fx(SceneReader.windows())
+      // When
+      val windows = (RequestHandler(FxExecutor()).handle(Windows) \ "windows").as[JsArray].value
+
+      // Then
+      windows.map { window => (window \ "title").as[String] } shouldBe Seq("Stand-in")
     }
 
     "answer Dump with the scene graph" in withStandIn { _ =>
-      // When / Then
-      RequestHandler(FxExecutor()).handle(Dump(None)) shouldBe fx(SceneReader.dump(None))
+      // When
+      val windows = (RequestHandler(FxExecutor()).handle(Dump(None)) \ "windows").as[JsArray].value
+
+      // Then
+      windows.map { window => (window \ "title").as[String] } shouldBe Seq("Stand-in")
+      (windows.head \ "nodes").as[Seq[String]] should contain("""Button text="Play"""")
     }
   }
 }

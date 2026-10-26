@@ -63,11 +63,7 @@ object SceneReader {
    * @throws DriverException if there is no window at the given index
    */
   def dump(window: Option[Int]): JsObject = {
-    val indices = window.fold(Window.getWindows.asScala.indices) { index =>
-      this.window(index)
-      Seq(index)
-    }
-    Json.obj("windows" -> indices.map { index =>
+    Json.obj("windows" -> indices(window).map { index =>
       val shownNodes = visibleNodes(this.window(index)).filter(isShown)
       header(this.window(index), index) ++ Json.obj("nodes" -> shownNodes.map { node =>
         "  " * ancestors(node).count(isShown) + describe(node)
@@ -113,6 +109,16 @@ object SceneReader {
   /** The nodes of a window's scene that are visible with every ancestor, in pre-order, leaving out the empty cells. */
   def visibleNodes(window: Window): Seq[Node] = Option(window.getScene).toSeq.flatMap { scene =>
     visibleTree(scene.getRoot)
+  }
+
+  /**
+   * The indices of every window, or only the given one.
+   *
+   * @throws DriverException if there is no window at the given index
+   */
+  def indices(window: Option[Int]): Seq[Int] = window.fold(Window.getWindows.asScala.indices) { index =>
+    this.window(index)
+    Seq(index)
   }
 
   /**
