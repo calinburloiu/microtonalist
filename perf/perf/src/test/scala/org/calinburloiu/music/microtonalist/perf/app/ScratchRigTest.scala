@@ -67,7 +67,7 @@ class ScratchRigTest extends AnyWordSpec with Matchers {
       exception.getMessage should include("{{input.port}}")
     }
 
-    "write the composition, its tracks file next to it and an empty app config" in {
+    "write the composition, its tracks file next to it and a minimal app config" in {
       // Given
       val dir = Files.createTempDirectory("scratch-rig")
 
@@ -79,7 +79,8 @@ class ScratchRigTest extends AnyWordSpec with Matchers {
       rig.tracks shouldEqual dir.resolve("two.mtlist.tracks")
       Files.readString(rig.composition) shouldEqual "{}"
       Files.readString(rig.tracks) should include("CoreMIDI4J - IAC 2")
-      Files.readString(rig.appConfig) shouldEqual ""
+      // The app needs a `core` section, whose settings all have defaults
+      Files.readString(rig.appConfig) shouldEqual "core {}\n"
     }
 
     "write the given app config" in {

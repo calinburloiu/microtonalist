@@ -142,6 +142,6 @@ case class Scenario(readiness: Readiness, steps: Seq[Step], metrics: Seq[Metric]
  *
  * @param tracks Resource path of the tracks template, whose device variables the suite fills in.
  * @param composition Resource path of the composition.
- * @param appConfig Resource path of a custom app config; the app gets an empty one by default.
+ * @param appConfig Resource path of a custom app config; the app gets its defaults otherwise.
  */
 case class PerfCase(tracks: String, composition: String, appConfig: Option[String], scenario: Scenario)

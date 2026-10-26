@@ -58,8 +58,8 @@ object ScratchRig {
 
   /**
    * Writes the rig into `dir`: the composition as `compositionFileName`, the rendered tracks template next to it as
-   * `<compositionFileName>.tracks`, where the app looks for it, and the app config as `app.conf`, empty when
-   * `appConfig` is `None`, so that the app never reads or rewrites the user's own.
+   * `<compositionFileName>.tracks`, where the app looks for it, and the app config as `app.conf`, with the app's
+   * defaults when `appConfig` is `None`, so that the app never reads or rewrites the user's own.
    */
   def prepare(dir: Path,
               compositionFileName: String,
@@ -75,9 +75,12 @@ object ScratchRig {
     )
     Files.writeString(rig.composition, composition)
     Files.writeString(rig.tracks, render(tracksTemplate, devices))
-    Files.writeString(rig.appConfig, appConfig.getOrElse(""))
+    Files.writeString(rig.appConfig, appConfig.getOrElse(DefaultAppConfig))
     rig
   }
+
+  /** The app needs a `core` section, whose settings all have defaults. */
+  private val DefaultAppConfig = "core {}\n"
 
   private val VariablePattern: Regex = """\{\{([^}]*)\}\}""".r
 

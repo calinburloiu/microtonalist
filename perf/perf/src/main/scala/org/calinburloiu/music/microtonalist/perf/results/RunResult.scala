@@ -16,10 +16,13 @@
 
 package org.calinburloiu.music.microtonalist.perf.results
 
+import org.calinburloiu.music.microtonalist.perf.app.JarBuildInfo
+import org.calinburloiu.music.microtonalist.perf.{PerfSetupException, Sha256}
 import org.calinburloiu.music.microtonalist.perf.env.{JvmInfo, MachineInfo}
 import org.calinburloiu.music.microtonalist.perf.run.CaseOutcome
 import play.api.libs.json.JsObject
 
+import java.nio.file.Path
 import java.time.Instant
 
 /**
@@ -30,6 +33,29 @@ import java.time.Instant
  * @param jarSha256 The digest of the JAR.
  */
 case class AppBuild(version: String, commit: String, dirty: Option[Boolean], scalaVersion: String, jarSha256: String)
+
+object AppBuild {
+
+  /**
+   * Describes the app's `jar` from its `BuildInfo`; for an older JAR, whose `BuildInfo` doesn't tell its commit, from
+   * `commitArgument`, which `resolve` expands to a full hash when it can.
+   *
+   * @throws org.calinburloiu.music.microtonalist.perf.PerfSetupException when neither tells the commit.
+   */
+  def describe(jar: Path,
+               info: JarBuildInfo,
+               commitArgument: Option[String],
+               resolve: String => Option[String]): AppBuild = {
+    val commit = info.commit
+      .orElse(commitArgument.map(argument => resolve(argument).getOrElse(argument)))
+      .getOrElse(
+        throw PerfSetupException(s"The BuildInfo of $jar doesn't tell its commit: pass it with -Dcommit=<sha>"))
+    // The dirty flag of an older JAR is unknown, whatever commit the argument names
+    val dirty = info.commit.flatMap(_ => info.dirty)
+
+    AppBuild(info.version, commit, dirty, info.scalaVersion, Sha256.ofFile(jar))
+  }
+}
 
 /**
  * The commit of the suite that measured, and whether tracked files differed from it, since the suite may move the
