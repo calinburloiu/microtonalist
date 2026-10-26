@@ -22,6 +22,7 @@ import org.calinburloiu.music.microtonalist.perf.stats.MetricResult
 import org.calinburloiu.music.microtonalist.perf.{Expected, Readiness, Scenario}
 import org.calinburloiu.music.scmidi.message.MidiMsg
 
+import scala.concurrent.duration.FiniteDuration
 import scala.util.boundary
 
 /**
@@ -79,12 +80,17 @@ final class CaseRunner(path: MidiPath, settings: MeasurementSettings) {
     def runLaunch(launchNumber: Int, launch: Int => RunningApp): Option[String] = {
       buffer.clear()
       val app = launch(launchNumber)
-      val pacer = Option.when(settings.pace.toNanos > 0)(Pacer(settings.pace))
+      val pacer = pacerOf(settings.pace)
       val matchers = steps.map(step => StepMatcher(step.outputs))
       try {
         awaitReady(app)
-        for (iteration <- 1 to settings.warmupIterations) {
-          runIteration(matchers, pacer = None, s"warm-up iteration $iteration")
+        val warmupPacer = pacerOf(settings.warmupPace)
+        try {
+          for (iteration <- 1 to settings.warmupIterations) {
+            runIteration(matchers, warmupPacer, s"warm-up iteration $iteration")
+          }
+        } finally {
+          warmupPacer.foreach(_.close())
         }
         for (iteration <- 1 to settings.timedIterations) {
           runIteration(matchers, pacer, s"timed iteration $iteration")
@@ -111,6 +117,8 @@ final class CaseRunner(path: MidiPath, settings: MeasurementSettings) {
       val launchSizes = Seq.fill(settings.launches)(settings.timedIterations)
       metrics.zip(samples).map { case (metric, metricSamples) => MetricResult.of(metric, metricSamples, launchSizes) }
     }
+
+    private def pacerOf(period: FiniteDuration): Option[Pacer] = Option.when(period.toNanos > 0)(Pacer(period))
 
     private def awaitReady(app: RunningApp): Unit = {
       scenario.readiness match {

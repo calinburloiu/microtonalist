@@ -8,7 +8,8 @@
     "launches": 3,
     "warmupIterations": 10000,
     "timedIterations": 1000,
-    "paceMillis": 50
+    "paceMillis": 50,
+    "warmupPaceMillis": 8
   },
   "timeouts": {
     "readinessMillis": 60000,

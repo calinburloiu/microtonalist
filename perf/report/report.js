@@ -140,8 +140,12 @@ function describeRun(run) {
   const dirty = flag => flag === true ? ' (dirty)' : '';
   return `Run of ${formatDate(run.startTime)} on ${run.machine.name}: app ${app.version} ${app.commit.slice(0, 8)}` +
     `${dirty(app.dirty)}, measured by the suite at ${(suite.commit ?? 'unknown').slice(0, 8)}${dirty(suite.dirty)}; ` +
-    `${plural(config.launches, 'launch', 'launches')} of ${config.warmupIterations} warm-up and ` +
-    `${config.timedIterations} timed iterations, paced every ${config.paceMillis} ms.`;
+    `${plural(config.launches, 'launch', 'launches')} of ${describeIterations(config)}.`;
+}
+
+function describeIterations(config) {
+  return `${config.warmupIterations} warm-up iterations, paced every ${config.warmupPaceMillis} ms, and ` +
+    `${config.timedIterations} timed ones, paced every ${config.paceMillis} ms`;
 }
 
 /** One row per metric of the run, the floor first, or one per failed case. */
@@ -319,8 +323,7 @@ function metadataSection(run) {
       ['Scala', app.scalaVersion],
       ['App', `${app.version} at ${commit(app.commit, app.dirty)}`],
       ['Suite', commit(suite.commit, suite.dirty)],
-      ['Measured', `${plural(config.launches, 'launch', 'launches')}, ${config.warmupIterations} warm-up and ` +
-        `${config.timedIterations} timed iterations, paced every ${config.paceMillis} ms`],
+      ['Measured', `${plural(config.launches, 'launch', 'launches')}, ${describeIterations(config)}`],
       ['Time', `${formatDate(run.startTime)} to ${formatDate(run.endTime)}`]
     ].flatMap(([term, description]) => [element('dt', { text: term }), element('dd', { text: description })]))
   ]);

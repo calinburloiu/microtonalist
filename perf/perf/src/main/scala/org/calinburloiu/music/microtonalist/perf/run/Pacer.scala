@@ -20,8 +20,8 @@ import java.util.concurrent.{Executors, ScheduledExecutorService, Semaphore, Tim
 import scala.concurrent.duration.FiniteDuration
 
 /**
- * Paces the measured step of the timed iterations at a fixed rate, by waiting on a scheduler's ticks rather than
- * sleeping. A tick missed while an iteration ran is dropped, so that iterations never start back to back.
+ * Paces the measured step of the iterations at a fixed rate, by waiting on a scheduler's ticks rather than sleeping. A
+ * tick missed while an iteration ran is dropped, so that iterations never start back to back.
  *
  * Only one thread may await its ticks.
  */

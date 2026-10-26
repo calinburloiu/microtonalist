@@ -64,7 +64,11 @@ object AppBuild {
 case class SuiteBuild(commit: Option[String], dirty: Option[Boolean])
 
 /** How each case of a run was measured. */
-case class RunConfigSummary(launches: Int, warmupIterations: Int, timedIterations: Int, paceMillis: Long)
+case class RunConfigSummary(launches: Int,
+                            warmupIterations: Int,
+                            timedIterations: Int,
+                            paceMillis: Long,
+                            warmupPaceMillis: Long)
 
 /**
  * The result of a case.

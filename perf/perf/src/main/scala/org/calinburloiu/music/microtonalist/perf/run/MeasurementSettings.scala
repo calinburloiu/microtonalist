@@ -37,12 +37,15 @@ case class Timeouts(readiness: FiniteDuration,
  * How a case is measured.
  *
  * @param launches How many times the app is launched, one after another, since JIT decisions differ between JVMs.
- * @param warmupIterations Untimed iterations, back to back, before the timed ones of each launch.
+ * @param warmupIterations Untimed iterations before the timed ones of each launch.
  * @param timedIterations Timed iterations of each launch.
  * @param pace The period on which the measured step of the timed iterations starts; zero runs them back to back.
+ * @param warmupPace The period on which the measured step of the warm-up iterations starts; zero runs them back to
+ *   back. It keeps the traffic of the MIDI devices under the rate at which macOS's IAC Driver mutes a bus.
  */
 case class MeasurementSettings(launches: Int,
                                warmupIterations: Int,
                                timedIterations: Int,
                                pace: FiniteDuration,
+                               warmupPace: FiniteDuration,
                                timeouts: Timeouts)

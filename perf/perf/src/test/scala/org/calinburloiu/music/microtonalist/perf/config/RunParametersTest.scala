@@ -32,7 +32,7 @@ class RunParametersTest extends AnyWordSpec with Matchers {
     "read the config map, resolving relative paths against the repository" in {
       // Given
       val configMap = Map("jar" -> "/a/app.jar", "commit" -> "a8ba00df", "launches" -> "1", "warmup" -> "200",
-        "iterations" -> "50", "pace" -> "10", "results" -> "out")
+        "iterations" -> "50", "pace" -> "10", "warmupPace" -> "4", "results" -> "out")
 
       // When
       val parameters = RunParameters.fromConfigMap(configMap, repoRoot)
@@ -40,13 +40,13 @@ class RunParametersTest extends AnyWordSpec with Matchers {
       // Then
       parameters shouldEqual RunParameters(jar = Some(Paths.get("/a/app.jar")), commit = Some("a8ba00df"),
         launches = Some(1), warmupIterations = Some(200), timedIterations = Some(50), pace = Some(10.millis),
-        resultsDir = Some(repoRoot.resolve("out")))
+        warmupPace = Some(4.millis), resultsDir = Some(repoRoot.resolve("out")))
     }
 
     "leave out what isn't given" in {
       // When / Then
       RunParameters.fromConfigMap(Map.empty, repoRoot) shouldEqual
-        RunParameters(None, None, None, None, None, None, None)
+        RunParameters(None, None, None, None, None, None, None, None)
     }
 
     "reject a count that isn't a number" in {
@@ -61,16 +61,18 @@ class RunParametersTest extends AnyWordSpec with Matchers {
       // Given
       val timeouts = Timeouts(1.second, 1.second, 1.second, 1.second, 1.second)
       val config = PerfConfig(input = None, output = None, machineName = None,
-        measurement = MeasurementSettings(3, 10000, 1000, 50.millis, timeouts), java = None, jvmOptions = Seq.empty,
+        measurement = MeasurementSettings(3, 10000, 1000, 50.millis, 10.millis, timeouts), java = None,
+        jvmOptions = Seq.empty,
         resultsDir = repoRoot.resolve("perf/results"))
       val parameters = RunParameters(jar = None, commit = None, launches = Some(1), warmupIterations = Some(200),
-        timedIterations = None, pace = Some(10.millis), resultsDir = Some(Paths.get("/tmp/out")))
+        timedIterations = None, pace = Some(10.millis), warmupPace = Some(4.millis),
+        resultsDir = Some(Paths.get("/tmp/out")))
 
       // When
       val overridden = parameters.applyTo(config)
 
       // Then
-      overridden.measurement shouldEqual MeasurementSettings(1, 200, 1000, 10.millis, timeouts)
+      overridden.measurement shouldEqual MeasurementSettings(1, 200, 1000, 10.millis, 4.millis, timeouts)
       overridden.resultsDir shouldEqual Paths.get("/tmp/out")
     }
   }

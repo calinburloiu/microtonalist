@@ -32,6 +32,7 @@ import scala.concurrent.duration.DurationInt
 class PerfRunTest extends AnyWordSpec with Matchers {
 
   private val settings = MeasurementSettings(launches = 1, warmupIterations = 2, timedIterations = 3, pace = 0.millis,
+    warmupPace = 0.millis,
     timeouts = Timeouts(readiness = 2.seconds, probeInterval = 50.millis, quiet = 30.millis, step = 200.millis,
       exit = 100.millis))
 

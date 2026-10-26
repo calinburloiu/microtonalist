@@ -23,7 +23,9 @@ import org.calinburloiu.music.scmidi.message.*
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.util.concurrent.ConcurrentLinkedQueue
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.jdk.CollectionConverters.*
 
 class CaseRunnerTest extends AnyWordSpec with Matchers {
 
@@ -48,9 +50,9 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
     metrics = Seq(metric("noteOn", "noteOn"))
   )
 
-  private def settings(launches: Int = 1, warmup: Int = 5, timed: Int = 10,
-                       pace: FiniteDuration = 0.millis): MeasurementSettings =
-    MeasurementSettings(launches, warmup, timed, pace, timeouts)
+  private def settings(launches: Int = 1, warmup: Int = 5, timed: Int = 10, pace: FiniteDuration = 0.millis,
+                       warmupPace: FiniteDuration = 0.millis): MeasurementSettings =
+    MeasurementSettings(launches, warmup, timed, pace, warmupPace, timeouts)
 
   private def runOn(app: FakeApp, settings: MeasurementSettings, scenario: Scenario = scenario): CaseOutcome =
     try {
@@ -58,6 +60,24 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
     } finally {
       app.close()
     }
+
+  /** An app that echoes, and records when each iteration started: when it received the Note On of the first step. */
+  private class IterationClock {
+    private val starts = ConcurrentLinkedQueue[Long]()
+
+    val app: FakeApp = FakeApp { message =>
+      if (message == noteOnE4) {
+        starts.add(System.nanoTime())
+      }
+      Seq(message)
+    }
+
+    /** The nanoseconds from the start of the first iteration to that of the `count`th. */
+    def span(count: Int): Long = {
+      val first = starts.asScala.take(count).toIndexedSeq
+      first.last - first.head
+    }
+  }
 
   private def failureOf(outcome: CaseOutcome): String = outcome match {
     case CaseOutcome.Failed(reason) => reason
@@ -223,18 +243,32 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
       outcome shouldBe a[CaseOutcome.Passed]
     }
 
+    // Unpaced, 5 iterations of the fake app take far less than a period; a tick observed late shortens the span by its
+    // delay, hence 3 periods rather than 4
     "pace the measured step" in {
       // Given
-      val app = FakeApp()
+      val clock = IterationClock()
       val pace = 20.millis
-      val start = System.nanoTime()
 
       // When
-      val outcome = runOn(app, settings(warmup = 0, timed = 5, pace = pace))
+      val outcome = runOn(clock.app, settings(warmup = 0, timed = 5, pace = pace))
 
       // Then
       outcome shouldBe a[CaseOutcome.Passed]
-      (System.nanoTime() - start) should be >= (pace * 4).toNanos
+      clock.span(count = 5) should be >= (pace * 3).toNanos
+    }
+
+    "pace the warm-up iterations" in {
+      // Given
+      val clock = IterationClock()
+      val warmupPace = 20.millis
+
+      // When
+      val outcome = runOn(clock.app, settings(warmup = 5, timed = 1, warmupPace = warmupPace))
+
+      // Then
+      outcome shouldBe a[CaseOutcome.Passed]
+      clock.span(count = 5) should be >= (warmupPace * 3).toNanos
     }
 
     "measure without an app" in {

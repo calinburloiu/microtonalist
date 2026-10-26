@@ -51,6 +51,7 @@ class PerfConfigTest extends AnyWordSpec with Matchers {
       measurement.warmupIterations shouldEqual 10000
       measurement.timedIterations shouldEqual 1000
       measurement.pace shouldEqual 50.millis
+      measurement.warmupPace shouldEqual 8.millis
       measurement.timeouts.readiness shouldEqual 60.seconds
       measurement.timeouts.probeInterval shouldEqual 1.second
       measurement.timeouts.quiet shouldEqual 250.millis

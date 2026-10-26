@@ -35,7 +35,7 @@ Running:
   `sc-midi`. **`ReceiveBuffer`** timestamps what arrives.
 - **`AppLauncher`** / **`JarAppLauncher`** and **`ProcessApp`** — launch and stop the app, which is killed too if the
   suite's JVM exits first; **`RunningApp`** is a launch.
-- **`Pacer`** — paces the measured step of the timed iterations on a scheduler.
+- **`Pacer`** — paces the measured step of the iterations on a scheduler.
 
 Describing a run:
 
@@ -82,12 +82,14 @@ of the tuners' flows, such as an MTS SysEx or a Pitch Bend and a Note On, so tha
 baseline; they run once, as there is no app to launch again.
 
 A launch waits until the app is ready, e.g. by sending a probe until its expected output comes back, and drains what the
-app sent while starting; a second probe then finds the app settled, e.g. once its first tuning reached its tracks. Each iteration runs the scenario's steps in order: a step sends its input series back to back,
-taking the time before each series' first message, then waits until its output series are complete, taking the time
-each one's last message arrived. The warm-up iterations run back to back; in the timed ones, the measured step, the
-first that sends a metric's input series, starts on the pace. A metric's sample is its output series' receive time minus
-its input series' send time. A missing, extra or different message fails the case with the expected and received
-messages; the run goes on with the next case and records the failure.
+app sent while starting; a second probe then finds the app settled, e.g. once its first tuning reached its tracks. Each
+iteration runs the scenario's steps in order: a step sends its input series back to back, taking the time before each
+series' first message, then waits until its output series are complete, taking the time each one's last message arrived.
+In each iteration, the measured step, the first that sends a metric's input series, starts on a pace: that of the
+warm-up keeps the traffic of each IAC bus under the rate at which macOS mutes it (see the guide), and that of the timed
+iterations spaces the samples. A metric's sample is its output series' receive time minus its input series' send time. A
+missing, extra or different message fails the case with the expected and received messages; the run goes on with the
+next case and records the failure.
 
 ## Threading
 
