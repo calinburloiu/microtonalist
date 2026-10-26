@@ -100,7 +100,7 @@ object PerfConfig {
       (__ \ "run" \ "warmupIterations").read[Int](using Reads.min(0)) and
       (__ \ "run" \ "timedIterations").read[Int](using Reads.min(1)) and
       millis(__ \ "run" \ "paceMillis", minimum = 0) and
-      millis(__ \ "run" \ "warmupPaceMillis", minimum = 0) and
+      (__ \ "devices" \ "maxMessagesPerSecond").read[Int](using Reads.min(0)) and
       (
         millis(__ \ "timeouts" \ "readinessMillis", minimum = 1) and
           millis(__ \ "timeouts" \ "probeIntervalMillis", minimum = 1) and

@@ -40,12 +40,12 @@ case class Timeouts(readiness: FiniteDuration,
  * @param warmupIterations Untimed iterations before the timed ones of each launch.
  * @param timedIterations Timed iterations of each launch.
  * @param pace The period on which the measured step of the timed iterations starts; zero runs them back to back.
- * @param warmupPace The period on which the measured step of the warm-up iterations starts; zero runs them back to
- *   back. It keeps the traffic of the MIDI devices under the rate at which macOS's IAC Driver mutes a bus.
+ * @param maxMessageRate The most messages a second that each MIDI device carries in the warm-up, whose iterations are
+ *   paced to stay under it, as [[Traffic]] counts them; zero runs them back to back.
  */
 case class MeasurementSettings(launches: Int,
                                warmupIterations: Int,
                                timedIterations: Int,
                                pace: FiniteDuration,
-                               warmupPace: FiniteDuration,
+                               maxMessageRate: Int,
                                timeouts: Timeouts)

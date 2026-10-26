@@ -52,7 +52,7 @@ object RunResultFixtures {
       midiDevices = PerfDevices(MidiDeviceId("CoreMIDI4J - IAC 1", "Apple Inc."),
         MidiDeviceId("CoreMIDI4J - IAC 2", "Apple Inc."))),
     config = RunConfigSummary(launches = 3, warmupIterations = 10000, timedIterations = 1000, paceMillis = 50,
-      warmupPaceMillis = 10),
+      maxMessagesPerSecond = 1000),
     floor = CaseOutcome.Passed(Seq(metric("loopback→loopback", 98765).copy(name = "floor"))),
     cases = Seq(
       CaseResult(name = "The MTS Octave 1-byte tuner should change the tuning on a pedal",

@@ -35,7 +35,8 @@ Running:
   `sc-midi`. **`ReceiveBuffer`** timestamps what arrives.
 - **`AppLauncher`** / **`JarAppLauncher`** and **`ProcessApp`** — launch and stop the app, which is killed too if the
   suite's JVM exits first; **`RunningApp`** is a launch.
-- **`Pacer`** — paces the measured step of the iterations on a scheduler.
+- **`Pacer`** — paces the measured step of the iterations on a scheduler; **`Traffic`** counts the messages of an
+  iteration, which set the warm-up's pace.
 
 Describing a run:
 
@@ -86,8 +87,8 @@ app sent while starting; a second probe then finds the app settled, e.g. once it
 iteration runs the scenario's steps in order: a step sends its input series back to back, taking the time before each
 series' first message, then waits until its output series are complete, taking the time each one's last message arrived.
 In each iteration, the measured step, the first that sends a metric's input series, starts on a pace: that of the
-warm-up keeps the traffic of each IAC bus under the rate at which macOS mutes it (see the guide), and that of the timed
-iterations spaces the samples. A metric's sample is its output series' receive time minus its input series' send time. A
+warm-up keeps each device under the configured maximum rate of messages, since macOS's IAC Driver mutes a bus that
+carries too many (see the guide), and that of the timed iterations spaces the samples. A metric's sample is its output series' receive time minus its input series' send time. A
 missing, extra or different message fails the case with the expected and received messages; the run goes on with the
 next case and records the failure.
 

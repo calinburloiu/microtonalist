@@ -1,15 +1,15 @@
 {
   "devices": {
     "input": { "name": "", "vendor": "" },
-    "output": { "name": "", "vendor": "" }
+    "output": { "name": "", "vendor": "" },
+    "maxMessagesPerSecond": 1000
   },
   "machineName": "",
   "run": {
     "launches": 3,
     "warmupIterations": 10000,
     "timedIterations": 1000,
-    "paceMillis": 50,
-    "warmupPaceMillis": 8
+    "paceMillis": 50
   },
   "timeouts": {
     "readinessMillis": 60000,

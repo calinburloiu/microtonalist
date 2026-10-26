@@ -154,7 +154,7 @@ private object ActiveRun {
     val machine = MachineProbe.forOs(sys.props("os.name"), ProcessCommandRunner).probe(config.machineName, devices)
     val measurement = config.measurement
     val runConfig = RunConfigSummary(measurement.launches, measurement.warmupIterations, measurement.timedIterations,
-      measurement.pace.toMillis, measurement.warmupPace.toMillis)
+      measurement.pace.toMillis, measurement.maxMessageRate)
 
     val manager = JavaMidiManager()
     try {

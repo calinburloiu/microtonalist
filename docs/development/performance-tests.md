@@ -20,11 +20,6 @@ On macOS, use two buses of the IAC Driver: in *Audio MIDI Setup*, open *Window â
 Driver*, check *Device is online* and add a second bus. List the devices with the `cli` tool
 (`bin/mtlist-tool midi-devices`, after `sbt cli/assembly`).
 
-The IAC Driver mutes a bus for 12 seconds, for every app, when it carries more than about 1,500 short messages a second
-for a few seconds, or a burst of 15,000; a 21-byte SysEx counts about as much as four short messages. Apple doesn't
-document it. The suite paces its warm-up to stay well under it, so a case whose step times out with nothing received
-after you lowered the pace has likely hit it.
-
 Then put them in `perf/perf/src/test/resources/perf.local.json`, which git ignores and which overrides the committed
 [`perf.json`](../../perf/perf/src/test/resources/perf.json) key by key:
 
@@ -39,8 +34,14 @@ Then put them in `perf/perf/src/test/resources/perf.local.json`, which git ignor
 ```
 
 `machineName` is an optional label for the report. `perf.json` also holds the defaults of a run (3 launches of 10,000
-warm-up iterations, paced every 8 ms, and 1,000 timed ones, paced every 50 ms), the timeouts, and the JDK and JVM
-options of the app.
+warm-up and 1,000 timed iterations each, the timed ones paced every 50 ms), the timeouts, and the JDK and JVM options of
+the app.
+
+The IAC Driver mutes a bus for 12 seconds, for every app, when it carries more than about 1,500 short messages a second
+for a few seconds, or a burst of 15,000; a 21-byte SysEx counts about as much as four short messages. Apple doesn't
+document it. So the suite paces its warm-up for each device to carry at most `devices.maxMessagesPerSecond` messages a
+second, 1,000 by default, counting a SysEx as one per 6 data bytes. Set the limit of other devices in `perf.local.json`,
+or `0` for devices that have none. A case whose step times out with nothing received has likely hit the limit.
 
 ## Build the JAR to measure
 
@@ -76,7 +77,7 @@ sbtn "perf/testOnly org.calinburloiu.music.microtonalist.perf.cases.* -- -oNCXEH
 | `commit` | The commit of a JAR whose `BuildInfo` doesn't record it |
 | `launches`, `warmup`, `iterations` | Override the launches, and the warm-up and timed iterations of each launch |
 | `pace` | Overrides the pace of the timed iterations, in milliseconds |
-| `warmupPace` | Overrides the pace of the warm-up iterations, in milliseconds |
+| `maxRate` | Overrides the most messages a second that each device carries in the warm-up |
 | `results` | Writes the run file to another directory, e.g. for a trial run you won't commit |
 
 Relative paths resolve against the repository's root. ScalaTest's `-z` selects the cases by name.

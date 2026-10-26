@@ -51,8 +51,8 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
   )
 
   private def settings(launches: Int = 1, warmup: Int = 5, timed: Int = 10, pace: FiniteDuration = 0.millis,
-                       warmupPace: FiniteDuration = 0.millis): MeasurementSettings =
-    MeasurementSettings(launches, warmup, timed, pace, warmupPace, timeouts)
+                       maxMessageRate: Int = 0): MeasurementSettings =
+    MeasurementSettings(launches, warmup, timed, pace, maxMessageRate, timeouts)
 
   private def runOn(app: FakeApp, settings: MeasurementSettings, scenario: Scenario = scenario): CaseOutcome =
     try {
@@ -258,13 +258,14 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
       clock.span(count = 5) should be >= (pace * 3).toNanos
     }
 
-    "pace the warm-up iterations" in {
+    "pace the warm-up iterations to keep each device under the message rate" in {
       // Given
       val clock = IterationClock()
+      // An iteration sends 2 messages and receives 2, so 100 a second paces it every 20 ms
       val warmupPace = 20.millis
 
       // When
-      val outcome = runOn(clock.app, settings(warmup = 5, timed = 1, warmupPace = warmupPace))
+      val outcome = runOn(clock.app, settings(warmup = 5, timed = 1, maxMessageRate = 100))
 
       // Then
       outcome shouldBe a[CaseOutcome.Passed]

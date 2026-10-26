@@ -144,7 +144,10 @@ function describeRun(run) {
 }
 
 function describeIterations(config) {
-  return `${config.warmupIterations} warm-up iterations, paced every ${config.warmupPaceMillis} ms, and ` +
+  const warmupPace = config.maxMessagesPerSecond > 0
+    ? `paced to at most ${config.maxMessagesPerSecond} messages a second per device`
+    : 'back to back';
+  return `${config.warmupIterations} warm-up iterations, ${warmupPace}, and ` +
     `${config.timedIterations} timed ones, paced every ${config.paceMillis} ms`;
 }
 

@@ -68,7 +68,7 @@ case class RunConfigSummary(launches: Int,
                             warmupIterations: Int,
                             timedIterations: Int,
                             paceMillis: Long,
-                            warmupPaceMillis: Long)
+                            maxMessagesPerSecond: Int)
 
 /**
  * The result of a case.

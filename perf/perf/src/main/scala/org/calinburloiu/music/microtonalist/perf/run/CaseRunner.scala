@@ -70,6 +70,7 @@ final class CaseRunner(path: MidiPath, settings: MeasurementSettings) {
     private val metrics = scenario.metrics.toIndexedSeq
     private val metricFroms = metrics.map(metric => inputMarks.indexOf(metric.from)).toArray
     private val metricTos = metrics.map(metric => outputMarks.indexOf(metric.to)).toArray
+    private val warmupPace = Traffic.warmupPace(scenario, settings.maxMessageRate)
 
     private val sendTimes = new Array[Long](inputMarks.size)
     private val receiveTimes = new Array[Long](outputMarks.size)
@@ -84,7 +85,7 @@ final class CaseRunner(path: MidiPath, settings: MeasurementSettings) {
       val matchers = steps.map(step => StepMatcher(step.outputs))
       try {
         awaitReady(app)
-        val warmupPacer = pacerOf(settings.warmupPace)
+        val warmupPacer = pacerOf(warmupPace)
         try {
           for (iteration <- 1 to settings.warmupIterations) {
             runIteration(matchers, warmupPacer, s"warm-up iteration $iteration")

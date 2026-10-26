@@ -34,7 +34,7 @@ case class RunParameters(jar: Option[Path],
                          warmupIterations: Option[Int],
                          timedIterations: Option[Int],
                          pace: Option[FiniteDuration],
-                         warmupPace: Option[FiniteDuration],
+                         maxMessageRate: Option[Int],
                          resultsDir: Option[Path]) {
 
   /** `config` with the values these parameters override. */
@@ -46,7 +46,7 @@ case class RunParameters(jar: Option[Path],
         warmupIterations = warmupIterations.getOrElse(measurement.warmupIterations),
         timedIterations = timedIterations.getOrElse(measurement.timedIterations),
         pace = pace.getOrElse(measurement.pace),
-        warmupPace = warmupPace.getOrElse(measurement.warmupPace)
+        maxMessageRate = maxMessageRate.getOrElse(measurement.maxMessageRate)
       ),
       resultsDir = resultsDir.getOrElse(config.resultsDir)
     )
@@ -56,8 +56,8 @@ case class RunParameters(jar: Option[Path],
 object RunParameters {
 
   /**
-   * Reads the keys `jar`, `commit`, `launches`, `warmup`, `iterations`, `pace` and `warmupPace` (in milliseconds), and
-   * `results`. Relative paths resolve against `repoRoot`.
+   * Reads the keys `jar`, `commit`, `launches`, `warmup`, `iterations`, `pace` (in milliseconds), `maxRate` (in
+   * messages a second) and `results`. Relative paths resolve against `repoRoot`.
    *
    * @throws org.calinburloiu.music.microtonalist.perf.PerfSetupException for a number that isn't one.
    */
@@ -77,7 +77,7 @@ object RunParameters {
       warmupIterations = number("warmup").map(_.toInt),
       timedIterations = number("iterations").map(_.toInt),
       pace = number("pace").map(_.millis),
-      warmupPace = number("warmupPace").map(_.millis),
+      maxMessageRate = number("maxRate").map(_.toInt),
       resultsDir = path("results")
     )
   }
