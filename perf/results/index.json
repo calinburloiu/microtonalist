@@ -1,0 +1,11 @@
+{
+  "schemaVersion" : 1,
+  "runs" : [ {
+    "path" : "89ab734c5405f722e32037fb33719c5416abc1cd0a7684b23227c74430537a3f/20261026T175154Z-1.6.0-SNAPSHOT-a8ba00df.json",
+    "machineId" : "89ab734c5405f722e32037fb33719c5416abc1cd0a7684b23227c74430537a3f",
+    "machineName" : "Mac16,8 · Apple M4 Pro",
+    "startTime" : "2026-10-26T17:51:54.997177Z",
+    "appVersion" : "1.6.0-SNAPSHOT",
+    "appCommit" : "a8ba00dfd5f5d66743e93e6266f902f9feca7bce"
+  } ]
+}
