@@ -28,8 +28,8 @@ import scala.jdk.CollectionConverters.*
  * nothing and needs no grant.
  *
  * A click goes to the node that [[Picker]] picks under the node's centre. Keys and text go to the focus owner of the
- * focused window, else of the first showing stage, since the user may have switched to another app; [[key]] and
- * [[typeText]] throw a [[DriverException]] if no stage shows.
+ * focused window, since the user may have switched to another app, else of the stage shown last, such as a modal dialog
+ * on top; [[key]] and [[typeText]] throw a [[DriverException]] if no stage shows.
  *
  * @param fx queues the input on the JavaFX Application Thread
  */
@@ -96,10 +96,13 @@ private object EventInput {
     ContextMenuEvent(null, target, ContextMenuEvent.CONTEXT_MENU_REQUESTED, point.sceneX, point.sceneY, point.screenX,
       point.screenY, false, PickResult(target, point.sceneX, point.sceneY))
 
-  /** The focus owner of the focused window, else of the first showing stage, or that window's scene if none. */
+  /**
+   * The focus owner of the focused window, else of the last stage shown, such as a modal dialog on top, or that
+   * window's scene if none.
+   */
   def keyTarget(): EventTarget = {
     val windows = Window.getWindows.asScala
-    val window = windows.find(_.isFocused).orElse(windows.find(_.isInstanceOf[Stage])).getOrElse {
+    val window = windows.find(_.isFocused).orElse(windows.findLast(_.isInstanceOf[Stage])).getOrElse {
       throw DriverException("no stage shows")
     }
     Input.focusOwnerOrScene(window.getScene)

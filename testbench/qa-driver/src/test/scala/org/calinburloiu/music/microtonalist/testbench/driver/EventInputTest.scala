@@ -18,7 +18,7 @@ package org.calinburloiu.music.microtonalist.testbench.driver
 
 import com.sun.javafx.stage.WindowHelper
 import javafx.scene.control.TextField
-import javafx.stage.Window
+import javafx.stage.{Stage, Window}
 import org.calinburloiu.music.microtonalist.testbench.driver.HeadlessFx.fx
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest.{Click, Key, Type}
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.MouseButtonName.Primary
@@ -48,10 +48,13 @@ class EventInputTest extends AnyWordSpec with InputBehaviors with BeforeAndAfter
 
     def isAnyWindowFocused: Boolean = fx(Window.getWindows.asScala.exists(_.isFocused))
 
-    /** Takes the focus from the stand-in, as switching to another app would on the desktop. */
-    def unfocusStandIn(): Unit = fx {
-      // The headless platform never takes a window's focus away, and JavaFX has no public API that does.
-      WindowHelper.setFocused(standIn.stage, false)
+    def windowTitles: Seq[String] = fx(Window.getWindows.asScala.toSeq.collect { case stage: Stage => stage.getTitle })
+
+    /** Takes the focus from every window, as switching to another app would on the desktop. */
+    def unfocusAllWindows(): Unit = fx {
+      // The headless platform never takes a window's focus away, and JavaFX has no public API that does, so this uses
+      // OpenJFX's internal `WindowHelper`, which an upgrade of the pinned OpenJFX may break.
+      Window.getWindows.asScala.foreach { window => WindowHelper.setFocused(window, false) }
     }
   }
 
@@ -77,10 +80,10 @@ class EventInputTest extends AnyWordSpec with InputBehaviors with BeforeAndAfter
       fx(nameField.getText) shouldBe "dO1 "
     }
 
-    "press keys and type in the first stage while no window has the focus" in new StandInFixture {
+    "press keys and type in the stage while no window has the focus" in new StandInFixture {
       // Given
       fx(nameField.requestFocus())
-      unfocusStandIn()
+      unfocusAllWindows()
       isAnyWindowFocused shouldBe false
 
       // When
@@ -89,6 +92,20 @@ class EventInputTest extends AnyWordSpec with InputBehaviors with BeforeAndAfter
 
       // Then
       fx(nameField.getText) shouldBe "doina"
+    }
+
+    "press a key in the dialog on top while no window has the focus" in new StandInFixture {
+      // Given
+      handler.handle(Click("Confirm", None, Primary, 1))
+      unfocusAllWindows()
+      isAnyWindowFocused shouldBe false
+
+      // When
+      handler.handle(Key("SPACE"))
+
+      // Then
+      actions shouldBe Seq("confirm")
+      windowTitles should not contain "Confirm"
     }
 
     "fail to press a key or type while no stage shows" in new StandInFixture {
