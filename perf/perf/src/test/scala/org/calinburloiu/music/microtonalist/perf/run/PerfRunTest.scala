@@ -94,6 +94,21 @@ class PerfRunTest extends AnyWordSpec with Matchers {
       Files.readString(rigs.head.tracks) shouldEqual """{"in": "Bus 1", "out": "Bus 2"}"""
     }
 
+    "record a case that can't be set up as failed" in new Fixture {
+      // Given
+      private val missingTracks = perfCase(noteOn).copy(tracks = "tracks/missing.mtlist.tracks")
+
+      // When
+      private val result = run.runCase("The fake should have tracks", missingTracks)
+
+      // Then
+      result.name shouldEqual "The fake should have tracks"
+      result.tracks shouldEqual "tracks/missing.mtlist.tracks"
+      result.outcome shouldBe a[CaseOutcome.Failed]
+      result.outcome.asInstanceOf[CaseOutcome.Failed].reason should include("tracks/missing.mtlist.tracks")
+      appPath.launchCount.get shouldEqual 0
+    }
+
     "go on with the next case after a failed one" in new Fixture {
       // When
       private val failed = run.runCase("The fake should not echo", perfCase(noteOff))

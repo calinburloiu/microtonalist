@@ -87,7 +87,10 @@ enum Readiness {
   /** Once a message matching `until` arrives after the launch. */
   case AfterLaunch(until: Expected)
 
-  /** Once a message matching `until` arrives, sending `input` again and again until it does. */
+  /**
+   * Once a message matching `until` arrives, sending `input` again and again until it does, then once more, after the
+   * app's output went quiet, so that an app still settling as it starts gets the probe in its final state.
+   */
   case Probe(input: Seq[MidiMsg], until: Expected)
 }
 

@@ -96,6 +96,30 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
       app.receivedCount.get should be > 4 + 2 * (5 + 10)
     }
 
+    "probe again once the app settles, as when its tuning arrives after its input opened" in {
+      // Given
+      // Right after the app answers its first probe, its state changes, as the Pitch Bend tuner's does when the
+      // composition's tuning reaches it: its next Note On brings a Pitch Bend too
+      var answered = false
+      var pitchBendPending = false
+      val app = FakeApp {
+        case `noteOffA4` if !answered =>
+          answered = true
+          pitchBendPending = true
+          Seq(noteOffA4)
+        case noteOn: NoteOnMidiMsg if pitchBendPending =>
+          pitchBendPending = false
+          Seq(PitchBendMidiMsg(0, 100), noteOn)
+        case message => Seq(message)
+      }
+
+      // When
+      val outcome = runOn(app, settings())
+
+      // Then
+      outcome shouldBe a[CaseOutcome.Passed]
+    }
+
     "fail at once on an unexpected output, showing expected and actual" in {
       // Given
       val wrongNote = NoteOnMidiMsg(0, MidiNote(65))

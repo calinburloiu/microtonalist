@@ -28,9 +28,13 @@ object BuildIdentity {
   /** The commit `HEAD` points to, or `""` when git can't tell, e.g. outside a git repository. */
   def gitCommit(repoRoot: File): String = git(repoRoot, "rev-parse", "HEAD").getOrElse("")
 
-  /** Whether the tracked files differ from `HEAD`; `false` when git can't tell. */
+  /**
+   * Whether the tracked files differ from `HEAD`, leaving out the latency suite's results, which are data; `false` when
+   * git can't tell.
+   */
   def gitDirty(repoRoot: File): Boolean =
-    git(repoRoot, "status", "--porcelain", "--untracked-files=no").exists(_.nonEmpty)
+    git(repoRoot, "status", "--porcelain", "--untracked-files=no", "--", ".", ":(exclude)perf/results")
+      .exists(_.nonEmpty)
 
   private def git(repoRoot: File, args: String*): Option[String] = Try {
     Process("git" +: args, repoRoot).!!(ProcessLogger(_ => ())).trim

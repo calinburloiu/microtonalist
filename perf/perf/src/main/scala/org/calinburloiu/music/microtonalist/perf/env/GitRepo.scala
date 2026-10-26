@@ -24,8 +24,13 @@ final class GitRepo(root: Path, runner: CommandRunner) {
   /** The commit `HEAD` points to. */
   def head: Option[String] = git("rev-parse", "HEAD").map(_.trim)
 
-  /** Whether the tracked files differ from `HEAD`; untracked files don't count. */
-  def isDirty: Option[Boolean] = git("status", "--porcelain", "--untracked-files=no").map(_.trim.nonEmpty)
+  /**
+   * Whether the tracked files differ from `HEAD`; untracked files don't count, nor do those under the `excluding`
+   * paths, relative to the repository's root.
+   */
+  def isDirty(excluding: Seq[String] = Seq.empty): Option[Boolean] =
+    git(Seq("status", "--porcelain", "--untracked-files=no", "--", ".") ++ excluding.map(path => s":(exclude)$path")*)
+      .map(_.trim.nonEmpty)
 
   /** The full hash of the commit `revision` names, e.g. a short hash. */
   def resolve(revision: String): Option[String] =

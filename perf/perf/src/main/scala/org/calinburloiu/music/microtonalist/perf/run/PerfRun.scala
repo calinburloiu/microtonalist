@@ -24,6 +24,7 @@ import org.calinburloiu.music.microtonalist.perf.{Metric, PerfCase, PerfDevices,
 import org.calinburloiu.music.scmidi.message.CcMidiMsg
 
 import java.nio.file.{Path, Paths}
+import scala.util.control.NonFatal
 
 /**
  * A latency run: it measures the floor of the setup, then the cases one after another, each on a rig of its own in a
@@ -51,10 +52,21 @@ final class PerfRun(floorPath: MidiPath,
     // With no app to relaunch, one launch is enough
     CaseRunner(floorPath, settings.copy(launches = 1)).run(PerfRun.FloorScenario, _ => NoApp)
 
-  /** Measures `perfCase`, named `name`. */
+  /** Measures `perfCase`, named `name`; a case that fails to run, e.g. for a missing resource, is a failed case. */
   def runCase(name: String, perfCase: PerfCase): CaseResult = {
     caseCount += 1
     val caseDir = scratchDir.resolve(f"$caseCount%02d-${slug(name)}")
+    val outcome = try {
+      measure(perfCase, caseDir)
+    } catch {
+      // The run records a case that can't even be set up as failed, like any other
+      case NonFatal(exception) => CaseOutcome.Failed(s"The case failed to run: $exception")
+    }
+
+    CaseResult(name, perfCase.tracks, perfCase.composition, outcome)
+  }
+
+  private def measure(perfCase: PerfCase, caseDir: Path): CaseOutcome = {
     val rig = ScratchRig.prepare(
       dir = caseDir,
       compositionFileName = Paths.get(perfCase.composition).getFileName.toString,
@@ -63,10 +75,8 @@ final class PerfRun(floorPath: MidiPath,
       appConfig = perfCase.appConfig.map(resourceText),
       devices = devices
     )
-    val outcome = CaseRunner(appPath, settings).run(perfCase.scenario,
+    CaseRunner(appPath, settings).run(perfCase.scenario,
       launchNumber => launcher.launch(rig, caseDir.resolve(s"launch-$launchNumber.log")))
-
-    CaseResult(name, perfCase.tracks, perfCase.composition, outcome)
   }
 
   private def slug(name: String): String =

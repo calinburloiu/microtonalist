@@ -80,6 +80,32 @@ class ProcessAppTest extends AnyWordSpec with Matchers {
       (System.nanoTime() - start) should be < 10.seconds.toNanos
     }
 
+    "kill the app when the JVM exits" in {
+      // Given
+      val app = ProcessApp.start(Seq("cat"), logFile())
+
+      // When
+      app.shutdownHook.run()
+
+      // Then
+      app.awaitExit(10.seconds) shouldBe true
+      app.stop(StopTimeout)
+    }
+
+    "register its shutdown hook while the app runs, and forget it once stopped" in {
+      // Given
+      val app = ProcessApp.start(Seq("cat"), logFile())
+      val runtime = Runtime.getRuntime
+      runtime.removeShutdownHook(app.shutdownHook) shouldBe true
+      runtime.addShutdownHook(app.shutdownHook)
+
+      // When
+      app.stop(StopTimeout)
+
+      // Then
+      runtime.removeShutdownHook(app.shutdownHook) shouldBe false
+    }
+
     "report the exit code of an app that exited" in {
       // Given
       val app = ProcessApp.start(Seq("sh", "-c", "exit 3"), logFile())

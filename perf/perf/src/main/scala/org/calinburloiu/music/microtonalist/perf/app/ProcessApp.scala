@@ -26,6 +26,15 @@ import scala.jdk.CollectionConverters.*
 /** The app running in a process of its own, its output going to a log file. */
 final class ProcessApp private (process: Process, log: Path) extends RunningApp {
 
+  /**
+   * Kills the app when the suite's JVM exits, e.g. when a run is aborted, so that no app is left behind holding the
+   * MIDI devices. It is registered while the app runs.
+   */
+  private[app] val shutdownHook: Thread = {
+    val kill: Runnable = () => process.destroyForcibly()
+    Thread(kill, "perf-app-killer")
+  }
+
   override def isAlive: Boolean = process.isAlive
 
   override def exitCode: Option[Int] = Option.when(!process.isAlive)(process.exitValue())
@@ -38,6 +47,12 @@ final class ProcessApp private (process: Process, log: Path) extends RunningApp 
     if (!awaitExit(timeout)) {
       process.destroyForcibly()
       process.waitFor()
+    }
+    try {
+      Runtime.getRuntime.removeShutdownHook(shutdownHook)
+    } catch {
+      // The JVM is already exiting, and runs the hook anyway
+      case _: IllegalStateException =>
     }
   }
 
@@ -53,6 +68,8 @@ object ProcessApp {
       .redirectErrorStream(true)
       .redirectOutput(logFile.toFile)
       .start()
-    new ProcessApp(process, logFile)
+    val app = new ProcessApp(process, logFile)
+    Runtime.getRuntime.addShutdownHook(app.shutdownHook)
+    app
   }
 }

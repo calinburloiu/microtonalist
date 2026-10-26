@@ -47,9 +47,9 @@ class GitRepoTest extends AnyWordSpec with Matchers {
 
     "tell whether tracked files changed" in new Fixture {
       // Given
-      private val clean = repo.isDirty
+      private val clean = repo.isDirty()
       Files.writeString(root.resolve("untracked.txt"), "ignored")
-      private val withUntracked = repo.isDirty
+      private val withUntracked = repo.isDirty()
 
       // When
       Files.writeString(file, "two")
@@ -57,7 +57,23 @@ class GitRepoTest extends AnyWordSpec with Matchers {
       // Then
       clean shouldEqual Some(false)
       withUntracked shouldEqual Some(false)
-      repo.isDirty shouldEqual Some(true)
+      repo.isDirty() shouldEqual Some(true)
+    }
+
+    "ignore changes under the excluded paths" in new Fixture {
+      // Given
+      private val index = root.resolve("results/index.json")
+      Files.createDirectories(index.getParent)
+      Files.writeString(index, "{}")
+      git("add", "results/index.json")
+      git("-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-q", "-m", "Results")
+
+      // When
+      Files.writeString(index, """{"runs": []}""")
+
+      // Then
+      repo.isDirty(excluding = Seq("results")) shouldEqual Some(false)
+      repo.isDirty() shouldEqual Some(true)
     }
 
     "resolve a short commit" in new Fixture {
@@ -72,7 +88,7 @@ class GitRepoTest extends AnyWordSpec with Matchers {
 
       // When / Then
       repo.head shouldBe empty
-      repo.isDirty shouldBe empty
+      repo.isDirty() shouldBe empty
     }
   }
 }

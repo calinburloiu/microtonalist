@@ -116,7 +116,12 @@ final class CaseRunner(path: MidiPath, settings: MeasurementSettings) {
       scenario.readiness match {
         case Readiness.Immediately =>
         case Readiness.AfterLaunch(until) => awaitMessage(app, until, probe = Seq.empty)
-        case Readiness.Probe(input, until) => awaitMessage(app, until, probe = input)
+        case Readiness.Probe(input, until) =>
+          awaitMessage(app, until, probe = input)
+          // The app may still be settling, e.g. its first tuning may reach its tracks after their input opened: a
+          // second probe, after the drain, leaves it as an iteration expects to find it
+          buffer.drainUntilQuiet(settings.timeouts.quiet)
+          awaitMessage(app, until, probe = input)
       }
       // What the app sent while it started, and the replies to the extra probes, aren't part of any iteration
       buffer.drainUntilQuiet(settings.timeouts.quiet)

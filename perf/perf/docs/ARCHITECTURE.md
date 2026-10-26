@@ -33,7 +33,8 @@ Running:
   output isn't the expected one; **`StepMatcher`** matches the messages received during a step to its output series.
 - **`MidiPath`** — the two ends of the measured path; **`DeviceMidiPath`** opens them on MIDI devices through
   `sc-midi`. **`ReceiveBuffer`** timestamps what arrives.
-- **`AppLauncher`** / **`JarAppLauncher`** and **`ProcessApp`** — launch and stop the app; **`RunningApp`** is a launch.
+- **`AppLauncher`** / **`JarAppLauncher`** and **`ProcessApp`** — launch and stop the app, which is killed too if the
+  suite's JVM exits first; **`RunningApp`** is a launch.
 - **`Pacer`** — paces the measured step of the timed iterations on a scheduler.
 
 Describing a run:
@@ -79,7 +80,7 @@ The floor is the setup's own latency: the suite sends on the app's input device 
 it, which a loopback device like an IAC bus does, with no app running.
 
 A launch waits until the app is ready, e.g. by sending a probe until its expected output comes back, and drains what the
-app sent while starting. Each iteration runs the scenario's steps in order: a step sends its input series back to back,
+app sent while starting; a second probe then finds the app settled, e.g. once its first tuning reached its tracks. Each iteration runs the scenario's steps in order: a step sends its input series back to back,
 taking the time before each series' first message, then waits until its output series are complete, taking the time
 each one's last message arrived. The warm-up iterations run back to back; in the timed ones, the measured step, the
 first that sends a metric's input series, starts on the pace. A metric's sample is its output series' receive time minus

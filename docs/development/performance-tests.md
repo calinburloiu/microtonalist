@@ -54,7 +54,8 @@ as `a8ba00df`: give its commit with `-Dcommit`.
 
 ## Run the suite
 
-Commit your changes first: a run records the suite's commit and whether its working tree was dirty. Then:
+Commit your changes first: a run records the suite's commit and whether its working tree was dirty, leaving out the
+results under `perf/results/`, so that you can measure several JARs before committing their runs. Then:
 
 ```bash
 sbtn "perf/testOnly org.calinburloiu.music.microtonalist.perf.cases.* -- -oNCXEHLOPQRMWS -Djar=<path to the JAR> -Dcommit=a8ba00df"

@@ -70,8 +70,11 @@ abstract class LatencySuite extends AnyWordSpec with Matchers with BeforeAndAfte
                          composition: String,
                          readiness: Readiness,
                          appConfig: Option[String] = None)(steps: Step*)(metrics: Metric*): Unit = {
-    // Built first, so that the normal suite validates every case
+    // Built and checked first, so that the normal suite validates every case
     val latencyCase = PerfCase(tracks, composition, appConfig, Scenario(readiness, steps, metrics))
+    for (path <- Seq(tracks, composition) ++ appConfig) {
+      assert(getClass.getResource(s"/$path") != null, s"No resource $path in the latency suite")
+    }
     assume(activeRun.isDefined, "No -Djar=<app JAR> given: the latency cases need the app")
 
     activeRun.get.runCase(currentTestName, latencyCase).outcome match {
@@ -125,7 +128,9 @@ private object ActiveRun {
     val java = config.java.getOrElse(Paths.get(sys.props("java.home"), "bin", "java"))
     val repo = GitRepo(repoRoot, ProcessCommandRunner)
     val app = AppBuild.describe(jar, JarBuildInfo.read(jar), parameters.commit, repo.resolve)
-    val suite = SuiteBuild(repo.head, repo.isDirty)
+    // The results of earlier runs, not yet committed, don't change what the suite measures
+    val resultsInRepo = Option.when(config.resultsDir.startsWith(repoRoot))(repoRoot.relativize(config.resultsDir))
+    val suite = SuiteBuild(repo.head, repo.isDirty(excluding = resultsInRepo.map(_.toString).toSeq))
     val jvm = JvmInfo.probe(java, config.jvmOptions, ProcessCommandRunner)
     val machine = MachineProbe.forOs(sys.props("os.name"), ProcessCommandRunner).probe(config.machineName, devices)
     val measurement = config.measurement
