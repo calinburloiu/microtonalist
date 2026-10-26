@@ -25,7 +25,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `app` | `app` | The desktop application, which wires the modules together |
 | `config` | `app` | HOCON configuration of the application |
 | `cli` | `app` | Command-line utility tool, e.g. for listing the MIDI devices |
-| `perf` | `perf` | The MIDI latency suite, which measures the app's JAR end to end |
+| `perf-midi-latency` | `perf` | The MIDI latency suite, which measures the app's JAR end to end |
 | `ui` | `ui` | Swing GUI |
 | `format` | `format` | Wiring of the format modules into the repositories of compositions, scales and rigs |
 | `format-core` | `format` | What the format modules share, such as (de)serializing plugins |
@@ -57,7 +57,7 @@ flowchart TD
     cli
   end
   subgraph perfGroup ["perf/"]
-    perf
+    perfMidiLatency["perf-midi-latency"]
   end
   subgraph uiGroup ["ui/"]
     ui
@@ -96,7 +96,7 @@ flowchart TD
   tuningChanger --> tuning
   tuning --> scMidi
   cli --> scMidiJavamidi
-  perf --> scMidiJavamidi
+  perfMidiLatency --> scMidiJavamidi
   scMidiJavamidi --> scMidi
   scMidi --> common
   config --> common

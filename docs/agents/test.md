@@ -42,5 +42,5 @@ For example:
 sbtn "intonation/testOnly org.calinburloiu.music.intonation.RatioIntervalTest -- -oNCXEHLOPQRMWS"
 ```
 
-The latency cases of the `perf` module are canceled without `-Djar=<app JAR>`, so a canceled count is expected. Run
-them only when asked to; see [`../development/performance-tests.md`](../development/performance-tests.md).
+The latency cases of the `perf-midi-latency` module are canceled without `-Djar=<app JAR>`, so a canceled count is
+expected. Run them only when asked to; see [`../development/performance-tests.md`](../development/performance-tests.md).

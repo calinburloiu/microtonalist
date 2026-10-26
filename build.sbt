@@ -82,7 +82,7 @@ lazy val root = (project in file("."))
     cliModule,
     configModule,
     experimentsModule,
-    perfModule,
+    perfMidiLatencyModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -512,7 +512,7 @@ lazy val appModule = (project in file("app/app"))
         version,
         scalaVersion,
         sbtVersion,
-        // The latency suite (perf) reads them from a JAR, to tell which commit it measures.
+        // The latency suite (perf-midi-latency) reads them from a JAR, to tell which commit it measures.
         BuildInfoKey.action("gitCommit")(BuildIdentity.gitCommit(repoRoot)),
         BuildInfoKey.action("gitDirty")(BuildIdentity.gitDirty(repoRoot)),
       )
@@ -573,15 +573,15 @@ lazy val experimentsModule = (project in file("app/experiments"))
     coverageEnabled := false,
   )
 
-lazy val perfModule = (project in file("perf/perf"))
-  .withId("perf")
+lazy val perfMidiLatencyModule = (project in file("perf/perf-midi-latency"))
+  .withId("perf-midi-latency")
   .dependsOn(
     scMidiModule,
     scMidiJavamidiModule % "compile->compile;test->test",
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
-    name := "microtonalist-perf",
+    name := "microtonalist-perf-midi-latency",
     commonSettings,
     libraryDependencies ++= Seq(
       playJson,

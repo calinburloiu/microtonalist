@@ -1,0 +1,166 @@
+<!doctype html>
+<!--
+ Copyright 2026 Calin-Andrei Burloiu
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+-->
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Microtonalist latency</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1f2328;
+      --muted: #59636e;
+      --border: #d1d9e0;
+      --surface: #f6f8fa;
+      --accent: #0969da;
+      --drift-bg: #fff1e5;
+      --drift-fg: #9a3412;
+      --fail-fg: #cf222e;
+      --series-1: #0969da;
+      --series-2: #bf3989;
+      --series-3: #1a7f37;
+      --series-4: #9a6700;
+      --series-5: #8250df;
+      --series-6: #57606a;
+      --series-7: #cf222e;
+      color-scheme: light;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --fg: #e6edf3;
+        --muted: #9198a1;
+        --border: #3d444d;
+        --surface: #151b23;
+        --accent: #4493f8;
+        --drift-bg: #3d2410;
+        --drift-fg: #ffb77c;
+        --fail-fg: #ff7b72;
+        --series-1: #4493f8;
+        --series-2: #f778ba;
+        --series-3: #3fb950;
+        --series-4: #d29922;
+        --series-5: #ab7df8;
+        --series-6: #9198a1;
+        --series-7: #ff7b72;
+        color-scheme: dark;
+      }
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--fg);
+      font: 14px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    header {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.5rem 1.25rem;
+      padding: 0.75rem 1rem;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 { margin: 0 1rem 0 0; font-size: 1.1rem; }
+    h2 { margin: 1rem 0 0.5rem; font-size: 0.95rem; }
+
+    label { display: flex; gap: 0.4rem; align-items: center; color: var(--muted); }
+
+    select {
+      max-width: 22rem;
+      padding: 0.2rem 0.4rem;
+      color: var(--fg);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font: inherit;
+    }
+
+    main { padding: 0 1rem 2rem; }
+
+    #summary { color: var(--muted); margin: 0.75rem 0; }
+    #status:empty { display: none; }
+
+    .table-scroll { overflow-x: auto; }
+
+    table { border-collapse: collapse; width: 100%; }
+    th, td { padding: 0.35rem 0.6rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; white-space: nowrap; }
+    td.number, th.number { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+    #metrics > tbody > tr.metric { cursor: pointer; }
+    #metrics > tbody > tr.metric:hover, #metrics > tbody > tr.metric:focus-visible { background: var(--surface); }
+    #metrics > tbody > tr.metric:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+    #metrics > tbody > tr.drifted { background: var(--drift-bg); }
+    #metrics > tbody > tr.drifted td.drift { color: var(--drift-fg); font-weight: 600; }
+    tr.failed td.failure { color: var(--fail-fg); }
+    .case { max-width: 28rem; }
+
+    tr.details > td { padding: 0.25rem 0.6rem 1.25rem; background: var(--bg); }
+    .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 0 2rem; }
+    .chart { position: relative; height: 260px; }
+    .toggles { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-bottom: 0.25rem; }
+    .toggles label { color: var(--fg); }
+    .details table { width: auto; }
+    .details dl { display: grid; grid-template-columns: max-content 1fr; gap: 0.15rem 1rem; margin: 0; }
+    .details dt { color: var(--muted); }
+    .details dd { margin: 0; overflow-wrap: anywhere; }
+    .note { color: var(--muted); }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>MIDI latency</h1>
+  <label>Machine <select id="machine"></select></label>
+  <label>Run <select id="run"></select></label>
+  <label>vs <select id="vs"></select></label>
+</header>
+<main>
+  <p id="summary"></p>
+  <p id="status">Loading…</p>
+  <div class="table-scroll">
+    <table id="metrics">
+      <thead>
+      <tr>
+        <th>Case</th>
+        <th>Metric</th>
+        <th class="number">Median</th>
+        <th class="number">p99</th>
+        <th class="number">Max</th>
+        <th class="number">Median vs</th>
+        <th>Drift</th>
+      </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <p class="note">Click a metric for its timeline across this machine's runs, its distribution, its samples and its details.</p>
+</main>
+<script type="module" src="report.js"></script>
+</body>
+</html>

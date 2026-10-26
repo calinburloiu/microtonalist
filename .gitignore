@@ -95,5 +95,7 @@ __pycache__/
 .mcp.json
 
 
-# The latency suite's machine-specific settings (devices, machine name), see perf/perf/docs/ARCHITECTURE.md
-perf/perf/src/test/resources/perf.local.json
+# The MIDI latency suite's machine-specific settings (devices, machine name), and the raw samples of the last run
+# of each machine; see perf/perf-midi-latency/docs/ARCHITECTURE.md
+perf/perf-midi-latency/src/test/resources/midi-latency-config.local.json
+perf/perf-midi-latency/results/**/*.samples.json

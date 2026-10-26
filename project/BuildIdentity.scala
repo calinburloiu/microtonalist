@@ -33,8 +33,8 @@ object BuildIdentity {
    * git can't tell.
    */
   def gitDirty(repoRoot: File): Boolean =
-    git(repoRoot, "status", "--porcelain", "--untracked-files=no", "--", ".", ":(exclude)perf/results")
-      .exists(_.nonEmpty)
+    git(repoRoot, "status", "--porcelain", "--untracked-files=no", "--", ".",
+      ":(exclude)perf/perf-midi-latency/results").exists(_.nonEmpty)
 
   private def git(repoRoot: File, args: String*): Option[String] = Try {
     Process("git" +: args, repoRoot).!!(ProcessLogger(_ => ())).trim
