@@ -54,7 +54,9 @@ class PacerTest extends AnyWordSpec with Matchers {
         pacer.awaitNextTick()
 
         // Then
-        (System.nanoTime() - start) should be >= Period.toNanos
+        // A piled-up tick would return at once; a tick the scheduler released late shortens the wait by its delay,
+        // hence half a period rather than a whole one
+        (System.nanoTime() - start) should be >= (Period / 2).toNanos
       }
     }
   }
