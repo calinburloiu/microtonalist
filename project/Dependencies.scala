@@ -26,6 +26,8 @@ object Dependencies {
   val jacksonVersion = "2.14.3" // Brought by play-json
   val jsr305Version = "3.0.2"
   val logbackVersion = "1.6.4"
+  // Pinned: the QA driver relies on the experimental headless platform.
+  val openjfxVersion = "26.0.2"
   val playJsonVersion = "3.0.6"
   val scalaLoggingVersion = "3.9.6"
   val scalaMockVersion = "7.6.0"
@@ -37,6 +39,21 @@ object Dependencies {
   val ficus = "com.iheart" %% "ficus" % ficusVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
   val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion
+  // OpenJFX publishes its native code in a JAR per platform, selected by a classifier.
+  val javafxClassifier: String = {
+    val osName = sys.props.getOrElse("os.name", "").toLowerCase
+    val isAarch64 = sys.props.get("os.arch").contains("aarch64")
+    if (osName.contains("mac")) {
+      if (isAarch64) "mac-aarch64" else "mac"
+    } else if (osName.contains("linux")) {
+      if (isAarch64) "linux-aarch64" else "linux"
+    } else {
+      "win"
+    }
+  }
+  val javafx: Seq[ModuleID] = Seq("javafx-base", "javafx-graphics", "javafx-controls").map { artifact =>
+    "org.openjfx" % artifact % openjfxVersion classifier javafxClassifier
+  }
   // The `javax.annotation.concurrent` annotations (`@ThreadSafe`, `@NotThreadSafe`). Guava stopped depending on it in
   // 33.4.3.
   val jsr305 = "com.google.code.findbugs" % "jsr305" % jsr305Version
