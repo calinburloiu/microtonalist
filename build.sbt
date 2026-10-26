@@ -579,10 +579,15 @@ lazy val experimentsModule = (project in file("app/experiments"))
 
 lazy val qaDriverModule = (project in file("testbench/qa-driver"))
   .withId("qa-driver")
-  .disablePlugins(AssemblyPlugin) // Task 6 builds its JAR
   .settings(
     name := "microtonalist-qa-driver",
     commonSettings,
+    assembly / assemblyJarName := "microtonalist-qa-driver.jar",
+    // Only the driver's classes: at run time it uses the JavaFX, Scala library and play-json of the app's JAR.
+    assemblyPackageScala / assembleArtifact := false,
+    assemblyPackageDependency / assembleArtifact := false,
+    assembly / packageOptions += Package.ManifestAttributes(
+      "Premain-Class" -> "org.calinburloiu.music.microtonalist.testbench.driver.QaDriverAgent"),
     libraryDependencies ++= (javafx :+ playJson).map(_ % Provided),
     // JavaFX starts once per JVM, and sbt's own JVM is the long-lived BSP server.
     Test / fork := true,
