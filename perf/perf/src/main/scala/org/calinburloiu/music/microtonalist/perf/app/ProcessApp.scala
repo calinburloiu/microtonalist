@@ -22,6 +22,7 @@ import java.nio.file.{Files, Path}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.FiniteDuration
 import scala.jdk.CollectionConverters.*
+import scala.util.Try
 
 /** The app running in a process of its own, its output going to a log file. */
 final class ProcessApp private (process: Process, log: Path) extends RunningApp {
@@ -48,12 +49,8 @@ final class ProcessApp private (process: Process, log: Path) extends RunningApp 
       process.destroyForcibly()
       process.waitFor()
     }
-    try {
-      Runtime.getRuntime.removeShutdownHook(shutdownHook)
-    } catch {
-      // The JVM is already exiting, and runs the hook anyway
-      case _: IllegalStateException =>
-    }
+    // It fails only while the JVM is already exiting, which runs the hook anyway
+    Try(Runtime.getRuntime.removeShutdownHook(shutdownHook))
   }
 
   /** Waits for the app to exit, up to `timeout`, telling whether it did. */

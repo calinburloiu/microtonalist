@@ -18,9 +18,10 @@ package org.calinburloiu.music.microtonalist.perf.run
 
 import org.calinburloiu.music.microtonalist.perf.PerfDsl.{*, given}
 import org.calinburloiu.music.microtonalist.perf.app.{AppLauncher, PreparedRig}
+import org.calinburloiu.music.microtonalist.perf.midi.MidiPath
 import org.calinburloiu.music.microtonalist.perf.{PerfCase, PerfDevices, Readiness, Scenario}
 import org.calinburloiu.music.scmidi.message.{NoteOffMidiMsg, NoteOnMidiMsg}
-import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiNote}
+import org.calinburloiu.music.scmidi.{MidiDeviceId, MidiNote, MidiReceiver}
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
@@ -95,6 +96,27 @@ class PerfRunTest extends AnyWordSpec with Matchers {
       result.outcome.asInstanceOf[CaseOutcome.Passed].metrics.head.launches should have size 1
       appPath.launchCount.get shouldEqual 0
       rigs shouldBe empty
+    }
+
+    "record a loopback case that fails to run as failed" in new Fixture {
+      // Given
+      private val brokenPath: MidiPath = new MidiPath {
+        override def sender: MidiReceiver = (_, _) => ()
+
+        override def attach(receiver: MidiReceiver): Unit = throw IllegalStateException("The device is gone")
+
+        override def detach(receiver: MidiReceiver): Unit = ()
+      }
+      private val brokenRun = PerfRun(brokenPath, appPath, devices, settings, launcher, resources, scratchDir)
+      private val scenario = Scenario(Readiness.Immediately, Seq(input("noteOn")(noteOn) ~> output("noteOn")(noteOn)),
+        Seq(metric("noteOn", "noteOn")))
+
+      // When
+      private val result = brokenRun.runLoopbackCase("The loopback should carry a Note On", scenario)
+
+      // Then
+      result.outcome shouldBe a[CaseOutcome.Failed]
+      result.outcome.asInstanceOf[CaseOutcome.Failed].reason should include("The device is gone")
     }
 
     "run a case on a scratch rig with the devices filled in" in new Fixture {
