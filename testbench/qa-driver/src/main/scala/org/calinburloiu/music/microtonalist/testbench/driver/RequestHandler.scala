@@ -17,8 +17,12 @@
 package org.calinburloiu.music.microtonalist.testbench.driver
 
 import javafx.scene.input.{Clipboard, ClipboardContent, MouseButton}
+import javafx.stage.{Stage, Window}
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.{DriverRequest, MouseButtonName}
 import play.api.libs.json.{JsObject, Json}
+
+import java.util.Base64
+import scala.jdk.CollectionConverters.*
 
 /**
  * Carries out the server's requests in the app under test.
@@ -31,13 +35,29 @@ final class RequestHandler(fx: FxExecutor, input: Input) {
    * Carries out a request and returns its result, as [[DriverRequest]] describes it for each request.
    *
    * An input request answers once the Application Thread has handled the input, or once it waits in a nested event
-   * loop, such as a dialog's `showAndWait`.
+   * loop, such as a dialog's `showAndWait`. A snapshot waits for the Application Thread first; it is of the selector's
+   * node if given, else of the window given, else of the first stage, at a scale in (0, 4].
    *
-   * @throws DriverException if the request fails or is not supported
+   * @throws DriverException if the request fails
    */
   def handle(request: DriverRequest): JsObject = request match {
     case DriverRequest.Windows => fx(SceneReader.windows())
     case DriverRequest.Dump(window) => fx(SceneReader.dump(window))
+    case DriverRequest.Snapshot(window, selector, scale) =>
+      if (!(scale > 0 && scale <= RequestHandler.MaxScale)) {
+        throw DriverException(s"the scale must be in (0, ${RequestHandler.MaxScale.toInt}], not $scale")
+      }
+      fx.idle()
+      fx {
+        val image = selector.fold(Snapshots.window(snapshotWindow(window), scale)) { selector =>
+          Snapshots.node(Selectors.find(selector, window).node, scale)
+        }
+        Json.obj(
+          "png" -> Base64.getEncoder.encodeToString(Snapshots.png(image)),
+          "width" -> image.getWidth.toInt,
+          "height" -> image.getHeight.toInt,
+        )
+      }
     case DriverRequest.Click(selector, window, button, clickCount) =>
       if (clickCount < 1) {
         throw DriverException(s"the click count must be at least 1, not $clickCount")
@@ -73,7 +93,6 @@ final class RequestHandler(fx: FxExecutor, input: Input) {
         Clipboard.getSystemClipboard.setContent(content)
       }
       Json.obj()
-    case other => throw DriverException(s"unsupported request: $other")
   }
 
   private def afterIdle(answer: => JsObject): JsObject = {
@@ -81,6 +100,12 @@ final class RequestHandler(fx: FxExecutor, input: Input) {
     fx.idle()
     result
   }
+
+  /** The window at the given index, or else the first stage. */
+  private def snapshotWindow(window: Option[Int]): Window = window.fold {
+    Window.getWindows.asScala.collectFirst { case stage: Stage => stage }
+      .getOrElse(throw DriverException("no stage shows"))
+  }(SceneReader.window)
 
   private def mouseButton(name: MouseButtonName): MouseButton = name match {
     case MouseButtonName.Primary => MouseButton.PRIMARY
@@ -91,4 +116,7 @@ final class RequestHandler(fx: FxExecutor, input: Input) {
 private object RequestHandler {
   /** Whether the app runs on macOS, where `Shortcut` means Command. */
   val IsMac: Boolean = System.getProperty("os.name").startsWith("Mac")
+
+  /** The largest scale that a snapshot may take. */
+  val MaxScale: Double = 4
 }
