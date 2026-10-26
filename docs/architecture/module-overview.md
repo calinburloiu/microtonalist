@@ -16,6 +16,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | [`format`](../../format/README.md) | Persistence of compositions, scales and rigs: what the format modules share, and their wiring |
 | [`ui`](../../ui/README.md) | The desktop GUI |
 | [`app`](../../app/README.md) | The application layer: the executables, and their configuration and wiring |
+| [`perf`](../../perf/README.md) | End-to-end performance measurement of the app, from its JAR |
 
 ## Main modules
 
@@ -24,6 +25,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `app` | `app` | The desktop application, which wires the modules together |
 | `config` | `app` | HOCON configuration of the application |
 | `cli` | `app` | Command-line utility tool, e.g. for listing the MIDI devices |
+| `perf` | `perf` | The MIDI latency suite, which measures the app's JAR end to end |
 | `ui` | `ui` | Swing GUI |
 | `format` | `format` | Wiring of the format modules into the repositories of compositions, scales and rigs |
 | `format-core` | `format` | What the format modules share, such as (de)serializing plugins |
@@ -53,6 +55,9 @@ flowchart TD
     app
     config
     cli
+  end
+  subgraph perfGroup ["perf/"]
+    perf
   end
   subgraph uiGroup ["ui/"]
     ui
@@ -91,6 +96,7 @@ flowchart TD
   tuningChanger --> tuning
   tuning --> scMidi
   cli --> scMidiJavamidi
+  perf --> scMidiJavamidi
   scMidiJavamidi --> scMidi
   scMidi --> common
   config --> common

@@ -13,6 +13,8 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 - [`linting.md`](linting.md) — compiler warnings and scalafix rules: the commands, where they're configured, unused
   code, and how to suppress a finding.
 - [`coverage.md`](coverage.md) — manual coverage workflow (`coverageAll` / `coverageModules`) and CI's `coverageCheck`.
+- [`performance-tests.md`](performance-tests.md) — running the MIDI latency suite against the app's JAR, and opening
+  its report.
 - [`scoverage-issue.md`](scoverage-issue.md) — the known sbt-scoverage + Scala 3 TASTy concurrency issue and how to
   handle it.
 - [`license-headers.md`](license-headers.md) — the Apache 2.0 header format, the Claude Code
