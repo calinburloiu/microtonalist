@@ -19,7 +19,8 @@ the exit codes: `AppUsageException` (1), `NoDeviceAvailableException` (2), `AppC
 is logged and exits with 1000.
 
 **`BuildInfo`** is generated at compile time by the `sbt-buildinfo` plugin; `MicrotonalistApp` uses `BuildInfo.version`
-in the startup banner.
+in the startup banner. It also records the commit the app was built from and whether tracked files differed from it
+(`gitCommit`, `gitDirty`), which the [latency suite](../../../perf/perf/docs/ARCHITECTURE.md) reads from a JAR.
 
 ## Wiring
 

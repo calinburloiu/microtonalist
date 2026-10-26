@@ -504,7 +504,18 @@ lazy val appModule = (project in file("app/app"))
     commonSettings,
     assemblySettings,
     assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoKeys := {
+      val repoRoot = (ThisBuild / baseDirectory).value
+      Seq[BuildInfoKey](
+        name,
+        version,
+        scalaVersion,
+        sbtVersion,
+        // The latency suite (perf) reads them from a JAR, to tell which commit it measures.
+        BuildInfoKey.action("gitCommit")(BuildIdentity.gitCommit(repoRoot)),
+        BuildInfoKey.action("gitDirty")(BuildIdentity.gitDirty(repoRoot)),
+      )
+    },
     buildInfoPackage := "org.calinburloiu.music.microtonalist",
     libraryDependencies ++= Seq(
       guava,
