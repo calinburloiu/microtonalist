@@ -27,6 +27,7 @@ object Dependencies {
   val jacksonAnnotationsVersion = "2.21"
   val jsr305Version = "3.0.2"
   val logbackVersion = "1.6.4"
+  val mcpSdkVersion = "2.1.0"
   // Pinned: the QA driver relies on the experimental headless platform.
   val openjfxVersion = "26.0.2"
   val playJsonVersion = "3.0.6"
@@ -70,6 +71,9 @@ object Dependencies {
   // 33.4.3.
   val jsr305 = "com.google.code.findbugs" % "jsr305" % jsr305Version
   val logback = "ch.qos.logback" % "logback-classic" % logbackVersion
+  // Not the `mcp` bundle, which brings Jackson 3: see docs/research/mcp.md#dependencies
+  val mcpCore = "io.modelcontextprotocol.sdk" % "mcp-core" % mcpSdkVersion
+  val mcpJsonJackson2 = "io.modelcontextprotocol.sdk" % "mcp-json-jackson2" % mcpSdkVersion
   val playJson = "org.playframework" %% "play-json" % playJsonVersion
   // ScalaTest's equality API (`org.scalactic.Equality`), released with each ScalaTest version.
   val scalactic = "org.scalactic" %% "scalactic" % scalaTestVersion

@@ -78,6 +78,7 @@ lazy val root = (project in file("."))
     formatModule,
     formatCoreModule,
     uiModule,
+    mcpModule,
     appModule,
     cliModule,
     configModule,
@@ -483,6 +484,20 @@ lazy val uiModule = (project in file("ui/ui"))
     ),
     // TODO #182 Raise toward 80% statement and branch coverage.
     coverageSettings(stmt = 0, branch = 0),
+  )
+
+lazy val mcpModule = (project in file("ai/mcp"))
+  .withId("mcp")
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-mcp",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      mcpCore,
+      mcpJsonJackson2,
+      playJson,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
   )
 
 lazy val appModule = (project in file("app/app"))
