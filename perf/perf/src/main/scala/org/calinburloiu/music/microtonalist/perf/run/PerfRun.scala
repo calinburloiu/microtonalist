@@ -1,0 +1,83 @@
+/*
+ * Copyright 2026 Calin-Andrei Burloiu
+ *
+ *    Licensed under the Apache License, Version 2.0 (the "License");
+ *    you may not use this file except in compliance with the License.
+ *    You may obtain a copy of the License at
+ *
+ *        http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *    Unless required by applicable law or agreed to in writing, software
+ *    distributed under the License is distributed on an "AS IS" BASIS,
+ *    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *    See the License for the specific language governing permissions and
+ *    limitations under the License.
+ */
+
+package org.calinburloiu.music.microtonalist.perf.run
+
+import org.calinburloiu.music.microtonalist.perf.PerfDsl.{*, given}
+import org.calinburloiu.music.microtonalist.perf.app.{AppLauncher, ScratchRig}
+import org.calinburloiu.music.microtonalist.perf.midi.MidiPath
+import org.calinburloiu.music.microtonalist.perf.results.CaseResult
+import org.calinburloiu.music.microtonalist.perf.{Metric, PerfCase, PerfDevices, Readiness, Scenario}
+import org.calinburloiu.music.scmidi.message.CcMidiMsg
+
+import java.nio.file.{Path, Paths}
+
+/**
+ * A latency run: it measures the floor of the setup, then the cases one after another, each on a rig of its own in a
+ * directory under `scratchDir`.
+ *
+ * @param floorPath The loopback of the app's input device, which the floor is measured over with no app running.
+ * @param appPath From the app's input device to its output device.
+ * @param resourceText Reads a resource of a case, by its path.
+ */
+final class PerfRun(floorPath: MidiPath,
+                    appPath: MidiPath,
+                    devices: PerfDevices,
+                    settings: MeasurementSettings,
+                    launcher: AppLauncher,
+                    resourceText: String => String,
+                    scratchDir: Path) {
+
+  private var caseCount: Int = 0
+
+  /**
+   * Measures the suite's own latency, sending a message on the app's input device and receiving it back from the same
+   * device, which a loopback device like an IAC bus does, with no app running. Its metric is named `floor`.
+   */
+  def measureFloor(): CaseOutcome =
+    // With no app to relaunch, one launch is enough
+    CaseRunner(floorPath, settings.copy(launches = 1)).run(PerfRun.FloorScenario, _ => NoApp)
+
+  /** Measures `perfCase`, named `name`. */
+  def runCase(name: String, perfCase: PerfCase): CaseResult = {
+    caseCount += 1
+    val caseDir = scratchDir.resolve(f"$caseCount%02d-${slug(name)}")
+    val rig = ScratchRig.prepare(
+      dir = caseDir,
+      compositionFileName = Paths.get(perfCase.composition).getFileName.toString,
+      composition = resourceText(perfCase.composition),
+      tracksTemplate = resourceText(perfCase.tracks),
+      appConfig = perfCase.appConfig.map(resourceText),
+      devices = devices
+    )
+    val outcome = CaseRunner(appPath, settings).run(perfCase.scenario,
+      launchNumber => launcher.launch(rig, caseDir.resolve(s"launch-$launchNumber.log")))
+
+    CaseResult(name, perfCase.tracks, perfCase.composition, outcome)
+  }
+
+  private def slug(name: String): String =
+    name.toLowerCase.replaceAll("[^a-z0-9]+", "-").stripPrefix("-").stripSuffix("-")
+}
+
+object PerfRun {
+  /** Sends a message on the loopback and expects it back; any message would do. */
+  private val FloorScenario: Scenario = Scenario(
+    readiness = Readiness.Immediately,
+    steps = Seq(input("loopback")(CcMidiMsg(0, 1, 0)) ~> output("loopback")(CcMidiMsg(0, 1, 0))),
+    metrics = Seq(Metric("floor", from = "loopback", to = "loopback"))
+  )
+}
