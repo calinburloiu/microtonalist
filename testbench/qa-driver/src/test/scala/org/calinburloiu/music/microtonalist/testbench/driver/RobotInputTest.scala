@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.testbench.driver
 
-import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest.{Click, Key}
+import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest.{Click, Key, Type}
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.MouseButtonName.Primary
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.wordspec.AnyWordSpec
@@ -34,6 +34,15 @@ class RobotInputTest extends AnyWordSpec with InputBehaviors with BeforeAndAfter
 
   "RobotInput" should {
     behave like drivesTheStandIn(RobotInput(_))
+
+    "fail to press a key or type while no window has the focus" in {
+      // Given
+      HeadlessFx.closeAllWindows()
+
+      // When / Then
+      (the[DriverException] thrownBy handler.handle(Key("DOWN"))).getMessage shouldBe "no window has the focus"
+      (the[DriverException] thrownBy handler.handle(Type("Doina"))).getMessage shouldBe "no window has the focus"
+    }
   }
 
   "RequestHandler" should {

@@ -171,14 +171,5 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
       // Then
       fx(f.nameField.getText) shouldBe "Doina"
     }
-
-    "fail to press a key or type while no window has the focus" in withInput { f =>
-      // Given
-      HeadlessFx.closeAllWindows()
-
-      // When / Then
-      (the[DriverException] thrownBy f.handle(Key("DOWN"))).getMessage shouldBe "no window has the focus"
-      (the[DriverException] thrownBy f.handle(Type("Doina"))).getMessage shouldBe "no window has the focus"
-    }
   }
 }

@@ -29,25 +29,17 @@ import scala.jdk.CollectionConverters.*
  * Injects the user's input into the app.
  *
  * Every method must run on the JavaFX Application Thread. It queues the input with [[FxExecutor.post]] and returns at
- * once, so that a handler that blocks in `showAndWait` doesn't block the caller.
+ * once, so that a handler that blocks in `showAndWait` doesn't block the caller. An implementation may throw a
+ * [[DriverException]] when the input has no target.
  */
 trait Input {
   /** Clicks the centre of a node, `clickCount` times in a row, so that a count of 2 is a double-click. */
   def click(node: Node, button: MouseButton, clickCount: Int): Unit
 
-  /**
-   * Presses a key while holding its modifiers.
-   *
-   * @throws DriverException if no window has the focus
-   */
+  /** Presses a key while holding its modifiers. */
   def key(chord: KeyChord): Unit
 
-  /**
-   * Types text, as `KEY_TYPED` events to the focus owner of the focused window, or to its scene if nothing in it has
-   * the focus.
-   *
-   * @throws DriverException if no window has the focus
-   */
+  /** Types text, as `KEY_TYPED` events to the control that has the focus. */
   def typeText(text: String): Unit
 }
 
@@ -64,6 +56,9 @@ object Input {
 
 /**
  * The input of the headless platform: JavaFX's `Robot`, which injects through Glass's input path, like a user would.
+ *
+ * Since the `Robot` drops the input while no window has the focus, [[key]] and [[typeText]] throw a [[DriverException]]
+ * then; [[typeText]] types to the focus owner of the focused window, or to its scene if nothing in it has the focus.
  *
  * @param fx queues the input on the JavaFX Application Thread
  */
