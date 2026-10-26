@@ -31,6 +31,8 @@ final class RequestHandler(fx: FxExecutor) {
    * @throws DriverException if the request fails or is not supported
    */
   def handle(request: DriverRequest): JsObject = request match {
+    case DriverRequest.Windows => fx(SceneReader.windows())
+    case DriverRequest.Dump(window) => fx(SceneReader.dump(window))
     case DriverRequest.Idle =>
       fx.idle()
       Json.obj()
