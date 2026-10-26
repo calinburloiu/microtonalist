@@ -16,11 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.testbench.driver
 
-import javafx.event.Event
+import javafx.event.{Event, EventTarget}
 import javafx.geometry.Point2D
-import javafx.scene.Node
 import javafx.scene.input.{KeyCode, KeyEvent, MouseButton}
 import javafx.scene.robot.Robot
+import javafx.scene.{Node, Scene}
 import javafx.stage.Window
 
 import scala.jdk.CollectionConverters.*
@@ -51,6 +51,17 @@ object Input {
    */
   def focusedWindow(): Window = Window.getWindows.asScala.find(_.isFocused).getOrElse {
     throw DriverException("no window has the focus")
+  }
+
+  /** The focus owner of a scene, or the scene itself if nothing in it has the focus. */
+  def focusOwnerOrScene(scene: Scene): EventTarget = Option(scene.getFocusOwner).getOrElse(scene)
+
+  /** Fires a `KEY_TYPED` event at `target` for each character of `text`; must run on the JavaFX Application Thread. */
+  def fireKeyTyped(target: EventTarget, text: String): Unit = {
+    text.codePoints.forEach { codePoint =>
+      Event.fireEvent(target,
+        KeyEvent(KeyEvent.KEY_TYPED, Character.toString(codePoint), "", KeyCode.UNDEFINED, false, false, false, false))
+    }
   }
 }
 
@@ -88,14 +99,7 @@ final class RobotInput(fx: FxExecutor) extends Input {
   }
 
   override def typeText(text: String): Unit = {
-    val scene = Input.focusedWindow().getScene
-    val target = Option(scene.getFocusOwner).getOrElse(scene)
-    fx.post {
-      text.codePoints.forEach { codePoint =>
-        Event.fireEvent(target,
-          KeyEvent(KeyEvent.KEY_TYPED, Character.toString(codePoint), "", KeyCode.UNDEFINED,
-            false, false, false, false))
-      }
-    }
+    val target = Input.focusOwnerOrScene(Input.focusedWindow().getScene)
+    fx.post(Input.fireKeyTyped(target, text))
   }
 }

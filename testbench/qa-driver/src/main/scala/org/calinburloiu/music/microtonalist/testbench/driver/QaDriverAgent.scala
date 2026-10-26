@@ -16,6 +16,8 @@
 
 package org.calinburloiu.music.microtonalist.testbench.driver
 
+import org.calinburloiu.music.microtonalist.testbench.driver.protocol.GuiPlatform
+
 import java.nio.file.Path
 
 /** The entry point of the QA driver, a Java agent that the QA server loads into the app's JVM with `-javaagent`. */
@@ -27,8 +29,15 @@ object QaDriverAgent {
    */
   def premain(args: String): Unit = {
     val fx = FxExecutor()
-    val thread = Thread(DriverLink(Path.of(args), RequestHandler(fx, RobotInput(fx)), fx), "qa-driver")
+    val thread = Thread(DriverLink(Path.of(args), RequestHandler(fx, newInput(GuiPlatform.current, fx)), fx),
+      "qa-driver")
     thread.setDaemon(true)
     thread.start()
+  }
+
+  /** The input that drives the app on the given platform. */
+  private[driver] def newInput(platform: GuiPlatform, fx: FxExecutor): Input = platform match {
+    case GuiPlatform.Headless => RobotInput(fx)
+    case GuiPlatform.Desktop => EventInput(fx)
   }
 }
