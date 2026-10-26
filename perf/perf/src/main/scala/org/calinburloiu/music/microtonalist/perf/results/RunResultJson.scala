@@ -51,6 +51,9 @@ object RunResultJson {
   private given OFormat[MetricStatistics] = Json.format[MetricStatistics]
   private given OFormat[LaunchStatistics] = Json.format[LaunchStatistics]
 
+  /** An optional value that is written as `null` when absent, rather than left out. */
+  private def optionalWithNull[A: Format]: Format[Option[A]] = Format(Reads.optionWithNull[A], Writes.OptionWrites[A])
+
   private given Format[HistogramBin] = Format(
     Reads(_.validate[(Long, Int)].map(HistogramBin.apply)),
     Writes(bin => Json.arr(bin.lowerBound, bin.count))
@@ -82,8 +85,8 @@ object RunResultJson {
 
   private given OFormat[CaseResult] = (
     (__ \ "name").format[String] and
-      (__ \ "tracks").format[String] and
-      (__ \ "composition").format[String] and
+      (__ \ "tracks").format(using optionalWithNull[String]) and
+      (__ \ "composition").format(using optionalWithNull[String]) and
       __.format[CaseOutcome]
   )(CaseResult.apply, Tuple.fromProductTyped)
 

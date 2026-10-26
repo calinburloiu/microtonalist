@@ -55,11 +55,13 @@ object RunResultFixtures {
     floor = CaseOutcome.Passed(Seq(metric("loopback→loopback", 98765).copy(name = "floor"))),
     cases = Seq(
       CaseResult(name = "The MTS Octave 1-byte tuner should change the tuning on a pedal",
-        tracks = "tracks/mts.mtlist.tracks", composition = "compositions/two-tunings.mtlist",
+        tracks = Some("tracks/mts.mtlist.tracks"), composition = Some("compositions/two-tunings.mtlist"),
         outcome = CaseOutcome.Passed(Seq(metric("pedal→tuning", 312345)))),
-      CaseResult(name = "The MPE tuner should pass a note through", tracks = "tracks/mpe.mtlist.tracks",
-        composition = "compositions/two-tunings.mtlist",
-        outcome = CaseOutcome.Failed("Launch 1: timed iteration 3, step 1: Timed out"))
+      CaseResult(name = "The MPE tuner should pass a note through", tracks = Some("tracks/mpe.mtlist.tracks"),
+        composition = Some("compositions/two-tunings.mtlist"),
+        outcome = CaseOutcome.Failed("Launch 1: timed iteration 3, step 1: Timed out")),
+      CaseResult(name = "The MIDI loopback should carry an MTS SysEx", tracks = None, composition = None,
+        outcome = CaseOutcome.Passed(Seq(metric("tuning→tuning", 150000))))
     )
   )
 }

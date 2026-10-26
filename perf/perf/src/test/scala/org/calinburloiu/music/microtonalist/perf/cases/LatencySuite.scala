@@ -75,7 +75,7 @@ abstract class LatencySuite extends AnyWordSpec with Matchers with BeforeAndAfte
     for (path <- Seq(tracks, composition) ++ appConfig) {
       assert(getClass.getResource(s"/$path") != null, s"No resource $path in the latency suite")
     }
-    assume(activeRun.isDefined, "No -Djar=<app JAR> given: the latency cases need the app")
+    assume(activeRun.isDefined, NoJarMessage)
 
     activeRun.get.runCase(currentTestName, latencyCase).outcome match {
       case CaseOutcome.Failed(reason) => fail(reason)
@@ -83,7 +83,23 @@ abstract class LatencySuite extends AnyWordSpec with Matchers with BeforeAndAfte
     }
   }
 
+  /**
+   * Measures a loopback case named after the running test: the scenario over the loopback of the app's input device,
+   * with no app running, which tells the setup's own cost for the messages of a flow.
+   */
+  protected def loopbackCase(steps: Step*)(metrics: Metric*): Unit = {
+    val scenario = Scenario(Readiness.Immediately, steps, metrics)
+    assume(activeRun.isDefined, NoJarMessage)
+
+    activeRun.get.runLoopbackCase(currentTestName, scenario).outcome match {
+      case CaseOutcome.Failed(reason) => fail(reason)
+      case CaseOutcome.Passed(_) =>
+    }
+  }
+
   override protected def afterAll(configMap: ConfigMap): Unit = activeRun.foreach(_.finish())
+
+  private val NoJarMessage = "No -Djar=<app JAR> given: the latency cases need the app"
 }
 
 /** A run in progress, from its start to its run file. */
@@ -97,8 +113,11 @@ private final class ActiveRun(perfRun: PerfRun,
   private val floor = perfRun.measureFloor()
   private val results = mutable.ArrayBuffer[CaseResult]()
 
-  def runCase(name: String, perfCase: PerfCase): CaseResult = {
-    val result = perfRun.runCase(name, perfCase)
+  def runCase(name: String, perfCase: PerfCase): CaseResult = record(perfRun.runCase(name, perfCase))
+
+  def runLoopbackCase(name: String, scenario: Scenario): CaseResult = record(perfRun.runLoopbackCase(name, scenario))
+
+  private def record(result: CaseResult): CaseResult = {
     results += result
     result
   }
@@ -144,15 +163,10 @@ private object ActiveRun {
       val scratchDir = Files.createTempDirectory("microtonalist-perf-")
       val perfRun = PerfRun(floorPath, appPath, devices, measurement, JarAppLauncher(java, config.jvmOptions, jar),
         resourceText, scratchDir)
-      val activeRun = try {
-        ActiveRun(perfRun, Seq(appPath, manager), config.resultsDir, scratchDir,
-          (startTime, floor, cases) =>
-            RunResult(startTime, Instant.now(), app, suite, jvm, machine, runConfig, floor, cases))
-      } finally {
-        // The floor, measured as the run starts, no longer needs the loopback's input
-        floorPath.close()
-      }
-      activeRun
+      // The loopback cases keep using the floor's path, so it stays open until the run's end
+      ActiveRun(perfRun, Seq(floorPath, appPath, manager), config.resultsDir, scratchDir,
+        (startTime, floor, cases) =>
+          RunResult(startTime, Instant.now(), app, suite, jvm, machine, runConfig, floor, cases))
     } catch {
       case exception: Throwable =>
         manager.close()

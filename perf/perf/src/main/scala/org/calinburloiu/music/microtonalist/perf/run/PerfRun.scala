@@ -48,9 +48,7 @@ final class PerfRun(floorPath: MidiPath,
    * Measures the suite's own latency, sending a message on the app's input device and receiving it back from the same
    * device, which a loopback device like an IAC bus does, with no app running. Its metric is named `floor`.
    */
-  def measureFloor(): CaseOutcome =
-    // With no app to relaunch, one launch is enough
-    CaseRunner(floorPath, settings.copy(launches = 1)).run(PerfRun.FloorScenario, _ => NoApp)
+  def measureFloor(): CaseOutcome = measureLoopback(PerfRun.FloorScenario)
 
   /** Measures `perfCase`, named `name`; a case that fails to run, e.g. for a missing resource, is a failed case. */
   def runCase(name: String, perfCase: PerfCase): CaseResult = {
@@ -63,8 +61,25 @@ final class PerfRun(floorPath: MidiPath,
       case NonFatal(exception) => CaseOutcome.Failed(s"The case failed to run: $exception")
     }
 
-    CaseResult(name, perfCase.tracks, perfCase.composition, outcome)
+    CaseResult(name, Some(perfCase.tracks), Some(perfCase.composition), outcome)
   }
+
+  /**
+   * Measures `scenario`, named `name`, over the loopback of the app's input device, with no app running, as the floor:
+   * the cost of the setup alone for the messages of the scenario.
+   */
+  def runLoopbackCase(name: String, scenario: Scenario): CaseResult = {
+    val outcome = try {
+      measureLoopback(scenario)
+    } catch {
+      case NonFatal(exception) => CaseOutcome.Failed(s"The case failed to run: $exception")
+    }
+    CaseResult(name, tracks = None, composition = None, outcome)
+  }
+
+  private def measureLoopback(scenario: Scenario): CaseOutcome =
+    // With no app to relaunch, one launch is enough
+    CaseRunner(floorPath, settings.copy(launches = 1)).run(scenario, _ => NoApp)
 
   private def measure(perfCase: PerfCase, caseDir: Path): CaseOutcome = {
     val rig = ScratchRig.prepare(

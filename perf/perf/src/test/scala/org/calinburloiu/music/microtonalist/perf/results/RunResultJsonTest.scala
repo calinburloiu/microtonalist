@@ -62,6 +62,16 @@ class RunResultJsonTest extends AnyWordSpec with Matchers {
       (failed \ "metrics").toOption shouldBe empty
     }
 
+    "write the rig of a loopback case, which has none, as null" in {
+      // Given
+      val loopback = (json \ "cases")(2)
+
+      // Then
+      (loopback \ "tracks").toOption shouldEqual Some(JsNull)
+      (loopback \ "composition").toOption shouldEqual Some(JsNull)
+      (loopback \ "outcome").as[String] shouldEqual "passed"
+    }
+
     "write an unknown dirty flag as null" in {
       // When / Then
       (json \ "app" \ "dirty").toOption shouldEqual Some(JsNull)

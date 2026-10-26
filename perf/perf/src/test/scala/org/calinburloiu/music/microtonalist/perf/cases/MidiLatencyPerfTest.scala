@@ -25,7 +25,7 @@ import scala.collection.immutable.ArraySeq
 
 /**
  * The end-to-end MIDI latency of the app with each tuner, from a Note On in to the Note On out, and from a pedal in to
- * the tuning change out (issue #394).
+ * the tuning change out (issue #394), and the latency of the MIDI loopback alone for the messages of those flows.
  *
  * Every case plays on a track with a `pedal` tuning changer, over a composition of two tunings that differ on the notes
  * played, E4 and A4: just and Pythagorean major. Each iteration leaves the app as it found it, and each readiness probe
@@ -79,6 +79,45 @@ class MidiLatencyPerfTest extends LatencySuite {
 
   private val justSysEx = mtsOctave1Byte(0x40, 0x40, 0x44, 0x40, 0x32, 0x3E, 0x40, 0x42, 0x40, 0x30, 0x40, 0x34)
   private val pythagoreanSysEx = mtsOctave1Byte(0x40, 0x40, 0x44, 0x40, 0x48, 0x3E, 0x40, 0x42, 0x40, 0x46, 0x40, 0x4A)
+
+  // Pitch Bends of E4 in the two tunings, as the Pitch Bend tuner sends them with its default sensitivity of 2 semitones
+  private val justE4PitchBend = PitchBendMidiMsg(0, -561)
+  private val pythagoreanE4PitchBend = PitchBendMidiMsg(0, 320)
+
+  // The messages of the tuners' flows, with no app: what the setup alone costs for each of them
+  "The MIDI loopback" should {
+    "carry a Note On, as the MTS tuner passes it through" in loopbackCase(
+      input("noteOn")(noteOn(E4)) ~> output("noteOn")(noteOn(E4)),
+      input(noteOff(E4)) ~> output(noteOff(E4))
+    )(metric("noteOn", "noteOn"))
+
+    "carry a Pitch Bend and a Note On, as the Pitch Bend and MPE tuners play a note" in loopbackCase(
+      input("noteOn")(justE4PitchBend, noteOn(E4)) ~> output("noteOn")(justE4PitchBend, noteOn(E4)),
+      input(noteOff(E4)) ~> output(noteOff(E4))
+    )(metric("noteOn", "noteOn"))
+
+    "carry an MTS SysEx, as the MTS tuner changes the tuning" in loopbackCase(
+      input("tuning")(pythagoreanSysEx) ~> output("tuning")(pythagoreanSysEx),
+      input(justSysEx) ~> output(justSysEx)
+    )(metric("tuning", "tuning"))
+
+    "carry a Pitch Bend while a note sounds, as the Pitch Bend and MPE tuners change the tuning" in loopbackCase(
+      input(noteOn(E4)) ~> output(noteOn(E4)),
+      input("tuning")(pythagoreanE4PitchBend) ~> output("tuning")(pythagoreanE4PitchBend),
+      input(justE4PitchBend) ~> output(justE4PitchBend),
+      input(noteOff(E4)) ~> output(noteOff(E4))
+    )(metric("tuning", "tuning"))
+
+    "carry a Pitch Bend without a note" in loopbackCase(
+      input("tuning")(pythagoreanE4PitchBend) ~> output("tuning")(pythagoreanE4PitchBend),
+      input(justE4PitchBend) ~> output(justE4PitchBend)
+    )(metric("tuning", "tuning"))
+
+    "carry the pedal's Control Changes, as a performer presses it" in loopbackCase(
+      input("pedal")(pedal*) ~> output("pedal")(pedal.map(Expected.Exactly(_))*),
+      input(pedalBack*) ~> output(pedalBack.map(Expected.Exactly(_))*)
+    )(metric("pedal", "pedal"))
+  }
 
   "The MTS Octave 1-byte tuner" should {
     "pass a note through" in perfCase(MtsTracks, TwoTunings, readyAfterPlaying(A4))(

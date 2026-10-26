@@ -5,6 +5,9 @@ input device, timestamps what comes out of its output device, and records the st
 under `perf/results/`, which is committed. A page under `perf/report/` explores the runs. The design is in
 [`perf/perf/docs/ARCHITECTURE.md`](../../perf/perf/docs/ARCHITECTURE.md).
 
+Besides the cases through the app, the loopback cases measure the setup alone: they send the messages of the tuners'
+flows on the app's input device, with no app running, and receive them back from it.
+
 The suite needs MIDI devices and depends on the machine, so it runs by hand, not in CI. Without a JAR, its cases are
 canceled, and the normal test suite stays green on any machine.
 

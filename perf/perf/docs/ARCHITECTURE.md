@@ -77,7 +77,9 @@ sequenceDiagram
 ```
 
 The floor is the setup's own latency: the suite sends on the app's input device and receives the same message back from
-it, which a loopback device like an IAC bus does, with no app running.
+it, which a loopback device like an IAC bus does, with no app running. The loopback cases do the same with the messages
+of the tuners' flows, such as an MTS SysEx or a Pitch Bend and a Note On, so that each case through the app has a
+baseline; they run once, as there is no app to launch again.
 
 A launch waits until the app is ready, e.g. by sending a probe until its expected output comes back, and drains what the
 app sent while starting; a second probe then finds the app settled, e.g. once its first tuning reached its tracks. Each iteration runs the scenario's steps in order: a step sends its input series back to back,

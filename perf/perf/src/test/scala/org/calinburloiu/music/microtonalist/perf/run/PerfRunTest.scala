@@ -79,14 +79,32 @@ class PerfRunTest extends AnyWordSpec with Matchers {
       appPath.launchCount.get shouldEqual 0
     }
 
+    "run a loopback case without an app" in new Fixture {
+      // Given
+      private val scenario = Scenario(Readiness.Immediately, Seq(input("noteOn")(noteOn) ~> output("noteOn")(noteOn)),
+        Seq(metric("noteOn", "noteOn")))
+
+      // When
+      private val result = run.runLoopbackCase("The loopback should carry a Note On", scenario)
+
+      // Then
+      result.name shouldEqual "The loopback should carry a Note On"
+      result.tracks shouldBe empty
+      result.composition shouldBe empty
+      result.outcome shouldBe a[CaseOutcome.Passed]
+      result.outcome.asInstanceOf[CaseOutcome.Passed].metrics.head.launches should have size 1
+      appPath.launchCount.get shouldEqual 0
+      rigs shouldBe empty
+    }
+
     "run a case on a scratch rig with the devices filled in" in new Fixture {
       // When
       private val result = run.runCase("The fake should echo", perfCase(noteOn))
 
       // Then
       result.name shouldEqual "The fake should echo"
-      result.tracks shouldEqual "tracks/fake.mtlist.tracks"
-      result.composition shouldEqual "compositions/two.mtlist"
+      result.tracks shouldEqual Some("tracks/fake.mtlist.tracks")
+      result.composition shouldEqual Some("compositions/two.mtlist")
       result.outcome shouldBe a[CaseOutcome.Passed]
       rigs should have size 1
       rigs.head.composition.getFileName.toString shouldEqual "two.mtlist"
@@ -103,7 +121,7 @@ class PerfRunTest extends AnyWordSpec with Matchers {
 
       // Then
       result.name shouldEqual "The fake should have tracks"
-      result.tracks shouldEqual "tracks/missing.mtlist.tracks"
+      result.tracks shouldEqual Some("tracks/missing.mtlist.tracks")
       result.outcome shouldBe a[CaseOutcome.Failed]
       result.outcome.asInstanceOf[CaseOutcome.Failed].reason should include("tracks/missing.mtlist.tracks")
       appPath.launchCount.get shouldEqual 0

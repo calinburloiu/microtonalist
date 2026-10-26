@@ -69,10 +69,10 @@ case class RunConfigSummary(launches: Int, warmupIterations: Int, timedIteration
 /**
  * The result of a case.
  *
- * @param tracks Resource path of the case's tracks template.
- * @param composition Resource path of the case's composition.
+ * @param tracks Resource path of the case's tracks template; `None` for a loopback case, which runs no app.
+ * @param composition Resource path of the case's composition; `None` for a loopback case.
  */
-case class CaseResult(name: String, tracks: String, composition: String, outcome: CaseOutcome)
+case class CaseResult(name: String, tracks: Option[String], composition: Option[String], outcome: CaseOutcome)
 
 /**
  * Everything a run records: when, what and where it measured, and the results of the floor and of each case.
