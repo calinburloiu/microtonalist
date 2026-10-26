@@ -82,7 +82,7 @@ sbtn "perf/testOnly org.calinburloiu.music.microtonalist.perf.cases.* -- -oNCXEH
 
 Relative paths resolve against the repository's root. ScalaTest's `-z` selects the cases by name.
 
-With the defaults, a run takes about 20 minutes, and the app's window opens for each launch. Keep the machine on AC
+With the defaults, a run takes about 45 minutes, and the app's window opens for each launch. Keep the machine on AC
 power, and don't use it meanwhile. At the end, the run prints a table of each metric's median, p99 and maximum, and the
 path of the run file it wrote. A case that fails records its reason instead; the others keep their metrics. The app's
 logs stay in the scratch directory the run prints.
