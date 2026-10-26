@@ -17,9 +17,9 @@
 package org.calinburloiu.music.microtonalist.perf.results
 
 import org.calinburloiu.music.microtonalist.perf.app.JarBuildInfo
-import org.calinburloiu.music.microtonalist.perf.{PerfSetupException, Sha256}
 import org.calinburloiu.music.microtonalist.perf.env.{JvmInfo, MachineInfo}
 import org.calinburloiu.music.microtonalist.perf.run.CaseOutcome
+import org.calinburloiu.music.microtonalist.perf.{PerfSetupException, Sha256}
 import play.api.libs.json.JsObject
 
 import java.nio.file.Path

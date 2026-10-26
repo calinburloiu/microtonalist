@@ -54,7 +54,7 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
 
   private def runOn(app: FakeApp, settings: MeasurementSettings, scenario: Scenario = scenario): CaseOutcome =
     try {
-      CaseRunner(app, settings).run(scenario, app.launch)
+      CaseRunner(app, settings).run(scenario, _ => app.launch())
     } finally {
       app.close()
     }
@@ -171,6 +171,34 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
       outcome shouldBe a[CaseOutcome.Passed]
     }
 
+    "fail when the app sends more after the last iteration" in {
+      // Given
+      val app = FakeApp {
+        case `noteOffE4` => Seq(noteOffE4, CcMidiMsg(0, 1, 0))
+        case message => Seq(message)
+      }
+
+      // When
+      val reason = failureOf(runOn(app, settings(warmup = 0, timed = 1)))
+
+      // Then
+      reason should include("after the last iteration")
+      reason should include(CcMidiMsg(0, 1, 0).toString)
+    }
+
+    "wait for an output after the launch" in {
+      // Given
+      val ready = CcMidiMsg(0, 101, 0)
+      val app = FakeApp()
+      app.startupOutput = Seq(PitchBendMidiMsg(0, 0), ready)
+
+      // When
+      val outcome = runOn(app, settings(), scenario.copy(readiness = Readiness.AfterLaunch(Expected.Exactly(ready))))
+
+      // Then
+      outcome shouldBe a[CaseOutcome.Passed]
+    }
+
     "pace the measured step" in {
       // Given
       val app = FakeApp()
@@ -188,7 +216,7 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
     "measure without an app" in {
       // Given
       val app = FakeApp()
-      app.launch(1)
+      app.launch()
       val loopback = scenario.copy(readiness = Readiness.Immediately)
 
       // When

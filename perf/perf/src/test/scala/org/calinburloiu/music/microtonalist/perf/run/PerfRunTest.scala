@@ -55,12 +55,12 @@ class PerfRunTest extends AnyWordSpec with Matchers {
 
   private abstract class Fixture {
     val floorPath: FakeApp = FakeApp()
-    floorPath.launch(1)
+    floorPath.launch()
     val appPath: FakeApp = FakeApp()
     val rigs: mutable.Buffer[PreparedRig] = mutable.ArrayBuffer()
     val launcher: AppLauncher = (rig: PreparedRig, _: Path) => {
       rigs += rig
-      appPath.launch(rigs.size)
+      appPath.launch()
     }
     val scratchDir: Path = Files.createTempDirectory("perf-run")
     val run: PerfRun = PerfRun(floorPath, appPath, devices, settings, launcher, resources, scratchDir)

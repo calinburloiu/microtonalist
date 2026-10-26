@@ -16,10 +16,12 @@
 
 package org.calinburloiu.music.microtonalist.perf.app
 
+import org.calinburloiu.music.microtonalist.perf.env.ProcessCommandRunner
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import java.nio.file.{Files, Path}
+import java.util.concurrent.{CompletableFuture, TimeUnit}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 
 class ProcessAppTest extends AnyWordSpec with Matchers {
@@ -59,7 +61,13 @@ class ProcessAppTest extends AnyWordSpec with Matchers {
 
     "kill an app that ignores the request to stop" in {
       // Given
-      val app = ProcessApp.start(Seq("sh", "-c", "trap '' TERM; exec sleep 60"), logFile())
+      val dir = Files.createTempDirectory("process-app")
+      val ready = dir.resolve("ready")
+      ProcessCommandRunner.run(Seq("mkfifo", ready.toString)).exitCode shouldEqual 0
+      // The app tells through the FIFO when it ignores TERM, which the process it execs inherits
+      val app = ProcessApp.start(Seq("sh", "-c", s"trap '' TERM; echo ready > '$ready'; exec sleep 60"),
+        dir.resolve("app.log"))
+      CompletableFuture.supplyAsync(() => Files.readString(ready)).get(10, TimeUnit.SECONDS) shouldEqual "ready\n"
       val start = System.nanoTime()
 
       // When
@@ -67,6 +75,8 @@ class ProcessAppTest extends AnyWordSpec with Matchers {
 
       // Then
       app.isAlive shouldBe false
+      // 128 + SIGKILL
+      app.exitCode shouldEqual Some(137)
       (System.nanoTime() - start) should be < 10.seconds.toNanos
     }
 

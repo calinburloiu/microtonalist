@@ -19,7 +19,8 @@ package org.calinburloiu.music.microtonalist.perf.app
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.nio.file.Paths
+import java.nio.file.{Files, Paths}
+import scala.concurrent.duration.DurationInt
 
 class JarAppLauncherTest extends AnyWordSpec with Matchers {
 
@@ -35,6 +36,22 @@ class JarAppLauncherTest extends AnyWordSpec with Matchers {
       // Then
       command shouldEqual Seq("/jdk/bin/java", "-Xmx1g", "-XX:+UseZGC", "-jar", "/a/app.jar", "/s/two.mtlist",
         "/s/app.conf")
+    }
+
+    "launch the app in a process, with its output in the log" in {
+      // Given
+      // A shell stands in for `java`, printing the arguments it gets after its options
+      val launcher = JarAppLauncher(Paths.get("sh"), Seq("-c", "echo \"$@\"", "sh"), Paths.get("/a/app.jar"))
+      val rig = PreparedRig(Paths.get("/s/two.mtlist"), Paths.get("/s/two.mtlist.tracks"), Paths.get("/s/app.conf"))
+      val log = Files.createTempDirectory("launcher").resolve("app.log")
+
+      // When
+      val app = launcher.launch(rig, log)
+
+      // Then
+      app shouldBe a[ProcessApp]
+      app.asInstanceOf[ProcessApp].awaitExit(10.seconds) shouldBe true
+      Files.readString(log) shouldEqual "-jar /a/app.jar /s/two.mtlist /s/app.conf\n"
     }
   }
 }

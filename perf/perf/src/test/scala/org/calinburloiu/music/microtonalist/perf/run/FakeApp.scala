@@ -75,8 +75,8 @@ class FakeApp(respond: MidiMsg => Seq[MidiMsg] = FakeApp.echo) extends MidiPath 
 
   override def detach(receiver: MidiReceiver): Unit = receivers.remove(receiver)
 
-  /** Launches the app; `number` is ignored. */
-  def launch(number: Int): RunningApp = {
+  /** Launches the app. */
+  def launch(): RunningApp = {
     launchCount.incrementAndGet()
     val launchExitCode = exitCode
     running = launchExitCode.isEmpty
