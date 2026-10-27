@@ -34,7 +34,7 @@ import scala.concurrent.duration.*
  * @param channel the connection that the driver made
  * @param timeout how long to wait for each line; after it, the connection is closed
  */
-final class DriverClient(channel: SocketChannel, timeout: FiniteDuration = 30.seconds) {
+final class DriverClient(channel: SocketChannel, timeout: FiniteDuration = 45.seconds) {
   private val reader: BufferedReader = BufferedReader(InputStreamReader(Channels.newInputStream(channel), UTF_8))
   private val writer: OutputStreamWriter = OutputStreamWriter(Channels.newOutputStream(channel), UTF_8)
   private var lastId: Long = 0

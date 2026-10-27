@@ -62,11 +62,14 @@ final class AppLauncher(run: QaRun, launcher: ProcessLauncher, jars: QaJars, jav
    * Starts the app on a composition, with the run's `qa.conf`, which points its library at the run directory, and
    * answers once the app shows a window and its driver has connected.
    *
-   * The app's output is appended to the run's `app.log`. A driver that names another process is refused.
+   * The app's output is appended to the run's `app.log`. A driver that names another process is refused. On any failure
+   * after the app's process started, the app is stopped before the failure is thrown.
    *
-   * @throws QaException if the app can't be started, exits first, or shows no window in time, after stopping it
+   * @param onLaunch called with the app's process as soon as it starts, before its window shows, e.g. to track it so
+   *   that it can be stopped while it starts
+   * @throws QaException if the app can't be started, exits first, or shows no window in time
    */
-  def start(composition: Path, platform: GuiPlatform): RunningApp = {
+  def start(composition: Path, platform: GuiPlatform, onLaunch: LaunchedProcess => Unit = _ => ()): RunningApp = {
     val config = run.file("qa.conf")
     Files.writeString(config, s"core {\n  libraryBaseUrl = \"${run.dir.toUri}\"\n}\n", UTF_8)
 
@@ -83,7 +86,16 @@ final class AppLauncher(run: QaRun, launcher: ProcessLauncher, jars: QaJars, jav
           case e: IOException => throw QaException(s"can't start the app: ${e.getMessage}")
         }
 
-      RunningApp(process, platform, awaitDriver(server, process), appLog)
+      try {
+        onLaunch(process)
+        RunningApp(process, platform, awaitDriver(server, process), appLog)
+      } catch {
+        case failure @ (_: InterruptedException | NonFatal(_)) =>
+          if (process.isAlive) {
+            stopAfterFailure(process, failure)
+          }
+          throw failure
+      }
     }
   }
 
@@ -95,6 +107,11 @@ final class AppLauncher(run: QaRun, launcher: ProcessLauncher, jars: QaJars, jav
       CompletableFuture.anyOf(connected, process.onExit).get(startupTimeout.toMillis, TimeUnit.MILLISECONDS)
     } catch {
       case _: TimeoutException => ()
+      case failure @ (_: InterruptedException | NonFatal(_)) =>
+        if (!connected.cancel(false)) {
+          connected.join().close()
+        }
+        throw failure
     }
 
     // Cancelling makes a driver that says hello from now on find the future done, and close its connection.
@@ -102,10 +119,24 @@ final class AppLauncher(run: QaRun, launcher: ProcessLauncher, jars: QaJars, jav
       if (process.onExit.isDone) {
         throw QaException(s"the app exited with code ${process.onExit.join()} before showing a window; see $appLog")
       }
-      stopProcess(process, StopTimeout)
       throw QaException(s"no window after ${DriverClient.describe(startupTimeout)}; see $appLog")
     }
     connected.join()
+  }
+
+  /** Stops an app that failed to start; if stopping fails too, e.g. on an interrupt, kills it. */
+  private def stopAfterFailure(process: LaunchedProcess, failure: Throwable): Unit = {
+    try {
+      stopProcess(process, StopTimeout)
+    } catch {
+      case e @ (_: InterruptedException | NonFatal(_)) =>
+        process.kill()
+        failure.addSuppressed(e)
+        // The interrupt is kept for the caller, since the failure thrown is another one.
+        if (e.isInstanceOf[InterruptedException]) {
+          Thread.currentThread().interrupt()
+        }
+    }
   }
 
   /** Accepts connections until the server closes, greeting each on a thread of its own. */

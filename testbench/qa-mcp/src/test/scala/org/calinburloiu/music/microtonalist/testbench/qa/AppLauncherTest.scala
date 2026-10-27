@@ -60,6 +60,25 @@ class AppLauncherTest extends AnyWordSpec with Matchers {
     }
 
     def driver: FakeDriver = drivers.head
+
+    /** Starts the app on a thread of its own, which a case can interrupt; [[failed]] gets what `start` throws. */
+    final class StartThread(onLaunch: LaunchedProcess => Unit) {
+      val failed: CompletableFuture[Throwable] = CompletableFuture()
+
+      /** Whether the thread was left interrupted once `start` threw. */
+      @volatile var leftInterrupted: Boolean = false
+
+      val thread: Thread = Thread.ofPlatform().start { () =>
+        try {
+          appLauncher.start(composition, GuiPlatform.Headless, onLaunch)
+          failed.completeExceptionally(AssertionError("the app started"))
+        } catch {
+          case e: Throwable =>
+            leftInterrupted = Thread.currentThread().isInterrupted
+            failed.complete(e)
+        }
+      }
+    }
   }
 
   private abstract class StartedFixture(ignoresTerminate: Boolean = false) extends Fixture {
@@ -165,6 +184,70 @@ class AppLauncherTest extends AnyWordSpec with Matchers {
       launcher.process(0).isAlive shouldBe false
     }
 
+    "report the app's process as soon as it starts" in new Fixture {
+      // Given
+      val launched: ArrayBuffer[LaunchedProcess] = ArrayBuffer()
+
+      // When
+      val app: RunningApp = appLauncher.start(composition, GuiPlatform.Headless, launched += _)
+
+      // Then
+      launched shouldBe Seq(app.process)
+    }
+
+    "stop the app when reporting its process fails" in new Fixture {
+      // Given
+      val failure: IllegalStateException = IllegalStateException("can't track the app")
+
+      // When / Then
+      (the[IllegalStateException] thrownBy
+        appLauncher.start(composition, GuiPlatform.Headless, _ => throw failure)) shouldBe
+        failure
+      launcher.process(0).terminateCount shouldBe 1
+      launcher.process(0).isAlive shouldBe false
+    }
+
+    "stop the app when interrupted while waiting for its window" in new Fixture {
+      // Given
+      launcher.newProcess = (spec, pid) => FakeProcess(spec, pid)
+      val launched: CountDownLatch = CountDownLatch(1)
+      val starting: StartThread = StartThread(_ => launched.countDown())
+      launched.await(AwaitSeconds, TimeUnit.SECONDS) shouldBe true
+
+      // When
+      starting.thread.interrupt()
+
+      // Then
+      starting.failed.get(AwaitSeconds, TimeUnit.SECONDS) shouldBe an[InterruptedException]
+      launcher.process(0).terminateCount shouldBe 1
+      launcher.process(0).isAlive shouldBe false
+    }
+
+    "kill the app when interrupted while stopping it" in new Fixture(startupTimeout = 200.millis) {
+      // Given
+      val terminated: CountDownLatch = CountDownLatch(1)
+      launcher.newProcess = (spec, pid) =>
+        new FakeProcess(spec, pid, ignoresTerminate = true) {
+          override def terminate(): Unit = {
+            super.terminate()
+            terminated.countDown()
+          }
+        }
+      val starting: StartThread = StartThread(_ => ())
+      terminated.await(AwaitSeconds, TimeUnit.SECONDS) shouldBe true
+
+      // When
+      starting.thread.interrupt()
+
+      // Then
+      val failure: Throwable = starting.failed.get(AwaitSeconds, TimeUnit.SECONDS)
+      failure.getMessage shouldBe s"no window after 200 ms; see $appLog"
+      failure.getSuppressed.toSeq.map(_.getClass) shouldBe Seq(classOf[InterruptedException])
+      starting.leftInterrupted shouldBe true
+      launcher.process(0).killCount shouldBe 1
+      launcher.process(0).isAlive shouldBe false
+    }
+
     "say so when the app's JVM can't be started" in new Fixture {
       // Given
       launcher.startFailure = _ => Some(IOException("Cannot run program \"/jdk/bin/java\""))
@@ -245,7 +328,7 @@ class AppLauncherTest extends AnyWordSpec with Matchers {
   }
 
   /** A [[DriverClient]] over a connection that a [[FakeDriver]] made. */
-  private abstract class ClientFixture(timeout: FiniteDuration = 30.seconds, helloLine: Option[String] = None) {
+  private abstract class ClientFixture(timeout: FiniteDuration = 45.seconds, helloLine: Option[String] = None) {
     val socket: Path = Files.createTempDirectory("qa").resolve("d.sock")
     private val server = ServerSocketChannel.open(StandardProtocolFamily.UNIX)
     server.bind(UnixDomainSocketAddress.of(socket))
