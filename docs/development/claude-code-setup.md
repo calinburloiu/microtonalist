@@ -201,6 +201,26 @@ python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py
 python3 -m unittest discover -s .claude/skills/architecture-docs/scripts/tests -p "test_*.py"
 ```
 
+### `gui-qa` skill and agent
+
+[`.claude/skills/gui-qa/SKILL.md`](../../.claude/skills/gui-qa/SKILL.md) is the manual end-to-end QA of a GUI change:
+Claude writes the change's test plan, then has the `gui-qa` agent run it against the app's fat JAR, writes the QA report
+and triages the bugs it finds. The agent, [`.claude/agents/gui-qa.md`](../../.claude/agents/gui-qa.md), tests the app
+as a black box: it gets the plan's text, never the diff, and drives the app through the QA MCP server, which starts the
+app with virtual MIDI ports and the QA driver loaded into its JVM. The machine needs the one-time setup of
+[`gui-qa.md`](gui-qa.md#one-time-setup).
+
+The agent declares the server inline, in its frontmatter, so that only the agent gets its tools; it runs
+[`bin/mtlist-qa-mcp`](../../bin/README.md#mtlist-qa-mcp), which needs the JARs of `sbtn assembly`. Claude Code loads an
+inline server only in a trusted folder, and reads agent definitions at startup: if the agent reports that its `qa`
+tools are missing, trust the folder, restart Claude Code and check `/mcp`.
+
+The skill's MIDI decoder has a `unittest` suite, which CI's `docs` job runs:
+
+```bash
+python3 -m unittest discover -s .claude/skills/gui-qa/scripts/tests -p "test_*.py"
+```
+
 ## Authorizing MCP Servers and Plugins
 
 On first launch in a workspace, Claude Code may prompt you to authorize the Metals MCP server. You can save this choice
