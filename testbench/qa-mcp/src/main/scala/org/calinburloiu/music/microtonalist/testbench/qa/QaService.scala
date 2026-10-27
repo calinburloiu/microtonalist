@@ -125,7 +125,13 @@ trait QaService {
    */
   def replug(device: String): Unit
 
-  /** Takes a PNG of each window of the app, on the desktop platform, with the OS's screenshot tool. */
+  /**
+   * Takes a PNG of each on-screen window of the app, on the desktop platform, with macOS's `screencapture`, and saves
+   * it as `<run>/screenshots/os-<n>-<window ID>.png`, `<n>` counting the calls from 1.
+   *
+   * @return each PNG's file and bytes
+   * @throws QaException if no app runs, on the headless platform, or as [[OsScreenshots.capture]] says
+   */
   def osScreenshot(): Seq[(Path, Array[Byte])]
 
   /**

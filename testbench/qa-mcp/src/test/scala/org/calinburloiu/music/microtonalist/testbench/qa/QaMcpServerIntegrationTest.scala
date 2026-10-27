@@ -134,7 +134,7 @@ class QaMcpServerIntegrationTest extends AnyWordSpec with Matchers {
       val response: JsValue = server.listTools()
 
       // Then
-      (response \ "result" \ "tools").as[JsArray].value.size shouldBe 15
+      (response \ "result" \ "tools").as[JsArray].value.size shouldBe 16
     }
 
     "start the app and dump its scene through the driver" in withServer { server =>

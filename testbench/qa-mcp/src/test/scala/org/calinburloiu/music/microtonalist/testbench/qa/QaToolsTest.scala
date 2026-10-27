@@ -73,7 +73,7 @@ class QaToolsTest extends AnyWordSpec with Matchers with Inside {
       // Then
       tools.map(_.tool().name()) should contain theSameElementsAs Seq("get_run", "start_app", "stop_app",
         "send_midi", "unplug", "replug", "list_windows", "dump", "snapshot", "click", "press_key", "type_text",
-        "wait_idle", "read_clipboard", "write_clipboard")
+        "wait_idle", "read_clipboard", "write_clipboard", "os_screenshot")
       all(tools.map(_.tool().description())) should not be empty
     }
 
@@ -244,6 +244,23 @@ class QaToolsTest extends AnyWordSpec with Matchers with Inside {
 
       // Then
       service.requests shouldBe empty
+    }
+  }
+
+  "QaTools' os_screenshot" should {
+    "return the screenshots inline, with their files" in new Fixture {
+      // When
+      val result: CallToolResult = call("os_screenshot")
+
+      // Then
+      inside(result.content().get(0)) {
+        case image: ImageContent =>
+          image.data() shouldBe Base64.getEncoder.encodeToString(service.png)
+          image.mimeType() shouldBe "image/png"
+      }
+      resultOf(result) shouldBe
+        Json.obj("files" -> Seq(service.run.file("screenshots").resolve("os-1-12.png").toString))
+      service.calls shouldBe Seq("osScreenshot" -> ())
     }
   }
 

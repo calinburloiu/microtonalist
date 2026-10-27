@@ -432,4 +432,45 @@ class QaSessionTest extends AnyWordSpec with Matchers {
       launcher.specs shouldBe empty
     }
   }
+
+  "QaSession.osScreenshot" should {
+    "take PNGs of the desktop app's windows, numbering each call's" in new Fixture {
+      // Given
+      session.startApp(StartAppArgs("qa.mtlist", GuiPlatform.Desktop))
+      val appPid: Long = processOf(java.toString).pid
+      launcher.runResult = command =>
+        command.head match {
+          case "/usr/bin/osascript" => CommandResult(0, """{"granted":true,"windowIds":[12]}""", "")
+          case _ =>
+            Files.write(Path.of(command.last), Array[Byte](1, 2))
+            CommandResult(0, "", "")
+        }
+
+      // When
+      val first: Seq[(Path, Array[Byte])] = session.osScreenshot()
+      val second: Seq[(Path, Array[Byte])] = session.osScreenshot()
+
+      // Then
+      launcher.runs.head.last shouldBe appPid.toString
+      first.map(_._1) shouldBe Seq(run.dir.resolve("screenshots").resolve("os-1-12.png"))
+      second.map(_._1) shouldBe Seq(run.dir.resolve("screenshots").resolve("os-2-12.png"))
+      first.head._2 shouldBe Array[Byte](1, 2)
+    }
+
+    "refuse the headless platform" in new Fixture {
+      // Given
+      startApp()
+
+      // When / Then
+      (the[QaException] thrownBy session.osScreenshot()).getMessage shouldBe
+        "os_screenshot needs the desktop platform: start_app with platform desktop"
+      launcher.runs shouldBe empty
+    }
+
+    "refuse when no app runs" in new Fixture {
+      // When / Then
+      (the[QaException] thrownBy session.osScreenshot()).getMessage shouldBe "no app running; call start_app"
+      launcher.runs shouldBe empty
+    }
+  }
 }

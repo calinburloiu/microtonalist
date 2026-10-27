@@ -34,7 +34,7 @@ class FakeQaService extends QaService {
   /** The answer to each driver request. */
   @volatile var driverResult: DriverRequest => JsObject = _ => Json.obj()
 
-  /** The PNG that each snapshot returns. */
+  /** The PNG that each snapshot and OS screenshot returns. */
   val png: Array[Byte] = Array[Byte](1, 2, 3)
 
   private val _requests: ArrayBuffer[DriverRequest] = ArrayBuffer()
@@ -79,7 +79,10 @@ class FakeQaService extends QaService {
 
   override def replug(device: String): Unit = record("replug", device)
 
-  override def osScreenshot(): Seq[(Path, Array[Byte])] = Seq.empty
+  override def osScreenshot(): Seq[(Path, Array[Byte])] = {
+    record("osScreenshot", ())
+    Seq(run.file("screenshots").resolve("os-1-12.png") -> png)
+  }
 
   override def shutdown(): Unit = record("shutdown", ())
 

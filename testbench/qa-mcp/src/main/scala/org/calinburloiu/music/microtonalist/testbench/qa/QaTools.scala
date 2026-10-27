@@ -50,7 +50,7 @@ object QaTools {
   def all(service: QaService): Seq[SyncToolSpecification] = {
     val tools = Seq(getRun(service), startApp(service), stopApp(service), sendMidi(service), unplug(service),
       replug(service), listWindows(service), dump(service), snapshot(service), click(service), pressKey(service),
-      typeText(service), waitIdle(service), readClipboard(service), writeClipboard(service))
+      typeText(service), waitIdle(service), readClipboard(service), writeClipboard(service), osScreenshot(service))
     tools.map(logged(service.run, _))
   }
 
@@ -221,6 +221,17 @@ object QaTools {
     }
   }
 
+  private def osScreenshot(service: QaService): SyncToolSpecification = {
+    PlayJsonMcp.imageTool[Unit, OsScreenshotInfo]("os_screenshot",
+      "Takes a PNG of each on-screen window of the app with macOS's screencapture, as the OS draws it, returns them " +
+        "inline, and saves them as `screenshots/os-<n>-<window ID>.png` in the run directory. Desktop platform only; " +
+        "it needs the Screen Recording permission.",
+      NoArgumentsSchema) { _ =>
+      val screenshots = service.osScreenshot()
+      ImageResult(screenshots.map(_._2), OsScreenshotInfo(screenshots.map(_._1.toString)))
+    }
+  }
+
   // # The log
 
   /** Wraps a tool so that each call is logged in the run's `tools.log`. */
@@ -269,6 +280,8 @@ object QaTools {
   private final case class PlugResult(device: String, plugged: Boolean)
 
   private final case class SnapshotInfo(file: String, width: Int, height: Int)
+
+  private final case class OsScreenshotInfo(files: Seq[String])
 
   /** Reads the arguments of a tool that takes none, ignoring any. */
   private given Reads[Unit] = Reads.pure(())
@@ -334,6 +347,8 @@ object QaTools {
   private given OWrites[PlugResult] = Json.writes[PlugResult]
 
   private given OWrites[SnapshotInfo] = Json.writes[SnapshotInfo]
+
+  private given OWrites[OsScreenshotInfo] = Json.writes[OsScreenshotInfo]
 
   // # Schemas
 

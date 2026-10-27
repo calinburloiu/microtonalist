@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.testbench.qa
 
-import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest
+import org.calinburloiu.music.microtonalist.testbench.driver.protocol.{DriverRequest, GuiPlatform}
 import play.api.libs.json.{JsObject, JsValue, Json}
 
 import java.io.IOException
@@ -48,6 +48,7 @@ final class QaSession(val run: QaRun, launcher: ProcessLauncher, jars: QaJars, j
   private var app: Option[RunningApp] = None
   private var isShutDown: Boolean = false
   private var snapshotCount: Int = 0
+  private var osScreenshotCount: Int = 0
 
   override def startApp(args: StartAppArgs): StartAppResult = {
     synchronized {
@@ -200,8 +201,16 @@ final class QaSession(val run: QaRun, launcher: ProcessLauncher, jars: QaJars, j
   }
 
   override def osScreenshot(): Seq[(Path, Array[Byte])] = {
-    // TODO #397 Take the screenshots with `screencapture`, as Task 18 of the plan says.
-    throw NotImplementedError("os_screenshot isn't implemented yet")
+    val app = runningApp
+    if (app.platform == GuiPlatform.Headless) {
+      throw QaException("os_screenshot needs the desktop platform: start_app with platform desktop")
+    }
+
+    val number = synchronized {
+      osScreenshotCount += 1
+      osScreenshotCount
+    }
+    OsScreenshots.capture(run, launcher, app.process.pid, number)
   }
 
   override def shutdown(): Unit = {
