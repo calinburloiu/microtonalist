@@ -84,6 +84,7 @@ lazy val root = (project in file("."))
     configModule,
     experimentsModule,
     qaDriverModule,
+    qaMcpModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -597,6 +598,20 @@ lazy val qaDriverModule = (project in file("testbench/qa-driver"))
       "--enable-native-access=ALL-UNNAMED",
       "--sun-misc-unsafe-memory-access=allow",
     ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val qaMcpModule = (project in file("testbench/qa-mcp"))
+  .withId("qa-mcp")
+  .dependsOn(
+    mcpModule,
+    qaDriverModule,
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-qa-mcp",
+    commonSettings,
+    libraryDependencies ++= Seq(playJson),
     coverageSettings(stmt = 80, branch = 80),
   )
 
