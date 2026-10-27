@@ -24,7 +24,7 @@ import java.net.UnixDomainSocketAddress
 import java.nio.channels.{Channels, SocketChannel}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.Path
-import java.util.concurrent.{CountDownLatch, Executors, TimeUnit}
+import java.util.concurrent.{CompletableFuture, ExecutionException, Executors, TimeUnit}
 import scala.concurrent.duration.*
 import scala.util.Using
 import scala.util.control.NonFatal
@@ -38,8 +38,10 @@ import scala.util.control.NonFatal
  * @param socket the path of the socket that the server listens on
  * @param handler carries out the requests
  * @param fx runs code on the JavaFX Application Thread
+ * @param isWindowShown whether the app shows a window, through `fx`
  */
-final class DriverLink(socket: Path, handler: RequestHandler, fx: FxExecutor) extends Runnable {
+final class DriverLink(socket: Path, handler: RequestHandler, fx: FxExecutor,
+                       isWindowShown: FxExecutor => Boolean = DriverLink.isAnyWindowShown) extends Runnable {
 
   import DriverLink.*
 
@@ -62,9 +64,13 @@ final class DriverLink(socket: Path, handler: RequestHandler, fx: FxExecutor) ex
     }
   }
 
-  /** Polls until the JavaFX toolkit runs and the app shows a window. */
+  /**
+   * Polls until the JavaFX toolkit runs and the app shows a window.
+   *
+   * @throws DriverException if the check fails otherwise than while the toolkit starts, e.g. on an app without JavaFX
+   */
   private def awaitWindow(): Unit = {
-    val shown = CountDownLatch(1)
+    val shown = CompletableFuture[Unit]()
     val scheduler = Executors.newSingleThreadScheduledExecutor { runnable =>
       val thread = Thread(runnable, "qa-driver-poll")
       thread.setDaemon(true)
@@ -72,17 +78,31 @@ final class DriverLink(socket: Path, handler: RequestHandler, fx: FxExecutor) ex
     }
 
     try {
-      scheduler.scheduleWithFixedDelay(() => if (isWindowShown) shown.countDown(), 0, PollPeriod.toMillis,
-        TimeUnit.MILLISECONDS)
-      shown.await()
+      scheduler.scheduleWithFixedDelay(() => poll(shown), 0, PollPeriod.toMillis, TimeUnit.MILLISECONDS)
+      shown.get()
+    } catch {
+      case e: ExecutionException =>
+        throw DriverException(s"can't tell whether the app shows a window: ${e.getCause}. The driver drives only a " +
+          "JavaFX app.")
     } finally {
       scheduler.shutdownNow()
     }
   }
 
-  private def isWindowShown: Boolean = {
+  /** Completes `shown` once a window shows, or with the failure of a check, which would end the polling silently. */
+  private def poll(shown: CompletableFuture[Unit]): Unit = {
     try {
-      fx(!Window.getWindows.isEmpty)
+      if (isWindowShownYet) {
+        shown.complete(())
+      }
+    } catch {
+      case e @ (NonFatal(_) | _: LinkageError) => shown.completeExceptionally(e)
+    }
+  }
+
+  private def isWindowShownYet: Boolean = {
+    try {
+      isWindowShown(fx)
     } catch {
       // The toolkit isn't initialized yet, or its thread is busy starting the app.
       case _: IllegalStateException | _: DriverException => false
@@ -108,4 +128,7 @@ final class DriverLink(socket: Path, handler: RequestHandler, fx: FxExecutor) ex
 private object DriverLink {
   /** How often the link checks whether the app shows a window. */
   val PollPeriod: FiniteDuration = 200.millis
+
+  /** Whether the app shows a window; throws an `IllegalStateException` while the JavaFX toolkit isn't running. */
+  def isAnyWindowShown(fx: FxExecutor): Boolean = fx(!Window.getWindows.isEmpty)
 }

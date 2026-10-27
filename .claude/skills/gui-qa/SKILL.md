@@ -13,6 +13,12 @@ The `gui-qa` agent tests the fat JAR of the app from a test plan, through the QA
 which starts the app with virtual MIDI ports. This file is for you, the builder of a GUI change. The agent reads
 [`agent-reference.md`](agent-reference.md); you needn't.
 
+Until #393 ports the GUI to JavaFX, the agent can drive only a JavaFX app, and the app is Swing: still write the test
+plan, but run it by hand, as
+[`docs/development/gui-qa.md`](../../../docs/development/gui-qa.md#running-a-test-plan-by-hand) says, instead of
+dispatching the agent. On the Swing app, `start_app` fails, and `app.log` says that the driver drives
+only a JavaFX app.
+
 ## Write the test plan
 
 - **When:** for a change that affects the GUI, after its design is approved and before its implementation plan, from

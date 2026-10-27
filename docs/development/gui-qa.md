@@ -1,8 +1,9 @@
 # GUI QA
 
 How to set up a Mac for QA of the GUI, and how to run a GUI test plan by hand. The `gui-qa` agent runs the same plans
-through the QA MCP server; the [`gui-qa` skill](../../.claude/skills/gui-qa/SKILL.md) says when a change needs a test
-plan, how to write one and how to run the agent.
+through the QA MCP server, but only on a JavaFX app: until #393 ports the GUI to JavaFX, run them by hand. The
+[`gui-qa` skill](../../.claude/skills/gui-qa/SKILL.md) says when a change needs a test plan, how to write one and how
+to run the agent.
 
 QA runs on macOS only.
 

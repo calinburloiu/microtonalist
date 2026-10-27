@@ -34,7 +34,8 @@ Scala 3 and is built by using sbt 1.
     - **Coverage**. Make sure modified files and modules meet the coverage conventions and iterate
       until the target coverage is met. See [Coverage](#coverage) section for details.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
-    - **Manual E2E**, for GUI changes only: dispatch the `gui-qa` agent with the test plan.
+    - **Manual E2E**, for GUI changes only: dispatch the `gui-qa` agent with the test plan; until #393 ports the GUI to
+      JavaFX, run the plan by hand instead (see the `gui-qa` skill).
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts, following the documentation conventions. When the change affects an
       architecture document, under `docs/architecture/` or `$GROUP/$MODULE/docs/`, invoke the `architecture-docs`

@@ -16,7 +16,8 @@ of the app's JAR, and its Scala library. It runs on either JavaFX platform: the 
 The link to the server:
 
 - **`QaDriverAgent`** — the `premain`, which starts the `DriverLink` on a daemon thread and returns, so that the app
-  starts.
+  starts. On an app without JavaFX, it says so in the app's log and aborts the JVM, so that the server reports at
+  once that the app exited.
 - **`DriverLink`** — waits until the app shows a window, connects to the Unix domain socket that the server listens on,
   in the run directory, and answers the requests one at a time until the socket closes.
 - **`Protocol`**, in the `protocol` package that the server shares — one JSON object per line: the driver's `Hello`,

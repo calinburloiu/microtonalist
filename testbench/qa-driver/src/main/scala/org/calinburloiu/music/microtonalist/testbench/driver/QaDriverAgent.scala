@@ -19,6 +19,7 @@ package org.calinburloiu.music.microtonalist.testbench.driver
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.GuiPlatform
 
 import java.nio.file.Path
+import scala.util.control.NonFatal
 
 /** The entry point of the QA driver, a Java agent that the QA server loads into the app's JVM with `-javaagent`. */
 object QaDriverAgent {
@@ -27,10 +28,28 @@ object QaDriverAgent {
    *
    * @param args the path of the Unix domain socket that the QA server listens on
    */
-  def premain(args: String): Unit = {
+  def premain(args: String): Unit = start {
     val fx = FxExecutor()
-    val thread = Thread(DriverLink(Path.of(args), RequestHandler(fx, newInput(GuiPlatform.current, fx)), fx),
-      "qa-driver")
+    DriverLink(Path.of(args), RequestHandler(fx, newInput(GuiPlatform.current, fx)), fx)
+  }
+
+  /**
+   * Starts the link that `newLink` creates on the daemon thread `qa-driver`.
+   *
+   * If `newLink` fails, e.g. on an app without JavaFX, reports it on `System.err`, which goes to the app's log, and
+   * rethrows it, which aborts the JVM, so that the QA server says at once that the app exited.
+   */
+  private[driver] def start(newLink: => Runnable): Unit = {
+    val link =
+      try {
+        newLink
+      } catch {
+        case e @ (NonFatal(_) | _: LinkageError) =>
+          System.err.println(s"qa-driver: can't start: $e. The driver drives only a JavaFX app, whose JAR holds " +
+            "JavaFX, play-json and the Scala library.")
+          throw e
+      }
+    val thread = Thread(link, "qa-driver")
     thread.setDaemon(true)
     thread.start()
   }

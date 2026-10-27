@@ -26,7 +26,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.{BeforeAndAfterAll, Inside}
 import play.api.libs.json.Json
 
-import java.io.{BufferedReader, ByteArrayOutputStream, InputStreamReader, OutputStreamWriter, PrintStream, Writer}
+import java.io.{BufferedReader, InputStreamReader, OutputStreamWriter, Writer}
 import java.net.{StandardProtocolFamily, UnixDomainSocketAddress}
 import java.nio.channels.{Channels, ServerSocketChannel, SocketChannel}
 import java.nio.charset.StandardCharsets.UTF_8
@@ -105,24 +105,6 @@ class DriverLinkTest extends AnyWordSpec with Matchers with Inside with BeforeAn
     test(server)
   }
 
-  /** Captures `System.err` while `body` runs, and counts down `printed` on the first line written to it. */
-  private def capturingStdErr(printed: CountDownLatch)(body: ByteArrayOutputStream => Unit): Unit = {
-    val captured = ByteArrayOutputStream()
-    val capturing = new PrintStream(captured, true, UTF_8) {
-      override def println(line: String): Unit = {
-        super.println(line)
-        printed.countDown()
-      }
-    }
-    val stdErr = System.err
-    System.setErr(capturing)
-    try {
-      body(captured)
-    } finally {
-      System.setErr(stdErr)
-    }
-  }
-
   "DriverLink" should {
     "connect once a window shows and say hello" in withServer { server =>
       // Given
@@ -156,6 +138,25 @@ class DriverLinkTest extends AnyWordSpec with Matchers with Inside with BeforeAn
       server.exchange(Envelope(7, Idle)) shouldBe DriverResponse.Ok(7, Json.obj())
     }
 
+    "stop waiting, and report on standard error, when it can't check for a window" in withServer { server =>
+      // Given
+      val fx = FxExecutor()
+      val link = DriverLink(server.socket, RequestHandler(fx, EventInput(fx)), fx,
+        _ => throw NoClassDefFoundError("javafx/stage/Window"))
+      val printed = CountDownLatch(1)
+
+      StdErr.capturing(printed) { captured =>
+        // When
+        within(link.run())
+
+        // Then
+        val report = captured.toString(UTF_8)
+        report should startWith("qa-driver: ")
+        report should include("javafx/stage/Window")
+        report should include("only a JavaFX app")
+      }
+    }
+
     "report on standard error when it can't connect" in {
       // Given
       showStage()
@@ -164,7 +165,7 @@ class DriverLinkTest extends AnyWordSpec with Matchers with Inside with BeforeAn
       val printed = CountDownLatch(1)
 
       try {
-        capturingStdErr(printed) { captured =>
+        StdErr.capturing(printed) { captured =>
           // When
           QaDriverAgent.premain(socket.toString)
 

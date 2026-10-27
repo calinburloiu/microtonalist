@@ -20,6 +20,9 @@ import org.calinburloiu.music.microtonalist.testbench.driver.protocol.GuiPlatfor
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.nio.charset.StandardCharsets.UTF_8
+import java.util.concurrent.CountDownLatch
+
 class QaDriverAgentTest extends AnyWordSpec with Matchers {
   "QaDriverAgent.newInput" should {
     "drive the headless platform with the Robot" in {
@@ -30,6 +33,26 @@ class QaDriverAgentTest extends AnyWordSpec with Matchers {
     "drive the desktop platform with events" in {
       // When / Then
       QaDriverAgent.newInput(GuiPlatform.Desktop, FxExecutor()) shouldBe an[EventInput]
+    }
+  }
+
+  "QaDriverAgent.start" should {
+    "report a class missing from the app on standard error, and rethrow it" in {
+      // Given
+      val printed = CountDownLatch(1)
+
+      StdErr.capturing(printed) { captured =>
+        // When
+        val thrown = the[NoClassDefFoundError] thrownBy
+          QaDriverAgent.start(throw NoClassDefFoundError("javafx/event/EventTarget"))
+
+        // Then
+        thrown.getMessage shouldBe "javafx/event/EventTarget"
+        val report = captured.toString(UTF_8)
+        report should startWith("qa-driver: can't start")
+        report should include("javafx/event/EventTarget")
+        report should include("only a JavaFX app")
+      }
     }
   }
 }
