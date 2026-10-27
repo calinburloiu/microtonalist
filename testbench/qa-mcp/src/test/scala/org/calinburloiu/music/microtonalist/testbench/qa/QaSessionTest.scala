@@ -431,6 +431,45 @@ class QaSessionTest extends AnyWordSpec with Matchers {
       (the[QaException] thrownBy startApp()).getMessage shouldBe "the QA server is shutting down"
     }
 
+    "kill an app that is still starting and ignores SIGTERM when the agent finishes" in new Fixture {
+      // Given
+      val refusedDriver: CompletableFuture[FakeDriver] = CompletableFuture()
+      launcher.newProcess = (spec, pid) => {
+        if (isApp(spec)) {
+          // Its hello is refused only once the app's process is tracked, so this driver's disconnection says it is.
+          refusedDriver.complete(FakeDriver(run.socket, pid, helloLine = Some("not a hello")))
+        }
+        FakeProcess(spec, pid, ignoresTerminate = isApp(spec))
+      }
+      val failed: CompletableFuture[Throwable] = CompletableFuture()
+      Thread.ofVirtual().start { () =>
+        try {
+          startApp()
+          failed.completeExceptionally(AssertionError("the app started"))
+        } catch {
+          case e: Throwable => failed.complete(e)
+        }
+      }
+      refusedDriver.get(AwaitSeconds, TimeUnit.SECONDS).disconnected.get(AwaitSeconds, TimeUnit.SECONDS)
+
+      // When
+      session.finish()
+
+      // Then
+      failed.get(AwaitSeconds, TimeUnit.SECONDS).getMessage should startWith("the app exited with code 137")
+      processOf(java.toString).killCount shouldBe 1
+      launcher.processes.map(_.isAlive) shouldBe Seq(false, false, false)
+    }
+
+    "refuse to start once the agent finished with no app running" in new Fixture {
+      // Given
+      session.finish()
+
+      // When / Then
+      (the[QaException] thrownBy startApp()).getMessage shouldBe "the QA server is shutting down"
+      launcher.specs shouldBe empty
+    }
+
     "terminate an app that is still starting on shutdown" in new Fixture {
       // Given
       launcher.newProcess = (spec, pid) => {
