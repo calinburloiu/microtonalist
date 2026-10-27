@@ -159,7 +159,7 @@ It builds four JARs, each at `<module folder>/target-bsp/scala-<version>/<name>.
 | ------ | --- | ----- |
 | `app` | `microtonalist-app.jar` | The app, with its dependencies |
 | `cli` | `microtonalist-cli.jar` | The command-line tool, with its dependencies |
-| `qa-mcp` | `microtonalist-qa-mcp.jar` | The QA MCP server of the [`gui-qa` agent](gui-qa.md), with its dependencies |
+| `qa-mcp` | `microtonalist-qa-mcp.jar` | The QA MCP server of the [`qa` agent](qa.md), with its dependencies |
 | `qa-driver` | `microtonalist-qa-driver.jar` | The QA driver's own classes: a Java agent that uses the JavaFX, Scala library and play-json of the app it's loaded into |
 
 The `bin/mtlist` and `bin/mtlist-tool` launchers run the fat JARs from `app/app/target/scala-<version>/` and

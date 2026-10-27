@@ -211,7 +211,7 @@ private object QaMcpServerIntegrationTest {
   private val AwaitSeconds: Long = 5
   private val PipeSize: Int = 1 << 16
 
-  /** The design's fixture rig, which the `gui-qa` skill's agent copies. */
+  /** The design's fixture rig, which the `qa` skill's agent copies. */
   private val FixtureRig: String =
     """{
       |  "tracks": [

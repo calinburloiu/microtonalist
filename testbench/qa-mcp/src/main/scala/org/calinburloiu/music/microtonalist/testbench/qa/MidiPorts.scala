@@ -208,7 +208,7 @@ private object MidiPorts {
   private val SendMidi: String = "sendmidi"
   private val ReceiveMidi: String = "receivemidi"
   private val ToolsLogFileName: String = "midi-tools.log"
-  private val InstallGuide: String = "docs/development/gui-qa.md"
+  private val InstallGuide: String = "docs/development/qa.md"
   private val TimeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 
   private final case class DeviceTools(sendMidi: Option[LaunchedProcess], receiveMidi: Option[LaunchedProcess]) {

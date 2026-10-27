@@ -1,9 +1,9 @@
-# GUI QA
+# QA
 
-How to set up a Mac for QA of the GUI, and how to run a GUI test plan by hand. The `gui-qa` agent runs the same plans
-through the QA MCP server, but only on a JavaFX app: until #393 ports the GUI to JavaFX, run them by hand. The
-[`gui-qa` skill](../../.claude/skills/gui-qa/SKILL.md) says when a change needs a test plan, how to write one and how
-to run the agent.
+How to set up a Mac for QA of the app, its GUI and its MIDI, and how to run a test plan by hand. The `qa` agent runs the
+same plans through the QA MCP server, but only on a JavaFX app: until #393 ports the GUI to JavaFX, run them by hand.
+The [`qa` skill](../../.claude/skills/qa/SKILL.md) says when a change needs a test plan, how to write one and how to run
+the agent.
 
 QA runs on macOS only.
 
@@ -41,7 +41,7 @@ You run the app on the desktop platform, with the ports that the QA server would
 
    ```bash
    QA="$(mktemp -d)/qa"; mkdir -p "$QA"
-   cp .claude/skills/gui-qa/fixtures/qa.mtlist .claude/skills/gui-qa/fixtures/qa.mtlist.tracks "$QA/"
+   cp .claude/skills/qa/fixtures/qa.mtlist .claude/skills/qa/fixtures/qa.mtlist.tracks "$QA/"
    cd "$QA"
    ```
 
@@ -81,11 +81,11 @@ You run the app on the desktop platform, with the ports that the QA server would
    decoder, which annotates each tuning message with the cents of each pitch class:
 
    ```bash
-   python3 "$REPO/.claude/skills/gui-qa/scripts/decode_midi.py" midi-out-synth.txt
+   python3 "$REPO/.claude/skills/qa/scripts/decode_midi.py" midi-out-synth.txt
    grep -E 'ERROR|Exception' app.log
    ```
 
-   [`agent-reference.md`](../../.claude/skills/gui-qa/agent-reference.md) has the SendMIDI conventions, the pedal tuning
+   [`agent-reference.md`](../../.claude/skills/qa/agent-reference.md) has the SendMIDI conventions, the pedal tuning
    changer's defaults, the decoder's options and what each tuner sends.
 
 8. **Write the QA report** as the skill's *Run QA* section says, noting that you ran it by hand.

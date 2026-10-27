@@ -17,7 +17,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | [`ui`](../../ui/README.md) | The desktop GUI |
 | [`ai`](../../ai/README.md) | Support for AI agents: the base of the MCP servers |
 | [`app`](../../app/README.md) | The application layer: the executables, and their configuration and wiring |
-| [`testbench`](../../testbench/README.md) | Tooling that tests the app from outside it: the QA MCP server and the QA driver of the `gui-qa` agent |
+| [`testbench`](../../testbench/README.md) | Tooling that tests the app from outside it: the QA MCP server and the QA driver of the `qa` agent |
 
 ## Main modules
 

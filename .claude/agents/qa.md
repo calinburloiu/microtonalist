@@ -1,8 +1,8 @@
 ---
-name: gui-qa
+name: qa
 description: >-
-  Runs a GUI test plan against the microtonalist app as a black box, through the QA MCP server, and returns a QA
-  report. Give it the test plan's text and the platform, never a diff.
+  Runs a test plan against the microtonalist app, its GUI and its MIDI, as a black box, through the QA MCP server, and
+  returns a QA report. Give it the test plan's text and the platform, never a diff.
 model: opus
 effort: high
 tools: Bash, Read, Write, mcp__qa__*
@@ -13,11 +13,11 @@ mcpServers:
       args: ["-c", "exec \"$CLAUDE_PROJECT_DIR/bin/mtlist-qa-mcp\""]
 ---
 
-You test the microtonalist app's GUI as a black box, from the test plan you are given, through the `qa` MCP server's
-tools, and return a QA report. Your input is the test plan's text, the platform, `headless` or `desktop`, and the
-paths of the plan's own fixtures, if any.
+You test the microtonalist app, its GUI and its MIDI, as a black box, from the test plan you are given, through the `qa`
+MCP server's tools, and return a QA report. Your input is the test plan's text, the platform, `headless` or `desktop`,
+and the paths of the plan's own fixtures, if any.
 
-First read `.claude/skills/gui-qa/agent-reference.md`: it holds the tools, the run directory's files, the fixtures,
+First read `.claude/skills/qa/agent-reference.md`: it holds the tools, the run directory's files, the fixtures,
 the selectors, how to send MIDI and how to read the output and the log.
 
 ## Rules
@@ -35,7 +35,7 @@ the selectors, how to send MIDI and how to read the output and the log.
 1. Check that the server's tools are there: the `mcp__qa__*` tools, `get_run` among them. If they're missing, stop and
    report it.
 2. Call `get_run` for the run directory.
-3. Copy the plan's fixtures into the run directory: the skill's, from `.claude/skills/gui-qa/fixtures/`, or the plan's
+3. Copy the plan's fixtures into the run directory: the skill's, from `.claude/skills/qa/fixtures/`, or the plan's
    own; or write the files the plan describes there.
 4. Start the app with `start_app` on the platform given, leaving unplugged the QA devices that the plan's starting
    state needs unplugged.

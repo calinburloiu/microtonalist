@@ -15,7 +15,7 @@ Out of scope: <what it leaves out, and why>.
 
 ## Fixtures
 
-<The `gui-qa` skill's: the QA composition, with C Just Major, C Romanian Minor and C Septimal, and its rig, from the
+<The `qa` skill's: the QA composition, with C Just Major, C Romanian Minor and C Septimal, and its rig, from the
 input `keys` through the pedal tuning changer and an MTS octave 1-byte non-real-time tuner to the output `synth`. Or
 feature-specific ones next to this plan, each with what it holds.>
 

@@ -14,7 +14,7 @@
 
 """Tests of decode_midi.py, run with:
 
-    python3 -m unittest discover -s .claude/skills/gui-qa/scripts/tests -p "test_*.py"
+    python3 -m unittest discover -s .claude/skills/qa/scripts/tests -p "test_*.py"
 
 The expected values are worked out by hand from the MIDI Tuning Standard (MIDI 1.0 specification), not from the code
 under test or from the tuners. `annotate` is tested in-process; `CliTest` runs the script itself.

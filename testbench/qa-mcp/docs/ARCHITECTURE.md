@@ -2,7 +2,7 @@
 
 ## Responsibility
 
-`qa-mcp` is the QA MCP server, which the `gui-qa` agent of Claude Code starts over stdio through `bin/mtlist-qa-mcp`.
+`qa-mcp` is the QA MCP server, which the `qa` agent of Claude Code starts over stdio through `bin/mtlist-qa-mcp`.
 It owns one QA run: a run directory, which every path a tool takes must lie in; the app, which it starts from its fat
 JAR with the [QA driver](../../qa-driver/docs/ARCHITECTURE.md) as its Java agent; and the app's virtual MIDI ports,
 which SendMIDI and ReceiveMIDI open. Its tools pass the agent's GUI requests to the driver, send MIDI to the app, and
@@ -53,7 +53,7 @@ Starting the app:
 
 ```mermaid
 flowchart LR
-  agent[gui-qa agent] -->|start_app| tools[QaTools]
+  agent[qa agent] -->|start_app| tools[QaTools]
   tools --> session[QaSession]
   session -->|"locate, rewrite"| rig[(Rig)]
   session --> ports[MidiPorts]

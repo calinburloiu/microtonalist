@@ -40,7 +40,7 @@ class QaSessionTest extends AnyWordSpec with Matchers {
   /** A composition with no `tracksUrl`, whose rig is the `.tracks` file next to it. */
   private val compositionJson: String = """{ "tunings": [] }"""
 
-  /** The design's fixture rig, which the `gui-qa` skill's agent copies. */
+  /** The design's fixture rig, which the `qa` skill's agent copies. */
   private val fixtureRig: String =
     """{
       |  "tracks": [

@@ -1,6 +1,7 @@
-# gui-qa: the agent's reference
+# qa: the agent's reference
 
-You test microtonalist's GUI through the `qa` MCP server's tools, which start the app with virtual MIDI ports.
+You test microtonalist, its GUI and its MIDI, through the `qa` MCP server's tools, which start the app with virtual MIDI
+ports.
 
 ## The run directory
 
@@ -25,7 +26,7 @@ takes is inside it, and it holds:
 Copy them into the run directory, then start the app from there; the repo's copies stay unchanged:
 
 ```bash
-cp .claude/skills/gui-qa/fixtures/qa.mtlist .claude/skills/gui-qa/fixtures/qa.mtlist.tracks "<runDir>/"
+cp .claude/skills/qa/fixtures/qa.mtlist .claude/skills/qa/fixtures/qa.mtlist.tracks "<runDir>/"
 ```
 
 - `qa.mtlist` has three tunings on C, which the app names C Just Major, C Romanian Minor and C Septimal. In cents from
@@ -146,7 +147,7 @@ Mark the output by its line count before you act, and read only what came after:
 ```bash
 N=$(wc -l < "<runDir>/midi-out-synth.txt")
 # act, then:
-tail -n +$((N + 1)) "<runDir>/midi-out-synth.txt" | python3 .claude/skills/gui-qa/scripts/decode_midi.py
+tail -n +$((N + 1)) "<runDir>/midi-out-synth.txt" | python3 .claude/skills/qa/scripts/decode_midi.py
 ```
 
 ReceiveMIDI prints one message per line, timestamped, notes as numbers:
@@ -161,7 +162,7 @@ A pitch bend is one 14-bit number. A system exclusive message is its bytes in he
 
 `decode_midi.py` prints every line and annotates each MTS octave tuning with the cents of each pitch class, and each
 pitch bend with its cents for a pitch bend range, ±2 semitones by default. Run
-`python3 .claude/skills/gui-qa/scripts/decode_midi.py --help` for its usage; don't read its source. The line above
+`python3 .claude/skills/qa/scripts/decode_midi.py --help` for its usage; don't read its source. The line above
 decodes as C Romanian Minor:
 
 ```
@@ -217,7 +218,7 @@ on; a tuning change retunes the note sounding. Decode with the default range.
 ## The MIDI tools
 
 The server runs the `sendmidi` and `receivemidi` that the setup installs from their releases' `.pkg`, at the versions
-that [`docs/development/gui-qa.md`](../../../docs/development/gui-qa.md#one-time-setup) gives as known to work;
+that [`docs/development/qa.md`](../../../docs/development/qa.md#one-time-setup) gives as known to work;
 `send_midi`'s checks follow that SendMIDI's help. They have these quirks:
 
 - A note on with velocity 0 shows as a `note-off`.

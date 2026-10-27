@@ -25,7 +25,7 @@ class RigRewriterTest extends AnyWordSpec with Matchers {
 
   private val runId: String = "qa-3f9c"
 
-  /** The design's fixture rig, which the `gui-qa` skill's agent copies. */
+  /** The design's fixture rig, which the `qa` skill's agent copies. */
   private val fixtureRig: JsValue = Json.parse(
     """{
       |  "tracks": [

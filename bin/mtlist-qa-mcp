@@ -17,7 +17,7 @@
 #
 
 #
-# mtlist-qa-mcp — run the GUI QA MCP server, which Claude Code starts over stdio.
+# mtlist-qa-mcp — run the QA MCP server, which Claude Code starts over stdio.
 #
 # Runs the JARs that `sbtn assembly` builds into the BSP server's `target-bsp/` directories. The app under test is
 # `app/app/.../microtonalist-app.jar`, unless MTLIST_QA_APP_JAR names another JAR. `exec` makes the JVM the process
