@@ -187,8 +187,11 @@ On reset, they send the current tuning. They pass no input through, by default.
 
 `mpe` gives each note a Member Channel, by default those of the Lower Zone: channels 2 to 16, the Master Channel
 being 1, with pitch bend sensitivities of ±48 semitones on the Member Channels and ±2 on the Master Channel. On reset,
-it sends each Zone's MPE Configuration Message on its Master Channel, the disabled Upper Zone's on channel 16 with 0
-members, then the pitch bend sensitivity of the Lower Zone's every channel. A tuning sends nothing until notes sound:
+after stopping the notes sounding, it configures the Lower Zone, then the Upper Zone: each Zone's MPE Configuration
+Message on its Master Channel, then, for an enabled Zone, the pitch bend sensitivity of its Master Channel and of each
+Member Channel. By default, that is the Lower Zone's MPE Configuration Message on channel 1, then the pitch bend
+sensitivity of channels 1 to 16, then the disabled Upper Zone's MPE Configuration Message on channel 16 with 0
+members. A tuning sends nothing until notes sound:
 each note sends its channel's pitch bend, the offset of its pitch class plus any expression, before its note on, and a
 tuning change retunes the channels of the notes sounding. Decode with `--pb-range 48 --channel-pb-range 1=2`.
 
