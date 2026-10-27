@@ -93,15 +93,17 @@ object QaTools {
 
   private def sendMidi(service: QaService): SyncToolSpecification = {
     PlayJsonMcp.tool[SendMidiArgs, SendMidiResult]("send_midi",
-      "Sends SendMIDI command lines, e.g. `on 60 100` or `cc 64 127`, to an input device of the running app's rig, " +
-        "and logs each with the time sent in `midi-in-<device>.txt`. Only SendMIDI's commands that send MIDI or wait " +
-        "are allowed, with numbers or note names as parameters: no `dev`, `virt`, `file`, `syf`, `mpp`, `hex` or " +
-        "`dec`. What the app sends to an output device is recorded in `midi-out-<device>.txt`.",
+      "Sends SendMIDI command lines, e.g. `ch 1 on 60 100` or `ch 1 cc 66 127 +00.500 cc 66 0`, to an input device " +
+        "of the running app's rig, and logs each with the time sent in `midi-in-<device>.txt`. Start every line " +
+        "with `ch <n>`, the channel from 1 to 16, and write a hex number with an `H` suffix, e.g. `raw 90H 3CH 00H`. " +
+        "Only SendMIDI's commands that send MIDI or wait are allowed, with numbers or note names as parameters: no " +
+        "`dev`, `virt`, `file`, `syf`, `mpp`, `hex`, `dec`, `omc`, `nowait` or `list`. A bad line refuses the whole " +
+        "call. What the app sends to an output device is recorded in `midi-out-<device>.txt`.",
       objectSchema(
         "device" ->
           Json.obj("type" -> "string", "description" -> "The QA device, `<device>` in the rig's `qa:<device>`"),
         "lines" -> Json.obj("type" -> "array", "items" -> Json.obj("type" -> "string"), "minItems" -> 1,
-          "description" -> "SendMIDI command lines, one command with its parameters per line"),
+          "description" -> "SendMIDI command lines, each starting with `ch <n>`; a line may hold several commands"),
       )(required = "device", "lines")) { args =>
       val file = service.sendMidi(args.device, args.lines)
       SendMidiResult(args.lines.size, file.toString)

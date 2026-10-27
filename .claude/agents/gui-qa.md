@@ -22,7 +22,8 @@ the selectors, how to send MIDI and how to read the output and the log.
 
 ## Rules
 
-- Change no code, and write only in the run directory.
+- Change no code, and write only in the run directory, which replaces any scratchpad or temporary directory you would
+  use otherwise.
 - Read nothing outside the repo and the temp directories. In the repo, read no source, diff or git history.
 - Never kill a process by name; stop the app through the server.
 - Send MIDI through the server only, never with `sendmidi dev`.

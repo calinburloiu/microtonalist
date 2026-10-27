@@ -44,7 +44,8 @@ cp .claude/skills/gui-qa/fixtures/qa.mtlist .claude/skills/gui-qa/fixtures/qa.mt
 A rig names a QA device `qa:<device>`, `<device>` matching `[A-Za-z0-9_-]{1,32}`. `start_app` rewrites the rig in place
 so that each becomes the run's virtual port, `{ "name": "CoreMIDI4J - <run>-<device>", "vendor": "<Unknown
 Manufacturer>" }`, and opens it. A device that a track uses as its input takes `send_midi`; one used as an output, or
-as its MTS tuner's `altTuningOutput`, records in `midi-out-<device>.txt`. Other tools take the `<device>` name, e.g. `keys`.
+as its MTS tuner's `altTuningOutput`, records in `midi-out-<device>.txt`. Other tools take the `<device>` name, e.g.
+`keys`.
 
 `start_app` refuses:
 
@@ -68,7 +69,7 @@ Optional arguments are in brackets, with their defaults.
 | `unplug`, `replug` | `device` | Removes, or restores, both ports of a device, like pulling or plugging its cable: `{device, plugged}`. The output keeps going to the same file. |
 | `list_windows` | | `{windows}`, each `{index, type, title, x, y, width, height, focused, owner}`. A menu, a tooltip or a dialog is a window of its own; `owner` is a popup's owner window. |
 | `dump` | [`window`: all] | The visible scene graph, `{windows}`, each `{index, type, title, nodes}`. A node line is `<Type>[ #<id>][ text="…"][ value="…"][ accessibleText="…"][ selected][ focused][ disabled][ truncated]`, indented two spaces per ancestor shown. |
-| `snapshot` | [`window`], [`selector`], [`scale`: 1] | A PNG, inline, of the selector's node, else of the window, else of the first window, with its popups pasted over it; `{file, width, height}`. `scale` is in (0, 4]; use 2 for small text. |
+| `snapshot` | [`window`], [`selector`], [`scale`: 1] | A PNG, inline, of the selector's node, else of the window, else of the first stage, the main window, with its popups pasted over it; `{file, width, height}`. `scale` is in (0, 4]; use 2 for small text. |
 | `click` | `selector`, [`window`: all], [`button`: `primary`], [`clickCount`: 1] | Clicks the node; `secondary` opens a context menu, `clickCount` 2 double-clicks: `{matchedBy, node, disabled}` |
 | `press_key` | `key` | Presses a JavaFX `KeyCode` name, or a combination, in the focused window or the dialog on top: `ENTER`, `DIGIT1`, `DOWN`, `ESCAPE`, `Shortcut+N` (`Shortcut` is Command on macOS) |
 | `type_text` | `text` | Types into the focused control; click it first |
@@ -85,6 +86,8 @@ Optional arguments are in brackets, with their defaults.
   don't stop the app before then.
 - Trust `dump` for the state, and a snapshot for what a user sees: truncation, order, alignment, a control that draws
   itself, such as a canvas.
+- On the desktop platform, `click` fires its events at the node itself: unless another window covers it, it reaches a
+  window that a modal dialog blocks, which a user's click wouldn't. Check modality there with care.
 - `os_screenshot` works only on the desktop platform, with the Screen Recording permission of the app that runs Claude
   Code; without it, the tool says so. Headless, use `snapshot`.
 - While the Mac's screen is locked, `os_screenshot` fails with screencapture's `could not create image from window`.
@@ -93,15 +96,16 @@ Optional arguments are in brackets, with their defaults.
 
 A selector is a string. Among the visible nodes, it names those whose `accessibleText` equals it; if none, those whose
 `id` equals it; if none, those whose visible text equals it, such as a button's, a label's or a list row's. The tool
-acts on the single match and tells in `matchedBy` which kind matched; quote it in the report. Several matches, or none,
-are an error that lists them. `dump` shows each node's `#<id>`, `text` and `accessibleText`. Give `window` to scope a
-selector to one window.
+acts on the single match and tells in `matchedBy` which kind matched; quote it in the report. Several matches are an
+error that lists them, and no match is an error too. `dump` shows each node's `#<id>`, `text` and `accessibleText`.
+Give `window` to scope a selector to one window.
 
 ## Sending MIDI
 
 `send_midi` takes a QA input device and SendMIDI command lines, e.g.
-`{ "device": "keys", "lines": ["ch 1 cc 66 127", "ch 1 cc 66 0"] }`, and sends them in order. Its `sendmidi` lives for
-the whole run, so a command's state carries over to later calls:
+`{ "device": "keys", "lines": ["ch 1 cc 66 127", "ch 1 cc 66 0"] }`, and sends them in order. A device's `sendmidi`
+starts with the app, or with a `replug`, and runs until `stop_app` or an `unplug`, so a command's state carries over to
+later calls until then:
 
 - Start every line with `ch <n>`, the channel, from 1 to 16.
 - Write a hex number with an `H` suffix, e.g. `raw 90H 3CH 00H`.
@@ -163,6 +167,10 @@ decodes as C Romanian Minor:
 ```
 … dec  # MTS octave 1-byte non-real-time, device 7F, channels 1-16: C +0 C♯ +0 D +4 E♭ +16 E +0 F +0 F♯ -17 G +2 G♯ +0 A +6 B♭ -4 B +0
 ```
+
+The decoded cents are only as exact as the message: a pitch bend's step is `range × 100 / 8192` cents, about 0.59 at
+±48 semitones, the 2-byte MTS form's 100 / 8192, and the 1-byte form rounds to whole cents. A value within half a step
+of the expected one, or ±0.5 cents for the 1-byte form, matches it: at ±48, D's +3.91 decodes as about +4.10.
 
 Check the log with `grep -E 'ERROR|Exception' "<runDir>/app.log"`.
 
