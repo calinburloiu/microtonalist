@@ -164,6 +164,22 @@ class QaMcpServerIntegrationTest extends AnyWordSpec with Matchers {
       (response \ "result" \ "content" \ 0 \ "text").as[String] should include("no app running")
     }
 
+    "refuse a call whose arguments its input schema doesn't allow, before the tool runs" in withServer { server =>
+      // Given
+      server.initialize()
+      server.callTool("start_app", Json.obj("composition" -> "qa.mtlist"))
+
+      // When
+      // The tool's `Reads` would ignore the misspelt `click_count`; only the SDK's validation of the schema's
+      // `additionalProperties: false` refuses it.
+      val response: JsValue = server.callTool("click", Json.obj("selector" -> "Play", "click_count" -> 2))
+
+      // Then
+      (response \ "result" \ "isError").as[Boolean] shouldBe true
+      (response \ "result" \ "content" \ 0 \ "text").as[String] should include("click_count")
+      server.drivers.last.requests shouldBe empty
+    }
+
     "complete when its input ends" in withServer { server =>
       // Given
       server.initialize()

@@ -65,7 +65,7 @@ class SendMidiLinesTest extends AnyWordSpec with Matchers {
       }
     }
 
-    "refuse a forbidden command in another case or after an allowed one" in { // Review Focus 4
+    "refuse a forbidden command in another case or after an allowed one" in {
       // When / Then
       error("DEV IAC") should include("forbidden")
       error("ch 1 cc 66 127 dev IAC") should include("forbidden")
@@ -113,7 +113,7 @@ class SendMidiLinesTest extends AnyWordSpec with Matchers {
       error("+0.500 cc 1 1") should include("\"+0.500\"")
     }
 
-    "refuse a line holding a line break" in { // Review Focus 4
+    "refuse a line holding a line break" in {
       // When / Then
       validate(Seq("ch 1 cc 66 127\ndev IAC")).isLeft shouldBe true
       validate(Seq("ch 1\rdev IAC")).isLeft shouldBe true
