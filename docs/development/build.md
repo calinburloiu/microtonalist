@@ -145,24 +145,37 @@ Every compile treats compiler warnings as errors, except three that stay warning
 parameter, which a TDD red-phase stub needs; and an unused import, which `sbtn fix` removes. `sbtn lint` fails on the
 last two, so only deprecations can remain.
 
-## Building the fat JAR
+## Building the JARs
 
-Building the fat JAR for the executable application:
+Building the fat JARs of the executables, and the QA driver's JAR:
 
 ```bash
 sbtn assembly
 ```
 
+It builds four JARs, each at `<module folder>/target-bsp/scala-<version>/<name>.jar`:
+
+| Module | JAR | Holds |
+| ------ | --- | ----- |
+| `app` | `microtonalist-app.jar` | The app, with its dependencies |
+| `cli` | `microtonalist-cli.jar` | The command-line tool, with its dependencies |
+| `qa-mcp` | `microtonalist-qa-mcp.jar` | The QA MCP server of the [`gui-qa` agent](gui-qa.md), with its dependencies |
+| `qa-driver` | `microtonalist-qa-driver.jar` | The QA driver's own classes: a Java agent that uses the JavaFX, Scala library and play-json of the app it's loaded into |
+
 The `bin/mtlist` and `bin/mtlist-tool` launchers run the fat JARs from `app/app/target/scala-<version>/` and
 `app/cli/target/scala-<version>/`, which a plain `sbt assembly` builds; `sbtn assembly` builds them under `target-bsp/`
-instead (see [Build output directories](#build-output-directories)).
+instead (see [Build output directories](#build-output-directories)). `bin/mtlist-qa-mcp` runs the `target-bsp/`
+ones.
 
 It is recommended to compile, build, or test the whole project before committing changes.
 
 ## Dependencies
 
-The versions of the libraries are in `project/Dependencies.scala`. One of them needs care:
+The versions of the libraries are in `project/Dependencies.scala`. Two of them need care:
 
+- **OpenJFX** publishes its native code in a JAR per platform, selected by a classifier. The build picks the classifier
+  of the machine it runs on (`javafxClassifier`), so a JAR that bundles JavaFX runs only on that platform. Its version
+  is pinned, since the QA driver relies on JavaFX's experimental headless platform.
 - **Jackson**: `dependencyOverrides` pin every Jackson artifact to the version that the MCP Java SDK needs, since
   Jackson doesn't support mixing minor versions and play-json brings an older one. Upgrade them together; see
   [`mcp.md`](../research/mcp.md#dependencies).

@@ -63,6 +63,7 @@ class WrapperScriptTest(unittest.TestCase):
             path.chmod(0o755)
 
         self.env = {**os.environ, "PATH": f"{fake_bin}:/usr/bin:/bin:/usr/sbin:/sbin", "FAKE_STATE": str(self.state)}
+        self.env.pop("MTLIST_QA_APP_JAR", None)
         # The scripts run from a subdirectory, to check that they don't depend on the working directory.
         self.cwd = self.repo / "project"
 
@@ -103,6 +104,93 @@ class WrapperScriptTest(unittest.TestCase):
         self.assertEqual(args[0], "-jar")
         self.assert_same_path(args[1], self.repo / "app" / "cli" / "target" / "scala-3.1.4" / "microtonalist-cli.jar")
         self.assertEqual(args[2:], ["midi", "devices"])
+
+    def qa_jar(self, module_dir: str, name: str) -> Path:
+        """Returns the path of a JAR built by `sbtn assembly` in the given module directory."""
+        return self.repo / module_dir / "target-bsp" / "scala-3.1.4" / f"{name}.jar"
+
+    def create_jars(self, *jars: Path) -> None:
+        for jar in jars:
+            jar.parent.mkdir(parents=True, exist_ok=True)
+            jar.touch()
+
+    def test_mtlist_qa_mcp_runs_the_server_with_the_jars_built_by_sbtn_assembly(self):
+        # Given
+        server = self.qa_jar("testbench/qa-mcp", "microtonalist-qa-mcp")
+        app = self.qa_jar("app/app", "microtonalist-app")
+        driver = self.qa_jar("testbench/qa-driver", "microtonalist-qa-driver")
+        self.create_jars(server, app, driver)
+
+        # When
+        result = self.run_script("mtlist-qa-mcp")
+
+        # Then
+        self.assertEqual(result.returncode, 0, result.stderr)
+        _, args = self.recorded_call("java")
+        self.assertEqual(len(args), 6, args)
+        self.assertEqual(args[0], "-jar")
+        self.assert_same_path(args[1], server)
+        self.assertEqual(args[2], "--app-jar")
+        self.assert_same_path(args[3], app)
+        self.assertEqual(args[4], "--driver-jar")
+        self.assert_same_path(args[5], driver)
+
+    def test_mtlist_qa_mcp_takes_the_app_jar_from_mtlist_qa_app_jar(self):
+        # Given
+        server = self.qa_jar("testbench/qa-mcp", "microtonalist-qa-mcp")
+        driver = self.qa_jar("testbench/qa-driver", "microtonalist-qa-driver")
+        other_app = self.tmp / "other-build" / "microtonalist-app.jar"
+        self.create_jars(server, driver, other_app)
+        self.env["MTLIST_QA_APP_JAR"] = str(other_app)
+
+        # When
+        result = self.run_script("mtlist-qa-mcp")
+
+        # Then
+        self.assertEqual(result.returncode, 0, result.stderr)
+        _, args = self.recorded_call("java")
+        self.assertEqual(len(args), 6, args)
+        self.assert_same_path(args[1], server)
+        self.assertEqual(args[2], "--app-jar")
+        self.assert_same_path(args[3], other_app)
+        self.assertEqual(args[4], "--driver-jar")
+        self.assert_same_path(args[5], driver)
+
+    def test_mtlist_qa_mcp_names_a_missing_jar(self):
+        server = self.qa_jar("testbench/qa-mcp", "microtonalist-qa-mcp")
+        app = self.qa_jar("app/app", "microtonalist-app")
+        driver = self.qa_jar("testbench/qa-driver", "microtonalist-qa-driver")
+        for missing in [server, app, driver]:
+            with self.subTest(missing.name):
+                # Given
+                self.create_jars(server, app, driver)
+                missing.unlink()
+
+                # When
+                result = self.run_script("mtlist-qa-mcp")
+
+                # Then
+                self.assertEqual(result.returncode, 1)
+                self.assertIn("mtlist-qa-mcp: ", result.stderr)
+                self.assertIn(missing.name, result.stderr)
+                self.assertIn("not found; run sbtn assembly", result.stderr)
+                self.assertFalse((self.state / "java.args").exists())
+
+    def test_mtlist_qa_mcp_names_a_missing_jar_from_mtlist_qa_app_jar(self):
+        # Given
+        self.create_jars(self.qa_jar("testbench/qa-mcp", "microtonalist-qa-mcp"),
+                         self.qa_jar("app/app", "microtonalist-app"),
+                         self.qa_jar("testbench/qa-driver", "microtonalist-qa-driver"))
+        missing_app = self.tmp / "other-build" / "microtonalist-app.jar"
+        self.env["MTLIST_QA_APP_JAR"] = str(missing_app)
+
+        # When
+        result = self.run_script("mtlist-qa-mcp")
+
+        # Then
+        self.assertEqual(result.returncode, 1)
+        self.assertIn(f"mtlist-qa-mcp: {missing_app} not found; run sbtn assembly", result.stderr)
+        self.assertFalse((self.state / "java.args").exists())
 
     # --- coverage ---
 
