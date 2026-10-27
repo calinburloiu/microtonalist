@@ -22,8 +22,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import java.io.IOException
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
-import java.time.Instant
-import java.time.temporal.ChronoUnit
+import java.time.{Duration, Instant}
 import java.util.concurrent.TimeUnit
 import scala.concurrent.duration.*
 
@@ -31,6 +30,12 @@ class JdkProcessLauncherTest extends AnyWordSpec with Matchers {
 
   /** How long a test waits for a process that should exit at once. */
   private val ExitTimeoutSeconds: Long = 10
+
+  /**
+   * How far a process's start instant may stray from the wall clock at its launch: Linux derives it from `/proc/stat`'s
+   * whole-second boot time plus the clock ticks since boot, so it can read about a second early.
+   */
+  private val StartInstantSkew: Duration = Duration.ofSeconds(2)
 
   private trait Fixture {
     val launcher: JdkProcessLauncher = JdkProcessLauncher()
@@ -79,16 +84,18 @@ class JdkProcessLauncherTest extends AnyWordSpec with Matchers {
 
     "tell the process's PID and start instant" in new Fixture {
       // Given
-      val before: Instant = Instant.now().truncatedTo(ChronoUnit.SECONDS)
+      val before: Instant = Instant.now()
 
       // When
       val process: LaunchedProcess = launcher.start(ProcessSpec(Seq("sleep", "60")))
+      val after: Instant = Instant.now()
 
       // Then
       try {
         process.isAlive shouldBe true
         process.pid should be > 0L
-        process.startInstant should be >= before
+        process.startInstant should be >= before.minus(StartInstantSkew)
+        process.startInstant should be <= after.plus(StartInstantSkew)
       } finally {
         process.kill()
       }
