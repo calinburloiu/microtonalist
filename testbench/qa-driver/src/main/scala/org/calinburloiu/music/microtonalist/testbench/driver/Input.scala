@@ -16,9 +16,9 @@
 
 package org.calinburloiu.music.microtonalist.testbench.driver
 
-import javafx.event.{Event, EventTarget}
+import javafx.event.{Event, EventHandler, EventTarget}
 import javafx.geometry.Point2D
-import javafx.scene.input.{KeyCode, KeyEvent, MouseButton}
+import javafx.scene.input.{KeyCode, KeyEvent, MouseButton, MouseEvent}
 import javafx.scene.robot.Robot
 import javafx.scene.{Node, Parent, Scene}
 import javafx.stage.{Stage, Window}
@@ -82,7 +82,8 @@ object Input {
  *
  * Since the `Robot` drops the input while no window has the focus, [[key]] and [[typeText]] throw a [[DriverException]]
  * then; [[typeText]] types to the focus owner of the [[Input.lastFocusedStage]], or to its scene if nothing in it has
- * the focus. After a click, no node stays pressed, as with a user's mouse.
+ * the focus. As with a user's mouse, a click's release reaches the window it pressed, even when the press opened a
+ * popup under the pointer, and after the click no node stays pressed.
  *
  * @param fx queues the input on the JavaFX Application Thread
  */
@@ -91,12 +92,28 @@ final class RobotInput(fx: FxExecutor) extends Input {
   private lazy val robot: Robot = Robot()
 
   override def click(node: Node, button: MouseButton, clickCount: Int): Unit = {
-    val bounds = node.localToScreen(node.getLayoutBounds)
-    val centre = Point2D(bounds.getCenterX, bounds.getCenterY)
+    val scene = node.getScene
+    val inScene = node.localToScene(node.getLayoutBounds)
+    val onScreen = node.localToScreen(node.getLayoutBounds)
+    val point = EventInput.Point(inScene.getCenterX, inScene.getCenterY, onScreen.getCenterX, onScreen.getCenterY)
     fx.post {
-      robot.mouseMove(centre)
-      for (_ <- 1 to clickCount) {
-        robot.mouseClick(button)
+      robot.mouseMove(Point2D(point.screenX, point.screenY))
+      for (count <- 1 to clickCount) {
+        var isReleased = false
+        val onRelease: EventHandler[MouseEvent] = _ => isReleased = true
+        scene.addEventFilter(MouseEvent.MOUSE_RELEASED, onRelease)
+        try {
+          robot.mouseClick(button)
+        } finally {
+          scene.removeEventFilter(MouseEvent.MOUSE_RELEASED, onRelease)
+        }
+        // The headless `Robot` sends the release to the window under the pointer, so a popup that the press opened
+        // there, such as a context menu, takes it. A user's mouse releases in the window it pressed.
+        if (!isReleased) {
+          val target: EventTarget = Picker.pick(scene, point.sceneX, point.sceneY).getOrElse(scene)
+          Event.fireEvent(target, EventInput.mouseEvent(target, MouseEvent.MOUSE_RELEASED, point, button, count))
+          Event.fireEvent(target, EventInput.mouseEvent(target, MouseEvent.MOUSE_CLICKED, point, button, count))
+        }
       }
     }
     // A step of its own, so that a click whose handler blocks in `showAndWait` doesn't hold it back.

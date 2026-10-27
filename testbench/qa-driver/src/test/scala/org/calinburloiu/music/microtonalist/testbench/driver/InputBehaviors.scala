@@ -127,6 +127,17 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
       f.windows.map { window => (window \ "type").as[String] } should contain("ContextMenu")
     }
 
+    "select an unselected row with a secondary click" in withInput { f =>
+      // Given
+      f.selectedIndex shouldBe 0
+
+      // When
+      f.handle(Click("C Septimal", None, Secondary, 1))
+
+      // Then
+      f.selectedIndex shouldBe 2
+    }
+
     "double-click a row" in withInput { f =>
       // When
       f.handle(Click("C Septimal", None, Primary, 2))
