@@ -1,0 +1,12 @@
+{
+  "tracks": [
+    {
+      "id": "qa",
+      "name": "QA",
+      "input": { "midiDeviceId": { "name": "qa:keys" } },
+      "tuningChangers": ["pedal"],
+      "tuner": "mtsOctave1ByteNonRealTime",
+      "output": { "midiDeviceId": { "name": "qa:synth" } }
+    }
+  ]
+}
