@@ -59,6 +59,7 @@ final class QaRun private (val id: String, val dir: Path) {
   def file(name: String): Path = dir.resolve(name)
 }
 
+/** Creates the run directories. */
 object QaRun {
   /** The default directory of the runs, `<java.io.tmpdir>/microtonalist-qa`. */
   val DefaultBaseDir: Path = Path.of(System.getProperty("java.io.tmpdir"), "microtonalist-qa")

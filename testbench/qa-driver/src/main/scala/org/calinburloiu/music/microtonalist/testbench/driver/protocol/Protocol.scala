@@ -23,7 +23,10 @@ import scala.util.Try
 
 /** A mouse button that a click presses. */
 enum MouseButtonName {
+  /** The primary button, which selects and activates. */
   case Primary
+
+  /** The secondary button, which opens a context menu. */
   case Secondary
 }
 

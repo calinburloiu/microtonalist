@@ -43,6 +43,7 @@ trait Input {
   def typeText(text: String): Unit
 }
 
+/** What the inputs share: finding the window and the node that has the focus, and typing text. */
 object Input {
   /**
    * The window that has the focus, the one shown last if several have it; must run on the JavaFX Application Thread.

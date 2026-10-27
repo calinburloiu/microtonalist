@@ -207,11 +207,11 @@ on; a tuning change retunes the note sounding. Decode with the default range.
 
 ## The MIDI tools
 
-SendMIDI 1.3.1 and ReceiveMIDI 1.4.4, from Homebrew, are known to work: spikes sent and received notes, CCs, MTS
-messages and long system exclusive messages through them. The setup installs the `.pkg` of SendMIDI 1.4.4 and
-ReceiveMIDI 1.6.2; `send_midi`'s checks follow SendMIDI 1.4.4's help. The versions tested have these quirks:
+The server runs the `sendmidi` and `receivemidi` that the setup installs from their releases' `.pkg`, at the versions
+that [`docs/development/gui-qa.md`](../../../docs/development/gui-qa.md#one-time-setup) gives as known to work;
+`send_midi`'s checks follow that SendMIDI's help. They have these quirks:
 
 - A note on with velocity 0 shows as a `note-off`.
 - ReceiveMIDI's `hex` mode drops a system exclusive message's newline; the server uses the default mode, as above.
-- SendMIDI's `dec` after `hex raw` on one line made `raw` read its bytes as decimal; the server refuses both, so use
+- SendMIDI's `dec` after `hex raw` on one line makes `raw` read its bytes as decimal; the server refuses both, so use
   the `H` suffix.

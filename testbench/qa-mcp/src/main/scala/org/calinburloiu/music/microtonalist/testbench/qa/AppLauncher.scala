@@ -165,6 +165,7 @@ final class AppLauncher(run: QaRun, launcher: ProcessLauncher, jars: QaJars, jav
   }
 }
 
+/** The `java` program that runs the app. */
 object AppLauncher {
   /** The `java` program of the JVM that runs the QA server. */
   val CurrentJava: Path = Path.of(System.getProperty("java.home"), "bin", "java")

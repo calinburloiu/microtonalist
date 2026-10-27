@@ -10,6 +10,7 @@ that they don't clash with other commands on your `PATH`:
 | [`mtlist-dev-stack`](#mtlist-dev-stack) | Manages the development stack: the sbt server and Metals MCP. |
 | [`mtlist-coverage-modules`, `mtlist-coverage-all`, `mtlist-coverage-check`](#mtlist-coverage-) | Measure the code coverage. |
 | [`mtlist-agents-test-filter`](#mtlist-agents-test-filter) | Shrinks the output of an sbt test run. |
+| [`mtlist-qa-mcp`](#mtlist-qa-mcp) | Runs the QA MCP server of the `gui-qa` agent. |
 | `mtlist-scoverage-inspector` | Runs the `scoverage-inspector` command-line tool; see [`docs/development/claude-code-setup.md`](../docs/development/claude-code-setup.md#scoverage-inspector-mcp). |
 
 With [direnv](https://direnv.net/) set up (see
@@ -282,6 +283,14 @@ committed `PreToolUse` hook applies it to test commands automatically. See the
 "Hooks" section of
 [`docs/development/claude-code-setup.md`](../docs/development/claude-code-setup.md)
 for that wiring and the full keep/drop rules.
+
+## `mtlist-qa-mcp`
+
+Runs the QA MCP server, which the `gui-qa` agent of Claude Code starts over stdio (see
+[`docs/development/claude-code-setup.md`](../docs/development/claude-code-setup.md#gui-qa-skill-and-agent)). It runs
+the JARs that `sbtn assembly` builds under `target-bsp/`: the server's, the QA driver's and the app's, and exits with
+`… not found; run sbtn assembly` when one is missing. `MTLIST_QA_APP_JAR` names another app JAR to test; use it only to
+test the QA tooling itself on a stand-in.
 
 ## Tests
 

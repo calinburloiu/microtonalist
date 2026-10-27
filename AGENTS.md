@@ -19,6 +19,7 @@ Scala 3 and is built by using sbt 1.
   [Architecture](#architecture) section plus the architecture documents strictly relevant to the prompt — typically the
   `$GROUP/$MODULE/docs/ARCHITECTURE.md` of each module you will touch and its immediate collaborators. That section
   explains how the architecture documents are organized.
+- For a change that affects the GUI, write a test plan; see the `gui-qa` skill.
 - Use strict Test Driven Development (_TDD_) by following the _red/green/refactor_ cycle:
     - **Red**. Write failing tests first. If the compiler requires it, create the thinnest possible stub (`???` bodies,
       no logic) to get them to compile. A stub may leave constructor parameters unused; that warning is allowed until
@@ -33,6 +34,7 @@ Scala 3 and is built by using sbt 1.
     - **Coverage**. Make sure modified files and modules meet the coverage conventions and iterate
       until the target coverage is met. See [Coverage](#coverage) section for details.
     - **Full tests suite**. Make sure the full test suite for the whole project passes.
+    - **Manual E2E**, for GUI changes only: dispatch the `gui-qa` agent with the test plan.
     - **Documentation**. Update documentation (ScalaDocs in code for all public identifiers, architecture docs, READMEs,
       guides etc.) and agent artifacts, following the documentation conventions. When the change affects an
       architecture document, under `docs/architecture/` or `$GROUP/$MODULE/docs/`, invoke the `architecture-docs`

@@ -25,6 +25,7 @@ enum GuiPlatform {
   case Desktop
 }
 
+/** Finds the platform that a JVM runs on. */
 object GuiPlatform {
 
   /**
