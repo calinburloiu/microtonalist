@@ -80,6 +80,9 @@ Optional arguments are in brackets, with their defaults.
 - The input tools, `click`, `press_key` and `type_text`, answer once the app has handled the input, so the next `dump`
   sees its effect. MIDI input is handled on other threads: call `wait_idle` after `send_midi`, and check again before
   you call a missing change a failure.
+- The app notices an `unplug` or a `replug` only when macOS tells it, about half a second later, which `wait_idle`
+  doesn't wait for: read `midi-out-<device>.txt` again a second later before you call a missing reset a failure, and
+  don't stop the app before then.
 - Trust `dump` for the state, and a snapshot for what a user sees: truncation, order, alignment, a control that draws
   itself, such as a canvas.
 - `os_screenshot` works only on the desktop platform, with the Screen Recording permission of the app that runs Claude
