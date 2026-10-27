@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.testbench.driver
 
 import javafx.application.Platform
-import javafx.scene.control.{TextField, TextInputDialog}
+import javafx.scene.control.{TextField, TextInputDialog, Tooltip}
 import org.calinburloiu.music.microtonalist.testbench.driver.HeadlessFx.fx
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest.{Click, Key, Type, Windows}
@@ -69,6 +69,20 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
       }
       executor.idle()
       dialog
+    }
+
+    /**
+     * Shows a tooltip over the stage, then waits until the Application Thread has handled it. JavaFX marks a popup
+     * focused along with its owner.
+     */
+    def showTooltip(): Tooltip = {
+      val tooltip = fx {
+        val tooltip = Tooltip("Hint")
+        tooltip.show(scene.stage, scene.stage.getX + 10, scene.stage.getY + 10)
+        tooltip
+      }
+      executor.idle()
+      tooltip
     }
   }
 
@@ -180,6 +194,20 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
       // Given
       f.focusStage()
       fx(f.nameField.requestFocus())
+
+      // When
+      f.handle(Type("Doina"))
+
+      // Then
+      fx(f.nameField.getText) shouldBe "Doina"
+    }
+
+    "type into the focused text field while a tooltip shows" in withInput { f =>
+      // Given
+      f.focusStage()
+      fx(f.nameField.requestFocus())
+      val tooltip = f.showTooltip()
+      fx(tooltip.isShowing) shouldBe true
 
       // When
       f.handle(Type("Doina"))

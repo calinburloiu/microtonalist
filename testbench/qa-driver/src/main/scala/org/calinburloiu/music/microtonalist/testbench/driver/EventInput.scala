@@ -97,12 +97,12 @@ private object EventInput {
       point.screenY, false, PickResult(target, point.sceneX, point.sceneY))
 
   /**
-   * The focus owner of the [[Input.lastFocusedWindow]], else of the last stage shown, such as a modal dialog on top, or
+   * The focus owner of the [[Input.lastFocusedStage]], else of the last stage shown, such as a modal dialog on top, or
    * that window's scene if none.
    */
   def keyTarget(): EventTarget = {
     val windows = Window.getWindows.asScala
-    val window = Input.lastFocusedWindow().orElse(windows.findLast(_.isInstanceOf[Stage])).getOrElse {
+    val window = Input.lastFocusedStage().orElse(windows.findLast(_.isInstanceOf[Stage])).getOrElse {
       throw DriverException("no stage shows")
     }
     Input.focusOwnerOrScene(window.getScene)

@@ -21,7 +21,7 @@ import javafx.geometry.Point2D
 import javafx.scene.input.{KeyCode, KeyEvent, MouseButton}
 import javafx.scene.robot.Robot
 import javafx.scene.{Node, Scene}
-import javafx.stage.Window
+import javafx.stage.{Stage, Window}
 
 import scala.jdk.CollectionConverters.*
 
@@ -46,19 +46,21 @@ trait Input {
 /** What the inputs share: finding the window and the node that has the focus, and typing text. */
 object Input {
   /**
-   * The window that has the focus, the one shown last if several have it; must run on the JavaFX Application Thread.
+   * The stage that has the focus, the one shown last if several have it; must run on the JavaFX Application Thread.
    *
-   * The headless platform leaves a window focused when a dialog shows over it, and its `Robot` sends keys to the one
-   * shown last.
+   * The headless platform leaves a stage focused when a dialog shows over it, and its `Robot` sends keys to the one
+   * shown last. A popup, focused along with its owner, is left out: its owner's scene passes it the keys.
    */
-  def lastFocusedWindow(): Option[Window] = Window.getWindows.asScala.findLast(_.isFocused)
+  def lastFocusedStage(): Option[Stage] = Window.getWindows.asScala.reverseIterator.collectFirst {
+    case stage: Stage if stage.isFocused => stage
+  }
 
   /**
-   * The [[lastFocusedWindow]]; must run on the JavaFX Application Thread.
+   * The [[lastFocusedStage]]; must run on the JavaFX Application Thread.
    *
    * @throws DriverException if no window has the focus
    */
-  def focusedWindow(): Window = lastFocusedWindow().getOrElse {
+  def focusedWindow(): Window = lastFocusedStage().getOrElse {
     throw DriverException("no window has the focus")
   }
 
@@ -78,7 +80,7 @@ object Input {
  * The input of the headless platform: JavaFX's `Robot`, which injects through Glass's input path, like a user would.
  *
  * Since the `Robot` drops the input while no window has the focus, [[key]] and [[typeText]] throw a [[DriverException]]
- * then; [[typeText]] types to the focus owner of the [[Input.lastFocusedWindow]], or to its scene if nothing in it has
+ * then; [[typeText]] types to the focus owner of the [[Input.lastFocusedStage]], or to its scene if nothing in it has
  * the focus.
  *
  * @param fx queues the input on the JavaFX Application Thread
