@@ -44,7 +44,7 @@ object QaMcpMain {
 
     val version = Option(getClass.getPackage.getImplementationVersion).getOrElse("dev")
     QaMcpServer.start(session, System.in, stdout, version).join()
-    session.shutdown()
+    session.finish()
     sys.exit(0)
   }
 

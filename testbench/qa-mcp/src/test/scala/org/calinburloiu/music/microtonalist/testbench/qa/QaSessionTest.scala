@@ -27,11 +27,15 @@ import java.nio.file.{Files, Path}
 import java.util.Base64
 import java.util.concurrent.{CompletableFuture, TimeUnit}
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.*
 import scala.util.Random
 
 class QaSessionTest extends AnyWordSpec with Matchers {
 
   private val AwaitSeconds: Long = 5
+
+  /** How long the session waits for the app to exit on `SIGTERM`, before killing it. */
+  private val ShortStopTimeout: FiniteDuration = 100.millis
 
   /** A composition with no `tracksUrl`, whose rig is the `.tracks` file next to it. */
   private val compositionJson: String = """{ "tunings": [] }"""
@@ -73,7 +77,7 @@ class QaSessionTest extends AnyWordSpec with Matchers {
     val launcher: FakeProcessLauncher = FakeProcessLauncher()
     val jars: QaJars = QaJars(Path.of("/jars/app.jar"), Path.of("/jars/driver.jar"))
     val java: Path = Path.of("/jdk/bin/java")
-    val session: QaSession = QaSession(run, launcher, jars, java)
+    val session: QaSession = QaSession(run, launcher, jars, java, ShortStopTimeout)
     val composition: Path = run.dir.resolve("qa.mtlist")
     val rigFile: Path = run.dir.resolve("qa.mtlist.tracks")
 
@@ -406,6 +410,25 @@ class QaSessionTest extends AnyWordSpec with Matchers {
       launcher.processes.map(_.terminateCount) shouldBe Seq(1, 1, 1)
       launcher.processes.map(_.killCount) shouldBe Seq(0, 0, 0)
       launcher.processes.map(_.isAlive) shouldBe Seq(true, true, true)
+    }
+
+    "stop every process, killing an app that ignores SIGTERM, when the agent finishes" in new Fixture {
+      // Given
+      launcher.newProcess = (spec, pid) => {
+        if (isApp(spec)) {
+          drivers += FakeDriver(run.socket, pid)
+        }
+        FakeProcess(spec, pid, ignoresTerminate = isApp(spec))
+      }
+      startApp()
+
+      // When
+      session.finish()
+
+      // Then
+      launcher.processes.map(_.isAlive) shouldBe Seq(false, false, false)
+      processOf(java.toString).killCount shouldBe 1
+      (the[QaException] thrownBy startApp()).getMessage shouldBe "the QA server is shutting down"
     }
 
     "terminate an app that is still starting on shutdown" in new Fixture {

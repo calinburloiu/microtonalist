@@ -32,8 +32,10 @@ import scala.util.control.NonFatal
  * only through the handles of the processes it started. Thread-safe.
  *
  * @param java the `java` program that runs the app, e.g. [[AppLauncher.CurrentJava]]
+ * @param appStopTimeout how long [[stopApp]] and [[finish]] wait for the app to exit on `SIGTERM`, before killing it
  */
-final class QaSession(val run: QaRun, launcher: ProcessLauncher, jars: QaJars, java: Path) extends QaService {
+final class QaSession(val run: QaRun, launcher: ProcessLauncher, jars: QaJars, java: Path,
+                      appStopTimeout: FiniteDuration = QaSession.AppStopTimeout) extends QaService {
 
   import QaSession.*
 
@@ -155,7 +157,7 @@ final class QaSession(val run: QaRun, launcher: ProcessLauncher, jars: QaJars, j
       stopped
     }
 
-    val result = stoppedApp.fold(AppLauncher.stopProcess(process, AppStopTimeout))(_.stop(AppStopTimeout))
+    val result = stoppedApp.fold(AppLauncher.stopProcess(process, appStopTimeout))(_.stop(appStopTimeout))
     // `stopAll` doesn't wait for the tools, so they stay recorded.
     val tools = ports.processes
     ports.stopAll()
@@ -214,15 +216,30 @@ final class QaSession(val run: QaRun, launcher: ProcessLauncher, jars: QaJars, j
   }
 
   override def shutdown(): Unit = {
-    val (stoppedApp, process) = synchronized {
-      isShutDown = true
-      val stopped = (app, appProcess)
-      app = None
-      appProcess = None
-      stopped
-    }
-
+    val (stoppedApp, process) = takeForShutdown()
     stoppedApp.fold(process.foreach(_.terminate()))(_.terminate())
+    ports.stopAll()
+  }
+
+  /** Refuses to start again, and takes the app and its process, if any, for a shutdown to stop. */
+  private def takeForShutdown(): (Option[RunningApp], Option[LaunchedProcess]) = synchronized {
+    isShutDown = true
+    val stopped = (app, appProcess)
+    app = None
+    appProcess = None
+    stopped
+  }
+
+  /**
+   * Stops what the session started when the agent finishes, and refuses to start again: unlike [[shutdown]], it stops
+   * the app as [[stopApp]] does, killing it if it hasn't exited within the stop timeout.
+   */
+  def finish(): Unit = {
+    takeForShutdown() match {
+      case (Some(stoppedApp), _) => stoppedApp.stop(appStopTimeout)
+      case (None, Some(process)) => AppLauncher.stopProcess(process, appStopTimeout)
+      case (None, None) => ()
+    }
     ports.stopAll()
   }
 
@@ -258,6 +275,6 @@ private object QaSession {
   private val SnapshotsDirName: String = "snapshots"
   /** The names that a composition's path can have, which its URI spells the same. */
   private val SafeName: String = "[A-Za-z0-9._-]+"
-  /** How long [[QaSession.stopApp]] waits for the app to exit on `SIGTERM`, before killing it. */
+  /** How long [[QaSession.stopApp]] waits by default for the app to exit on `SIGTERM`, before killing it. */
   private val AppStopTimeout: FiniteDuration = 10.seconds
 }

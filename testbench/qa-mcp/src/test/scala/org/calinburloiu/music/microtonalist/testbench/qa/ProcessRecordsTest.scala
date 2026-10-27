@@ -19,14 +19,36 @@ package org.calinburloiu.music.microtonalist.testbench.qa
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.io.{BufferedReader, InputStreamReader}
+import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
-import java.time.Instant
-import java.util.concurrent.TimeUnit
+import java.time.{Duration, Instant}
+import java.util.Optional
+import java.util.concurrent.{CompletableFuture, TimeUnit}
 import scala.collection.mutable.ArrayBuffer
+import scala.concurrent.duration.*
 
 class ProcessRecordsTest extends AnyWordSpec with Matchers {
 
   private val AwaitSeconds: Long = 5
+
+  /** How long a sweep waits for a process to exit on `SIGTERM`, before killing it. */
+  private val ShortStopTimeout: FiniteDuration = 100.millis
+
+  /** The information of a process whose start instant is unknown. */
+  private val infoWithoutStartInstant: ProcessHandle.Info = new ProcessHandle.Info {
+    override def command(): Optional[String] = Optional.empty()
+
+    override def commandLine(): Optional[String] = Optional.empty()
+
+    override def arguments(): Optional[Array[String]] = Optional.empty()
+
+    override def startInstant(): Optional[Instant] = Optional.empty()
+
+    override def totalCpuDuration(): Optional[Duration] = Optional.empty()
+
+    override def user(): Optional[String] = Optional.empty()
+  }
 
   private abstract class Fixture {
     val baseDir: Path = Files.createTempDirectory("qa")
@@ -39,6 +61,17 @@ class ProcessRecordsTest extends AnyWordSpec with Matchers {
     def startSleep(): LaunchedProcess = {
       val process = launcher.start(ProcessSpec(Seq("sleep", "60")))
       started += process
+      process
+    }
+
+    /** Starts a real process that ignores `SIGTERM` and runs for a minute, once it ignores it; [[killAll]] kills it. */
+    def startIgnoringTerminate(): LaunchedProcess = {
+      // An ignored signal stays ignored across `exec`.
+      val jdkProcess = ProcessBuilder("sh", "-c", "trap '' TERM; echo ready; exec sleep 60").start()
+      val process = JdkLaunchedProcess(jdkProcess, pipeInput = false)
+      started += process
+      val reader = BufferedReader(InputStreamReader(jdkProcess.getInputStream, UTF_8))
+      CompletableFuture.supplyAsync(() => reader.readLine()).get(AwaitSeconds, TimeUnit.SECONDS) shouldBe "ready"
       process
     }
 
@@ -72,6 +105,23 @@ class ProcessRecordsTest extends AnyWordSpec with Matchers {
 
         // When
         val swept: Seq[Long] = ProcessRecords.sweep(baseDir)
+
+        // Then
+        swept shouldBe Seq(orphan.pid)
+        orphan.onExit.get(AwaitSeconds, TimeUnit.SECONDS)
+        orphan.isAlive shouldBe false
+      }
+    }
+
+    "kill a process of a run whose server is gone that ignores SIGTERM" in new Fixture {
+      cleaningUp {
+        // Given
+        writeDeadServer()
+        val orphan: LaunchedProcess = startIgnoringTerminate()
+        ProcessRecords.writeProcesses(run, Seq(orphan))
+
+        // When
+        val swept: Seq[Long] = ProcessRecords.sweep(baseDir, ShortStopTimeout)
 
         // Then
         swept shouldBe Seq(orphan.pid)
@@ -160,7 +210,29 @@ class ProcessRecordsTest extends AnyWordSpec with Matchers {
     }
   }
 
+  "ProcessRecords.writeServer" when {
+    "the server's start instant is unknown" should {
+      "refuse to record it, rather than let a later server take it for gone" in new Fixture {
+        // When / Then
+        an[IllegalStateException] should be thrownBy ProcessRecords.writeServer(run, 1234, infoWithoutStartInstant)
+        Files.exists(run.file("server.json")) shouldBe false
+      }
+    }
+  }
+
   "ProcessRecords.writeProcesses" should {
+    "not depend on a fixed temporary file, which another writer may hold" in new Fixture {
+      // Given
+      Files.createDirectory(run.file("processes.json.tmp"))
+      val instant: Instant = Instant.parse("2026-10-27T12:00:00Z")
+
+      // When
+      ProcessRecords.writeProcesses(run, Seq(FakeProcess(ProcessSpec(Seq("a")), 1001, instant)))
+
+      // Then
+      Files.readString(run.file("processes.json")) shouldBe """[{"pid":1001,"startInstant":"2026-10-27T12:00:00Z"}]"""
+    }
+
     "replace the run's process records" in new Fixture {
       // Given
       val instant: Instant = Instant.parse("2026-10-27T12:00:00Z")

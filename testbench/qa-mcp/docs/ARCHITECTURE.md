@@ -10,16 +10,17 @@ unplug or replug its devices. The agent reads the app's log and the MIDI that th
 directory, with its own tools.
 
 It is a boundary: the app can reach only the run's virtual ports, the tools only the app that the server started, and
-the server stops only the processes it started, through their handles, never by name. The JARs are fixed when the
-server starts: no tool chooses a JAR, a JVM option or a command line. Its tools are built with
-[`mcp`](../../../ai/mcp/docs/ARCHITECTURE.md)'s helpers.
+the server stops only the processes it started, through their handles, or, for a killed server's, by their recorded
+PIDs checked by start instant, never by name. The JARs are fixed when the server starts: no tool chooses a JAR, a JVM
+option or a command line. Its tools are built with [`mcp`](../../../ai/mcp/docs/ARCHITECTURE.md)'s helpers.
 
 ## Key types
 
 The server:
 
 - **`QaMcpMain`** — the entry point: creates the run, stops the processes of servers that were killed, and runs the
-  server until its standard input ends, then stops what it started, as a shutdown hook does too.
+  server until its standard input ends, then stops what it started, killing an app that ignores `SIGTERM`; a shutdown
+  hook only sends `SIGTERM`.
 - **`QaMcpServer`**, **`QaTools`** — the SDK's server and its tools; each tool calls the `QaService` and logs the call
   in the run's `tools.log`.
 - **`StdoutGuard`** — keeps stray output off the standard output, which carries the protocol; the server logs to
@@ -42,8 +43,8 @@ The processes:
 - **`MidiPorts`** — a `sendmidi virt` per input device, which gets the lines that `SendMidiLines` allows, and a
   `receivemidi virt` per output device, which records in `midi-out-<device>.txt`.
 - **`ProcessLauncher`** — starts the external processes; the tests fake it. **`ProcessRecords`** records each one's PID
-  and start instant, so that a later server stops the processes of a killed one, and never a process that reuses the
-  PID.
+  and start instant, so that a later server stops the processes of a killed one, killing those that ignore `SIGTERM`,
+  and never a process that reuses the PID.
 - **`OsScreenshots`** — on the desktop platform, a PNG of each window of the app, from macOS's `screencapture`.
 
 ## Flows
