@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.testbench.driver
 
 import javafx.application.Platform
-import javafx.scene.control.TextField
+import javafx.scene.control.{TextField, TextInputDialog}
 import org.calinburloiu.music.microtonalist.testbench.driver.HeadlessFx.fx
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest.{Click, Key, Type, Windows}
@@ -53,6 +53,22 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
     def focusStage(): Unit = {
       fx(scene.stage.requestFocus())
       executor.idle()
+    }
+
+    /**
+     * Shows a dialog titled "Rename", with an empty text field, over the stage, then waits until the Application Thread
+     * has handled it. The headless platform leaves the stage focused too.
+     */
+    def showRenameDialog(): TextInputDialog = {
+      val dialog = fx {
+        val dialog = TextInputDialog()
+        dialog.initOwner(scene.stage)
+        dialog.setTitle("Rename")
+        dialog.show()
+        dialog
+      }
+      executor.idle()
+      dialog
     }
   }
 
@@ -170,6 +186,31 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
 
       // Then
       fx(f.nameField.getText) shouldBe "Doina"
+    }
+
+    "type into the text field of a dialog over the stage" in withInput { f =>
+      // Given
+      f.focusStage()
+      val dialog = f.showRenameDialog()
+
+      // When
+      f.handle(Type("Doina"))
+
+      // Then
+      fx(dialog.getEditor.getText) shouldBe "Doina"
+    }
+
+    "press a key in a dialog over the stage" in withInput { f =>
+      // Given
+      f.focusStage()
+      val dialog = f.showRenameDialog()
+
+      // When
+      f.handle(Key("ESCAPE"))
+
+      // Then
+      f.stageTitles should not contain "Rename"
+      fx(dialog.isShowing) shouldBe false
     }
   }
 }
