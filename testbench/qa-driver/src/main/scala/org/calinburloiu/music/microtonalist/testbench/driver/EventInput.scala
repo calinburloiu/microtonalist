@@ -17,8 +17,8 @@
 package org.calinburloiu.music.microtonalist.testbench.driver
 
 import javafx.event.{Event, EventTarget, EventType}
-import javafx.scene.{Node, Scene}
 import javafx.scene.input.*
+import javafx.scene.{Node, Scene}
 import javafx.stage.{Stage, Window}
 
 import scala.jdk.CollectionConverters.*
@@ -27,10 +27,11 @@ import scala.jdk.CollectionConverters.*
  * The input of the desktop platform, where JavaFX's `Robot` is OS-level: it fires JavaFX events, so that macOS sees
  * nothing and needs no grant.
  *
- * A click goes to the node that [[Picker]] picks under the node's centre, in the window shown last that holds that point
- * on screen, as an approximation of the window on top: a popup or a dialog that covers the node takes the click. Keys and text go to the focus owner of the
- * focused window, since the user may have switched to another app, else of the stage shown last, such as a modal dialog
- * on top; [[key]] and [[typeText]] throw a [[DriverException]] if no stage shows.
+ * A click goes to the node that [[Picker]] picks under the node's centre, in the window shown last that holds that
+ * point on screen, as an approximation of the window on top: a popup or a dialog that covers the node takes the click.
+ * Keys and text go to the focus owner of the focused window, since the user may have switched to another app, else of
+ * the stage shown last, such as a modal dialog on top; [[key]] and [[typeText]] throw a [[DriverException]] if no stage
+ * shows.
  *
  * @param fx queues the input on the JavaFX Application Thread
  */
@@ -95,8 +96,9 @@ private object EventInput {
     }
     onTop.map(_.getScene).filter(_ ne scene).fold((scene, point)) { coverScene =>
       val window = coverScene.getWindow
-      (coverScene, point.copy(sceneX = point.screenX - window.getX - coverScene.getX,
-        sceneY = point.screenY - window.getY - coverScene.getY))
+      (coverScene,
+        point.copy(sceneX = point.screenX - window.getX - coverScene.getX,
+          sceneY = point.screenY - window.getY - coverScene.getY))
     }
   }
 

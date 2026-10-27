@@ -25,8 +25,8 @@ import java.nio.file.{Files, Path}
 import java.time.Instant
 import java.util.concurrent.{TimeUnit, TimeoutException}
 import scala.concurrent.duration.*
-import scala.jdk.OptionConverters.*
 import scala.jdk.CollectionConverters.*
+import scala.jdk.OptionConverters.*
 import scala.util.Using
 
 /**
@@ -115,7 +115,9 @@ object ProcessRecords {
     }
   }
 
-  /** The handle of the recorded process if it still runs, with the same start instant, so that its PID wasn't reused. */
+  /**
+   * The handle of the recorded process if it still runs, with the same start instant, so that its PID wasn't reused.
+   */
   private def liveHandle(record: ProcessRecord): Option[ProcessHandle] = {
     ProcessHandle.of(record.pid).filter(_.isAlive)
       .filter(_.info().startInstant().filter(_ == record.startInstant).isPresent).toScala

@@ -50,8 +50,8 @@ object RigRewriter {
   private val AltTuningOutputKey: String = "altTuningOutput"
   /**
    * The keys of the rig's MIDI device IDs: a track's `input`/`output.midiDeviceId`, and its MTS tuner's
-   * `altTuningOutput`. A new field that the rig format serialises with `JsonCommonMidiFormat.midiDeviceIdFormat` must be
-   * added here too.
+   * `altTuningOutput`. A new field that the rig format serialises with `JsonCommonMidiFormat.midiDeviceIdFormat` must
+   * be added here too.
    */
   private val DeviceKeys: Set[String] = Set(MidiDeviceIdKey, AltTuningOutputKey)
   private val TunerKey: String = "tuner"
