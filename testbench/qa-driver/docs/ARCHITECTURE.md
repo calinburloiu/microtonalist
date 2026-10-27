@@ -37,9 +37,10 @@ Reading the GUI:
 Driving it:
 
 - **`Input`** — injects clicks, keys (`KeyChord`, e.g. `Shortcut+N`) and text. `RobotInput`, on the headless
-  platform, uses JavaFX's `Robot`, which injects through Glass's input path like a user. On the desktop platform the
-  `Robot` is OS-level, so `EventInput` fires JavaFX events instead, at the node that `Picker` picks under the point,
-  and macOS sees nothing and needs no grant.
+  platform, uses JavaFX's `Robot`, which injects through Glass's input path like a user. The headless `Robot`'s release
+  reports the button as still down, which leaves the clicked node pressed, so `RobotInput` clears the pressed state
+  after a click, through reflection. On the desktop platform the `Robot` is OS-level, so `EventInput` fires JavaFX
+  events instead, at the node that `Picker` picks under the point, and macOS sees nothing and needs no grant.
 
 ## Flows
 

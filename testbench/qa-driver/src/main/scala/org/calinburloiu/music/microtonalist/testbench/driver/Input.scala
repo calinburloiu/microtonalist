@@ -20,9 +20,10 @@ import javafx.event.{Event, EventTarget}
 import javafx.geometry.Point2D
 import javafx.scene.input.{KeyCode, KeyEvent, MouseButton}
 import javafx.scene.robot.Robot
-import javafx.scene.{Node, Scene}
+import javafx.scene.{Node, Parent, Scene}
 import javafx.stage.{Stage, Window}
 
+import java.lang.reflect.Method
 import scala.jdk.CollectionConverters.*
 
 /**
@@ -81,7 +82,7 @@ object Input {
  *
  * Since the `Robot` drops the input while no window has the focus, [[key]] and [[typeText]] throw a [[DriverException]]
  * then; [[typeText]] types to the focus owner of the [[Input.lastFocusedStage]], or to its scene if nothing in it has
- * the focus.
+ * the focus. After a click, no node stays pressed, as with a user's mouse.
  *
  * @param fx queues the input on the JavaFX Application Thread
  */
@@ -98,6 +99,8 @@ final class RobotInput(fx: FxExecutor) extends Input {
         robot.mouseClick(button)
       }
     }
+    // A step of its own, so that a click whose handler blocks in `showAndWait` doesn't hold it back.
+    fx.post(RobotInput.unpressAll())
   }
 
   override def key(chord: KeyChord): Unit = {
@@ -113,5 +116,32 @@ final class RobotInput(fx: FxExecutor) extends Input {
   override def typeText(text: String): Unit = {
     val target = Input.focusOwnerOrScene(Input.focusedWindow().getScene)
     fx.post(Input.fireKeyTyped(target, text))
+  }
+}
+
+private object RobotInput {
+  // The headless `Robot`'s release reports the released button as still down, so JavaFX leaves the clicked node and its
+  // ancestors pressed, and a pressed button ignores Space. `Node.setPressed` is protected, and reflection reaches it
+  // because the app's JAR puts JavaFX on the class path.
+  private lazy val setPressed: Method = {
+    val method = classOf[Node].getDeclaredMethod("setPressed", java.lang.Boolean.TYPE)
+    method.setAccessible(true)
+    method
+  }
+
+  /** Clears the pressed state of every node of every window; must run on the JavaFX Application Thread. */
+  def unpressAll(): Unit = {
+    Window.getWindows.asScala.flatMap { window => Option(window.getScene) }.foreach { scene => unpress(scene.getRoot) }
+  }
+
+  /** A node is pressed only along with its ancestors, so the walk stops at a node that isn't. */
+  private def unpress(node: Node): Unit = {
+    if (node.isPressed) {
+      setPressed.invoke(node, java.lang.Boolean.FALSE)
+      node match {
+        case parent: Parent => parent.getChildrenUnmodifiable.asScala.foreach(unpress)
+        case _ => ()
+      }
+    }
   }
 }

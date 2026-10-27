@@ -204,6 +204,18 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
       f.stageTitles should not contain "Rename"
     }
 
+    "fire the focused button with Space" in withInput { f =>
+      // Given
+      f.focusStage()
+      f.handle(Click("Next tuning", None, Primary, 1))
+
+      // When
+      f.handle(Key("SPACE"))
+
+      // Then
+      f.actions shouldBe Seq("next", "next")
+    }
+
     "type into the focused text field" in withInput { f =>
       // Given
       f.focusStage()
