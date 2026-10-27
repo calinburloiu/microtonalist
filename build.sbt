@@ -607,11 +607,15 @@ lazy val qaMcpModule = (project in file("testbench/qa-mcp"))
     mcpModule,
     qaDriverModule,
   )
-  .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-qa-mcp",
     commonSettings,
+    assemblySettings,
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.testbench.qa.QaMcpMain"),
     libraryDependencies ++= Seq(playJson),
+    // * QaMcpMain only wires the real streams, processes and exit; QaMcpServerIntegrationTest drives the server it
+    //   builds
+    coverageExcludedFiles := ".*/org/calinburloiu/music/microtonalist/testbench/qa/QaMcpMain",
     coverageSettings(stmt = 80, branch = 80),
   )
 
