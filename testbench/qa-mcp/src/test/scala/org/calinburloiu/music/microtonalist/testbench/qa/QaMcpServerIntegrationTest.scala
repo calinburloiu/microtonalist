@@ -21,7 +21,7 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.{JsArray, JsObject, JsValue, Json}
 
-import java.io.{ByteArrayOutputStream, OutputStream, PipedInputStream, PipedOutputStream}
+import java.io.{ByteArrayOutputStream, IOException, InputStream, OutputStream, PipedInputStream, PipedOutputStream}
 import java.nio.charset.StandardCharsets.UTF_8
 import java.nio.file.{Files, Path}
 import java.util.concurrent.{CompletableFuture, LinkedBlockingQueue, TimeUnit}
@@ -173,6 +173,20 @@ class QaMcpServerIntegrationTest extends AnyWordSpec with Matchers {
 
       // Then
       server.done.get(AwaitSeconds, TimeUnit.SECONDS) shouldBe ()
+    }
+
+    "complete when its input fails" in {
+      // Given
+      val failingInput: InputStream = new InputStream {
+        override def read(): Int = throw IOException("broken pipe")
+      }
+
+      // When
+      val done: CompletableFuture[Unit] = QaMcpServer.start(FakeQaService(), failingInput, ByteArrayOutputStream(),
+        "test")
+
+      // Then
+      done.get(AwaitSeconds, TimeUnit.SECONDS) shouldBe ()
     }
   }
 }
