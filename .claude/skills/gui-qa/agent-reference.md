@@ -87,6 +87,7 @@ Optional arguments are in brackets, with their defaults.
   itself, such as a canvas.
 - `os_screenshot` works only on the desktop platform, with the Screen Recording permission of the app that runs Claude
   Code; without it, the tool says so. Headless, use `snapshot`.
+- While the Mac's screen is locked, `os_screenshot` fails with screencapture's `could not create image from window`.
 
 ## Selectors
 

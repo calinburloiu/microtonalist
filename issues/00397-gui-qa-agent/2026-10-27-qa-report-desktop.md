@@ -1,7 +1,9 @@
 # GUI QA acceptance report: desktop
 
 - **Date:** 2026-10-27
-- **Commit tested:** `fe6236b`. The working tree was clean.
+- **Commit tested:** `fe6236b` for run `qa-6fe2`; `8c97e50` for the rerun `qa-8ec4`. The working tree was clean in
+  both runs.
+- **Versions:** SendMIDI 1.4.4, ReceiveMIDI 1.6.2, JDK 25.0.4.1 (Temurin), OpenJFX 26.0.2, macOS 26 (26.6.2).
 - **Issue:** #397, the acceptance run of [design §6](2026-10-26-design.md#6-acceptance).
 - **Platform:** desktop, on macOS 26, with the Screen Recording permission.
 - **App under test:** the throwaway JavaFX stand-in that the [headless report](2026-10-27-qa-report-headless.md)
@@ -9,9 +11,11 @@
 - **Test plan:** the same throwaway plan, not committed:
   `/private/tmp/claude-501/-Users-calinburloiu-Development-microtonalist2/0973e388-3d9c-4b2b-8a97-2c55570a8850/scratchpad/task26/test-plan.md`.
 - **Fixtures:** the `gui-qa` skill's.
-- **Run:** `qa-6fe2`, under `$TMPDIR/microtonalist-qa/`, which also holds its snapshots and OS screenshots.
-  - The first app start covered TP-01 to TP-18 and the exploration.
-  - A second, fresh start rechecked TP-03.
+- **Runs:** both under `$TMPDIR/microtonalist-qa/`, which also holds their snapshots and OS screenshots.
+  - `qa-6fe2`: the full plan. Its first app start covered TP-01 to TP-18 and the exploration, and a second, fresh
+    start rechecked TP-03.
+  - `qa-8ec4`: a partial rerun, after [defect 3](#qa-tooling-defects), of TP-16b and TP-16c from the second throwaway
+    plan that the [headless report](2026-10-27-qa-report-headless.md) names.
 
 ## Results
 
@@ -36,6 +40,8 @@
 | TP-17 | should, desktop | pass | |
 | TP-18 | must | pass | |
 | TP-19 | should, human | not run | |
+
+`qa-8ec4`: TP-16b (must) and TP-16c (should) pass.
 
 ## Evidence
 
@@ -76,11 +82,26 @@ cents.
   - No rename sent MIDI.
 - **OS screenshots (TP-16, TP-17):** `os_screenshot` was called four times:
   - `os-1-5370.png`: the main window, whose title bar reads "Microtonalist";
-  - `os-2-5380.png`: the context menu, a window of its own;
+  - `os-2-5370.png` and `os-2-5380.png`: the main window, and the context menu, a window of its own;
   - `os-3-5385.png` and `os-3-5370.png`: the Rename dialog in front, and the main window inactive behind it;
   - `os-4-5370.png`: a long name, ellipsized in the status.
 - **Log (TP-18):** `grep -ciE 'ERROR|Exception' app.log` gives 0. Both `stop_app` calls returned
   `{"exitCode":143,"killed":false}`.
+
+### Every tool
+
+`qa-6fe2`'s `tools.log` has 184 calls of all 16 of the server's tools, `os_screenshot` among them.
+
+| Tool | Calls | | Tool | Calls |
+| ---- | ----- | - | ---- | ----- |
+| `get_run` | 1 | | `type_text` | 6 |
+| `start_app` | 2 | | `read_clipboard` | 4 |
+| `stop_app` | 2 | | `write_clipboard` | 3 |
+| `list_windows` | 12 | | `send_midi` | 15 |
+| `dump` | 51 | | `wait_idle` | 15 |
+| `snapshot` | 4 | | `unplug` | 3 |
+| `os_screenshot` | 4 | | `replug` | 3 |
+| `click` | 34, 1 of them an error | | `press_key` | 25 |
 
 ## Bugs
 
@@ -120,6 +141,25 @@ All three are in the throwaway stand-in and match the headless run's. They are r
 
 - **Expected:** OK is refused.
 - **Actual:** the row and the status are blank (`snapshots/4.png`).
+
+## QA tooling defects
+
+The [headless report](2026-10-27-qa-report-headless.md#qa-tooling-defects) lists the four defects in the QA driver,
+with their causes and fixes. Defects 1, 2 and 4 were in the headless input only. Defect 3 showed on the desktop alone:
+
+- **A popup in a snapshot hides the window under it with an opaque white box.** In `qa-6fe2/snapshots/2.png`, a white
+  frame surrounds the context menu's shadow. A popup's scene has no fill, and JavaFX paints a snapshot with no fill
+  white. Fixed in `8c97e50`.
+- **Confirmed by `qa-8ec4`.** Around the menu, the window's striped rows show through its soft, rounded shadow, with
+  no white frame. The outermost pixels of the shadow differ from the window without the menu by one step only:
+  254 vs 255, and 248 vs 249.
+
+`qa-8ec4` is also the desktop reference for defect 4. A right-click on the unselected C Romanian Minor at
+20:08:11.368 selected it, and the log reads `Tuning to "C Romanian Minor"`.
+
+In `qa-8ec4`, all four `os_screenshot` calls failed with `could not create image from window`, because the Mac's screen
+was locked. The rerun relies on `snapshot`. The only error lines in its `app.log` are macOS's
+`CVDisplayLink… error: -6661`, at start-up.
 
 ## Exploration
 
