@@ -35,6 +35,12 @@ class RigLocatorTest extends AnyWordSpec with Matchers {
     }
 
     def writeCompositionWithUrl(url: String): Path = writeComposition(Some(s"\"$url\""))
+
+    /** Writes the composition with a `baseUrl` and, if given, a `tracksUrl`, both JSON strings. */
+    def writeCompositionWithBaseUrl(baseUrl: String, tracksUrl: Option[String]): Path = {
+      val tracksUrlField = tracksUrl.map(url => s""", "tracksUrl": "$url"""").getOrElse("")
+      Files.writeString(composition, s"""{ "baseUrl": "$baseUrl", "tunings": []$tracksUrlField }""")
+    }
   }
 
   "RigLocator.locate" should {
@@ -68,6 +74,75 @@ class RigLocatorTest extends AnyWordSpec with Matchers {
 
       // When / Then
       locate(composition, run) shouldBe Right(run.dir.resolve("b.tracks"))
+    }
+
+    "resolve tracksUrl against a relative baseUrl, as the app does" in new Fixture {
+      // Given
+      writeCompositionWithBaseUrl("sub/", Some("a.tracks"))
+
+      // When / Then
+      locate(composition, run) shouldBe Right(run.dir.resolve("sub").resolve("a.tracks"))
+    }
+
+    "resolve tracksUrl against a file: baseUrl inside the run" in new Fixture {
+      // Given
+      writeCompositionWithBaseUrl(s"file:${run.dir}/sub/", Some("b.tracks"))
+
+      // When / Then
+      locate(composition, run) shouldBe Right(run.dir.resolve("sub").resolve("b.tracks"))
+    }
+
+    "refuse a tracksUrl that a baseUrl takes out of the run" in new Fixture {
+      // Given
+      val outside: Path = Files.createTempDirectory("qa-rig-locator-test-outside")
+
+      // When / Then
+      for (baseUrl <- Seq(s"file:$outside/", "../")) {
+        writeCompositionWithBaseUrl(baseUrl, Some("live.mtlist.tracks"))
+        withClue(baseUrl) {
+          locate(composition, run).isLeft shouldBe true
+        }
+      }
+    }
+
+    "keep the default .tracks file next to the composition, whatever the baseUrl" in new Fixture {
+      // Given
+      writeCompositionWithBaseUrl("sub/", None)
+
+      // When / Then
+      locate(composition, run) shouldBe Right(run.dir.resolve("qa.mtlist.tracks"))
+    }
+
+    "resolve tracksUrl against the composition when baseUrl is null" in new Fixture {
+      // Given
+      Files.writeString(composition, """{ "baseUrl": null, "tracksUrl": "a.tracks" }""")
+
+      // When / Then
+      locate(composition, run) shouldBe Right(run.dir.resolve("a.tracks"))
+    }
+
+    "refuse an invalid baseUrl" in new Fixture {
+      // When / Then
+      for (
+        json <- Seq("""{ "baseUrl": 3, "tracksUrl": "a.tracks" }""",
+          """{ "baseUrl": "a b|c", "tracksUrl": "a.tracks" }""")
+      ) {
+        Files.writeString(composition, json)
+        withClue(json) {
+          locate(composition, run).isLeft shouldBe true
+        }
+      }
+    }
+
+    "refuse a composition with a $ref at its root" in new Fixture {
+      // Given
+      Files.writeString(composition, """{ "$ref": "/Users/me/x.json" }""")
+
+      // When
+      val result: Either[String, Path] = locate(composition, run)
+
+      // Then
+      result.left.toOption.get should include("$ref")
     }
 
     "refuse a tracksUrl out of the run, or on another scheme" in new Fixture {
