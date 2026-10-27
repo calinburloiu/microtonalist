@@ -38,12 +38,16 @@ Reading the GUI:
 Driving it:
 
 - **`Input`** — injects clicks, keys (`KeyChord`, e.g. `Shortcut+N`) and text. `RobotInput`, on the headless
-  platform, uses JavaFX's `Robot`, which injects through Glass's input path like a user. The headless `Robot`'s release
-  reports the button as still down, which leaves the clicked node pressed, so `RobotInput` clears the pressed state
-  after a click, through reflection. It also sends the release to the window under the pointer, so a context menu
-  that the press opened takes it, and a list's row, which selects on the release of the `Robot`'s press, isn't
-  selected: `RobotInput` then fires the release and the click in the pressed window itself. On the desktop platform the `Robot` is OS-level, so `EventInput` fires JavaFX
-  events instead, at the node that `Picker` picks under the point, and macOS sees nothing and needs no grant.
+  platform, uses JavaFX's `Robot`, which injects through Glass's input path like a user. Two workarounds of the
+  headless `Robot` keep it as a user's mouse:
+  - Its release reports the button as still down, which leaves the clicked node pressed, so `RobotInput` clears the
+    pressed state after a click, through reflection.
+  - It sends the release to the window under the pointer: a context menu that the press opened takes it, and a list's
+    row, which selects on the release, isn't selected. So when the node's window saw the press but not the release,
+    `RobotInput` fires the release and the click in that window itself.
+
+  On the desktop platform the `Robot` is OS-level, so `EventInput` fires JavaFX events instead, at the node that
+  `Picker` picks under the point, in the window shown last that holds it; macOS sees nothing and needs no grant.
 
 ## Flows
 

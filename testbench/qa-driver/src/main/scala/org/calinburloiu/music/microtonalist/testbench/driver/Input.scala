@@ -82,8 +82,9 @@ object Input {
  *
  * Since the `Robot` drops the input while no window has the focus, [[key]] and [[typeText]] throw a [[DriverException]]
  * then; [[typeText]] types to the focus owner of the [[Input.lastFocusedStage]], or to its scene if nothing in it has
- * the focus. As with a user's mouse, a click's release reaches the window it pressed, even when the press opened a
- * popup under the pointer, and after the click no node stays pressed.
+ * the focus. As with a user's mouse, a click on a node that another window covers reaches that window, a click's
+ * release reaches the window it pressed, even when the press opened a popup under the pointer, and after the click no
+ * node stays pressed.
  *
  * @param fx queues the input on the JavaFX Application Thread
  */
@@ -99,17 +100,22 @@ final class RobotInput(fx: FxExecutor) extends Input {
     fx.post {
       robot.mouseMove(Point2D(point.screenX, point.screenY))
       for (count <- 1 to clickCount) {
+        var isPressed = false
         var isReleased = false
+        val onPress: EventHandler[MouseEvent] = _ => isPressed = true
         val onRelease: EventHandler[MouseEvent] = _ => isReleased = true
+        scene.addEventFilter(MouseEvent.MOUSE_PRESSED, onPress)
         scene.addEventFilter(MouseEvent.MOUSE_RELEASED, onRelease)
         try {
           robot.mouseClick(button)
         } finally {
+          scene.removeEventFilter(MouseEvent.MOUSE_PRESSED, onPress)
           scene.removeEventFilter(MouseEvent.MOUSE_RELEASED, onRelease)
         }
         // The headless `Robot` sends the release to the window under the pointer, so a popup that the press opened
-        // there, such as a context menu, takes it. A user's mouse releases in the window it pressed.
-        if (!isReleased) {
+        // there, such as a context menu, takes it. A user's mouse releases in the window it pressed. A window that
+        // covered the point took the press too, so the node's scene gets neither, as a user's click wouldn't reach it.
+        if (isPressed && !isReleased) {
           val target: EventTarget = Picker.pick(scene, point.sceneX, point.sceneY).getOrElse(scene)
           Event.fireEvent(target, EventInput.mouseEvent(target, MouseEvent.MOUSE_RELEASED, point, button, count))
           Event.fireEvent(target, EventInput.mouseEvent(target, MouseEvent.MOUSE_CLICKED, point, button, count))

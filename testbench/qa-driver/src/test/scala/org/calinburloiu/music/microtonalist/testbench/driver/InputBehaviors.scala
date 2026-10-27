@@ -17,7 +17,11 @@
 package org.calinburloiu.music.microtonalist.testbench.driver
 
 import javafx.application.Platform
+import javafx.scene.Scene
 import javafx.scene.control.{TextField, TextInputDialog, Tooltip}
+import javafx.scene.layout.Pane
+import javafx.scene.shape.Rectangle
+import javafx.stage.{Popup, Stage}
 import org.calinburloiu.music.microtonalist.testbench.driver.HeadlessFx.fx
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest.{Click, Key, Type, Windows}
@@ -84,7 +88,37 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
       executor.idle()
       tooltip
     }
+
+    /** Shows a popup that covers the whole stage, then waits until the Application Thread has handled it. */
+    def showCoveringPopup(): Unit = {
+      fx {
+        val popup = Popup()
+        popup.getContent.add(Rectangle(CoverWidth, CoverHeight))
+        popup.show(scene.stage, scene.stage.getX, scene.stage.getY)
+      }
+      executor.idle()
+    }
+
+    /** Shows a dialog that covers the whole stage, then waits until the Application Thread has handled it. */
+    def showCoveringDialog(): Unit = {
+      fx {
+        val dialog = Stage()
+        dialog.initOwner(scene.stage)
+        dialog.setTitle("Cover")
+        dialog.setScene(Scene(Pane(Rectangle(CoverWidth, CoverHeight))))
+        dialog.setX(scene.stage.getX)
+        dialog.setY(scene.stage.getY)
+        dialog.setWidth(CoverWidth)
+        dialog.setHeight(CoverHeight)
+        dialog.show()
+      }
+      executor.idle()
+    }
   }
+
+  /** The width and height of the stand-in's stage, which a cover takes. */
+  private val CoverWidth: Double = 480
+  private val CoverHeight: Double = 640
 
   /** Runs the test with the stand-in scene as the only window, and closes every window after. */
   private def withStandIn(newInput: FxExecutor => Input)(test: Fixture => Unit): Unit = {
@@ -136,6 +170,30 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
 
       // Then
       f.selectedIndex shouldBe 2
+    }
+
+    "not reach a row that a popup covers" in withInput { f =>
+      // Given
+      f.showCoveringPopup()
+
+      // When
+      f.handle(Click("C Septimal", None, Primary, 2))
+
+      // Then
+      f.selectedIndex shouldBe 0
+      f.actions shouldBe empty
+    }
+
+    "not reach a row that a dialog covers" in withInput { f =>
+      // Given
+      f.showCoveringDialog()
+
+      // When
+      f.handle(Click("C Septimal", None, Primary, 2))
+
+      // Then
+      f.selectedIndex shouldBe 0
+      f.actions shouldBe empty
     }
 
     "double-click a row" in withInput { f =>
