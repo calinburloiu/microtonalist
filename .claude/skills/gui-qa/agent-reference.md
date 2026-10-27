@@ -43,8 +43,8 @@ cp .claude/skills/gui-qa/fixtures/qa.mtlist .claude/skills/gui-qa/fixtures/qa.mt
 
 A rig names a QA device `qa:<device>`, `<device>` matching `[A-Za-z0-9_-]{1,32}`. `start_app` rewrites the rig in place
 so that each becomes the run's virtual port, `{ "name": "CoreMIDI4J - <run>-<device>", "vendor": "<Unknown
-Manufacturer>" }`, and opens it. A device that a track uses as its input takes `send_midi`; one used as an output
-records in `midi-out-<device>.txt`. Other tools take the `<device>` name, e.g. `keys`.
+Manufacturer>" }`, and opens it. A device that a track uses as its input takes `send_midi`; one used as an output, or
+as its MTS tuner's `altTuningOutput`, records in `midi-out-<device>.txt`. Other tools take the `<device>` name, e.g. `keys`.
 
 `start_app` refuses:
 
@@ -52,8 +52,8 @@ records in `midi-out-<device>.txt`. Other tools take the `<device>` name, e.g. `
   other than a letter, a digit, `.`, `_` or `-`;
 - a composition with a `$ref` at its root;
 - a rig outside the run directory: it's `<composition>.tracks`, or the file that the composition's `tracksUrl` names;
-- a rig that names any device but a QA device, a QA device elsewhere than a track's `input` or `output`, or any
-  `$ref`.
+- a rig that names any device but a QA device, a QA device elsewhere than a track's `input` or `output` or its tuner's
+  `altTuningOutput`, or any `$ref`.
 
 ## The tools
 

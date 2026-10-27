@@ -47,6 +47,14 @@ object RigRewriter {
   private val PortVendor: String = "<Unknown Manufacturer>"
   private val DeviceNamePattern: String = "[A-Za-z0-9_-]{1,32}"
   private val MidiDeviceIdKey: String = "midiDeviceId"
+  private val AltTuningOutputKey: String = "altTuningOutput"
+  /**
+   * The keys of the rig's MIDI device IDs: a track's `input`/`output.midiDeviceId`, and its MTS tuner's
+   * `altTuningOutput`. A new field that the rig format serialises with `JsonCommonMidiFormat.midiDeviceIdFormat` must be
+   * added here too.
+   */
+  private val DeviceKeys: Set[String] = Set(MidiDeviceIdKey, AltTuningOutputKey)
+  private val TunerKey: String = "tuner"
   private val RefKey: String = "$ref"
   private val InputKey: String = "input"
   private val OutputKey: String = "output"
@@ -57,11 +65,13 @@ object RigRewriter {
    * Replaces each QA device of `rig` with the port of the run `runId`, leaving the rest of the JSON unchanged, an
    * invalid rig included.
    *
-   * A `midiDeviceId` names a QA device when its `name` is `qa:<device>`, or `CoreMIDI4J - <runId>-<device>`, which an
-   * earlier rewrite for the same run wrote, `<device>` matching `[A-Za-z0-9_-]{1,32}`.
+   * A device ID, a `midiDeviceId` or an `altTuningOutput`, names a QA device when its `name` is `qa:<device>`, or
+   * `CoreMIDI4J - <runId>-<device>`, which an earlier rewrite for the same run wrote, `<device>` matching
+   * `[A-Za-z0-9_-]{1,32}`.
    *
-   * @return the rewritten rig; or, naming the JSON path, an error for any other `midiDeviceId`, for a QA device
-   *   elsewhere than a track's `input` or `output`, and for any `$ref`, which could hide a device
+   * @return the rewritten rig; or, naming the JSON path, an error for any other device ID, for a QA device elsewhere
+   *   than a track's `input` or `output` or its tuner's `altTuningOutput`, which is an output, and for any `$ref`,
+   *   which could hide a device
    */
   def rewrite(rig: JsValue, runId: String): Either[String, RewrittenRig] = {
     walk(rig, JsPath, runId).map { case (json, uses) => RewrittenRig(json, merge(uses)) }
@@ -73,7 +83,7 @@ object RigRewriter {
     case obj: JsObject =>
       walkAll(obj.fields) { case (key, fieldValue) =>
         val fieldPath = path \ key
-        val walked = if (key == MidiDeviceIdKey) {
+        val walked = if (DeviceKeys.contains(key)) {
           rewriteDevice(fieldValue, fieldPath, runId)
         } else {
           walk(fieldValue, fieldPath, runId)
@@ -107,7 +117,8 @@ object RigRewriter {
           Left(s"$path: $value isn't a QA device; name it \"$QaPrefix<device>\", <device> matching " +
             DeviceNamePattern)
         case (Some(_), None) =>
-          Left(s"$path: a QA device can only be a track's $InputKey or $OutputKey")
+          Left(s"$path: a QA device can only be a track's $InputKey or $OutputKey, or its $TunerKey's " +
+            AltTuningOutputKey)
         case (Some(name), Some(portKey)) =>
           val device = QaDevice(name, input = portKey == InputKey, output = portKey == OutputKey)
           Right((Json.obj("name" -> s"$CoreMidi4jPrefix${device.port(runId)}", "vendor" -> PortVendor), Seq(device)))
@@ -125,10 +136,15 @@ object RigRewriter {
     } yield deviceName
   }
 
-  /** `input` or `output` if `path` is that of a track's `input.midiDeviceId` or `output.midiDeviceId`. */
+  /**
+   * `input` or `output` if `path` is that of a track's `input.midiDeviceId` or `output.midiDeviceId`, and `output` if
+   * it is that of its `tuner.altTuningOutput`.
+   */
   private def trackPortKey(path: JsPath): Option[String] = path.path match {
     case List(KeyPathNode("tracks"), IdxPathNode(_), KeyPathNode(key), KeyPathNode(MidiDeviceIdKey))
         if key == InputKey || key == OutputKey => Some(key)
+    case List(KeyPathNode("tracks"), IdxPathNode(_), KeyPathNode(TunerKey), KeyPathNode(AltTuningOutputKey)) =>
+      Some(OutputKey)
     case _ => None
   }
 

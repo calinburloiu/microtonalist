@@ -22,6 +22,12 @@ import play.api.libs.json.*
 import play.api.libs.json.Reads.{max, min}
 
 object JsonCommonMidiFormat {
+  /**
+   * The format of a MIDI device ID.
+   *
+   * The QA server's `RigRewriter`, in `testbench/qa-mcp`, lists every rig field of this format, so that it refuses a
+   * rig that names a real device: a new such field must be added there too.
+   */
   val midiDeviceIdFormat: Format[MidiDeviceId] = Json.format[MidiDeviceId]
 
   val channelFormat: Format[Int] = Format(

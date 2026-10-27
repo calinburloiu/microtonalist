@@ -103,6 +103,23 @@ class RigRewriterTest extends AnyWordSpec with Matchers {
       rewritten.devices shouldBe Seq(QaDevice("dev", input = true, output = true))
     }
 
+    "turn a tuner's QA altTuningOutput into the run's port, as an output" in {
+      // Given
+      val rig = Json.obj("tracks" -> Json.arr(Json.obj(
+        "input" -> Json.obj("midiDeviceId" -> deviceId("qa:keys")),
+        "tuner" -> Json.obj("type" -> "mtsOctave1ByteNonRealTime", "altTuningOutput" -> deviceId("qa:tuning"))
+      )))
+
+      // When
+      val Right(rewritten) = rewrite(rig, runId): @unchecked
+
+      // Then
+      rewritten.devices shouldBe Seq(QaDevice("keys", input = true, output = false),
+        QaDevice("tuning", input = false, output = true))
+      (rewritten.json \ "tracks" \ 0 \ "tuner" \ "altTuningOutput").get shouldBe runPort("tuning")
+      (rewritten.json \ "tracks" \ 0 \ "tuner" \ "type").as[String] shouldBe "mtsOctave1ByteNonRealTime"
+    }
+
     "accept the names it wrote, on a second start of the run" in {
       // Given
       val Right(rewritten) = rewrite(fixtureRig, runId): @unchecked
@@ -119,6 +136,34 @@ class RigRewriterTest extends AnyWordSpec with Matchers {
       rewrite(rigWith(iac), runId).isLeft shouldBe true
       rewrite(rigWith(Json.obj("vendor" -> "Apple")), runId).isLeft shouldBe true
       rewrite(rigWith(Json.toJson("qa:keys")), runId).isLeft shouldBe true
+    }
+
+    "refuse a tuner's altTuningOutput that isn't a QA device" in {
+      // Given
+      val rig = Json.obj("tracks" -> Json.arr(Json.obj(
+        "input" -> Json.obj("midiDeviceId" -> deviceId("qa:keys")),
+        "tuner" -> Json.obj("type" -> "mtsOctave1ByteNonRealTime",
+          "altTuningOutput" -> Json.obj("name" -> "FP-90", "vendor" -> "Roland"))
+      )))
+
+      // When
+      val result = rewrite(rig, runId)
+
+      // Then
+      result.left.toOption.get should include("/tracks(0)/tuner/altTuningOutput")
+    }
+
+    "refuse a QA altTuningOutput outside a track's tuner" in {
+      // Given
+      val rig = Json.obj("tracks" -> Json.arr(Json.obj(
+        "input" -> Json.obj("altTuningOutput" -> deviceId("qa:keys"))
+      )))
+
+      // When
+      val result = rewrite(rig, runId)
+
+      // Then
+      result.left.toOption.get should include("/tracks(0)/input/altTuningOutput")
     }
 
     "refuse another run's port" in {

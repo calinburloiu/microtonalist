@@ -30,7 +30,8 @@ which starts the app with virtual MIDI ports. This file is for you, the builder 
     tuning; sostenuto: next) to an MTS octave 1-byte non-real-time tuner, into the QA device `synth`.
 
   A feature-specific rig names only QA devices, `{ "name": "qa:<device>" }`, `<device>` matching `[A-Za-z0-9_-]{1,32}`,
-  and only as a track's `input` or `output` `midiDeviceId`; the server refuses any other device. The rig is
+  and only as a track's `input` or `output` `midiDeviceId`, or as its MTS tuner's `altTuningOutput`; the server
+  refuses any other device. The rig is
   `<composition>.tracks`, or the file that a relative `tracksUrl` names, so that both stay in the run directory once
   the agent copies them there. No `$ref` in the rig or at the composition's root, and file names of letters, digits,
   `.`, `_` and `-` only.
