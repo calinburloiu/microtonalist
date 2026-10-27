@@ -38,7 +38,9 @@ import java.util.concurrent.ConcurrentLinkedQueue
  *   - the list's context menu records `copy` and `rename`;
  *   - a double-click on a row of the list records `open <row text>`;
  *   - "Confirm" records `confirm` and then shows, with `showAndWait`, an Alert titled "Confirm";
- *   - `Shortcut+N` records `new` and shows an Alert titled "New".
+ *   - `Shortcut+N` records `new` and shows an Alert titled "New";
+ *   - `Shortcut+R` shows, with `showAndWait`, a TextInputDialog titled "Rename" holding the selected row's text, and
+ *     records `renamed <text>` once it is confirmed.
  *
  * Construct it on the FX thread, with [[StandInScene.show]].
  */
@@ -104,10 +106,18 @@ final class StandInScene private () {
       actions.add("new")
       alert("New").show()
     })
+  scene.getAccelerators.put(KeyCombination.keyCombination("Shortcut+R"), () => rename())
   stage.setScene(scene)
   stage.setWidth(480)
   stage.setHeight(640)
   stage.show()
+
+  private def rename(): Unit = {
+    val dialog = TextInputDialog(tunings.getSelectionModel.getSelectedItem)
+    dialog.initOwner(stage)
+    dialog.setTitle("Rename")
+    dialog.showAndWait().ifPresent { text => actions.add(s"renamed $text") }
+  }
 
   private def button(text: String, action: String): Button = {
     val button = Button(text)

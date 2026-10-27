@@ -190,6 +190,20 @@ trait InputBehaviors extends Matchers { this: AnyWordSpec =>
       f.stageTitles should contain("New")
     }
 
+    "confirm with Enter a dialog that an accelerator opened with showAndWait" in withInput { f =>
+      // Given
+      f.focusStage()
+      f.handle(Key("Shortcut+R"))
+      f.stageTitles should contain("Rename")
+
+      // When
+      f.handle(Key("ENTER"))
+
+      // Then
+      f.actions should contain("renamed C Just Major")
+      f.stageTitles should not contain "Rename"
+    }
+
     "type into the focused text field" in withInput { f =>
       // Given
       f.focusStage()

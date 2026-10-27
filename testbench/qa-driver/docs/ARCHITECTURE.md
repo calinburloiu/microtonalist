@@ -65,7 +65,8 @@ passes: the next request sees the input's effect, and a snapshot doesn't catch a
 
 The link's daemon thread reads and writes the socket; everything that touches JavaFX runs on the Application Thread.
 `Input` queues its events rather than run them, so that a handler that blocks in a modal dialog's `showAndWait` doesn't
-block the driver.
+block the driver. `RobotInput` queues each key press and release on its own, since its `Robot` keeps a key down until
+its release: the dialog's nested event loop then runs the releases, as a user would let go of the keys.
 
 The tests run against a stand-in scene, on the headless platform, in a forked JVM, since JavaFX starts only once per JVM
 and sbt's own JVM is the long-lived BSP server.

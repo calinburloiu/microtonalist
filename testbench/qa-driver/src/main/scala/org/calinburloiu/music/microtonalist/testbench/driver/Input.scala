@@ -102,12 +102,12 @@ final class RobotInput(fx: FxExecutor) extends Input {
 
   override def key(chord: KeyChord): Unit = {
     Input.focusedWindow()
-    fx.post {
-      chord.modifiers.foreach(robot.keyPress)
-      robot.keyPress(chord.key)
-      robot.keyRelease(chord.key)
-      chord.modifiers.reverseIterator.foreach(robot.keyRelease)
-    }
+    // One step per press and release: a key whose handler blocks in `showAndWait`, such as an accelerator opening a
+    // dialog, mustn't hold back the releases, which the `Robot` would otherwise keep down while the dialog shows.
+    chord.modifiers.foreach { modifier => fx.post(robot.keyPress(modifier)) }
+    fx.post(robot.keyPress(chord.key))
+    fx.post(robot.keyRelease(chord.key))
+    chord.modifiers.reverseIterator.foreach { modifier => fx.post(robot.keyRelease(modifier)) }
   }
 
   override def typeText(text: String): Unit = {
