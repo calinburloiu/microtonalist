@@ -76,11 +76,12 @@ object Snapshots {
     bytes.toByteArray
   }
 
-  /** Renders a scene, scaled by `scale`, filled with its own fill. */
+  /** Renders a scene, scaled by `scale`, filled with its own fill, or with none if it has none, as a popup. */
   private def sceneImage(scene: Scene, scale: Double): WritableImage = {
     val params = SnapshotParameters()
     params.setTransform(Transform.scale(scale, scale))
-    params.setFill(scene.getFill)
+    // A null fill would paint the snapshot white.
+    params.setFill(Option(scene.getFill).getOrElse(Color.TRANSPARENT))
     params.setViewport(viewport(scene, scale))
     scene.getRoot.snapshot(params, null)
   }

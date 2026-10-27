@@ -18,7 +18,8 @@ package org.calinburloiu.music.microtonalist.testbench.driver
 
 import javafx.geometry.Side
 import javafx.scene.control.{ContextMenu, MenuItem}
-import javafx.stage.Window
+import javafx.scene.layout.Pane
+import javafx.stage.{Popup, Window}
 import org.calinburloiu.music.microtonalist.testbench.driver.HeadlessFx.fx
 import org.calinburloiu.music.microtonalist.testbench.driver.protocol.DriverRequest.Snapshot
 import org.scalatest.BeforeAndAfterAll
@@ -110,6 +111,28 @@ class SnapshotsTest extends AnyWordSpec with Matchers with BeforeAndAfterAll {
       // Then
       size(answer) shouldBe (480, 640)
       differingFraction(withoutMenu, image(answer), areaInStage(scene.stage, menu)) should be > 0.5
+    }
+
+    "show the window through a popup's transparent parts" in withStandIn { scene =>
+      // Given
+      val withoutPopup = image(handle(Snapshot(None, None, 1.0)))
+      val popup = fx {
+        val empty = Pane()
+        empty.setPrefSize(40, 40)
+        val popup = Popup()
+        popup.getContent.add(empty)
+        // Over the background below the controls, which, unlike a selected row, looks the same with or without focus.
+        val root = scene.stage.getScene.getRoot
+        val corner = root.localToScreen(20, root.getLayoutBounds.getHeight - 60)
+        popup.show(scene.stage, corner.getX, corner.getY)
+        popup
+      }
+
+      // When
+      val withPopup = image(handle(Snapshot(None, None, 1.0)))
+
+      // Then
+      differingFraction(withoutPopup, withPopup, areaInStage(scene.stage, popup)) shouldBe 0.0
     }
 
     "show a popup that an owned popup owns" in withStandIn { scene =>
