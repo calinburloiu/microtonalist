@@ -5,7 +5,7 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 
 ## Documents in this directory
 
-- [`build.md`](build.md) — compiling and building the fat JAR with sbt.
+- [`build.md`](build.md) — compiling and building the fat JAR with sbt, and the dependencies that need care.
 - [`test.md`](test.md) — running the test suite.
 - [`coding-conventions.md`](coding-conventions.md) — general / production Scala coding conventions.
 - [`test-conventions.md`](test-conventions.md) — conventions for writing tests.

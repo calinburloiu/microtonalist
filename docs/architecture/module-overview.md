@@ -15,6 +15,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | [`rig`](../../rig/README.md) | The tracks a performer plays, one per instrument |
 | [`format`](../../format/README.md) | Persistence of compositions, scales and rigs: what the format modules share, and their wiring |
 | [`ui`](../../ui/README.md) | The desktop GUI |
+| [`ai`](../../ai/README.md) | Support for AI agents: the base of the MCP servers |
 | [`app`](../../app/README.md) | The application layer: the executables, and their configuration and wiring |
 
 ## Main modules
