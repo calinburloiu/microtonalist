@@ -84,5 +84,7 @@ jobs:
     - uses: actions/checkout@v4
     - name: Test the architecture doc size check
       run: python3 -m unittest discover -s .claude/skills/architecture-docs/scripts/tests -p "test_*.py"
+    - name: Test the qa MIDI decoder
+      run: python3 -m unittest discover -s .claude/skills/qa/scripts/tests -p "test_*.py"
     - name: Check the size of the architecture docs
       run: python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py --github

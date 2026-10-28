@@ -15,6 +15,7 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 - [`coverage.md`](coverage.md) — manual coverage workflow (`coverageAll` / `coverageModules`) and CI's `coverageCheck`.
 - [`scoverage-issue.md`](scoverage-issue.md) — the known sbt-scoverage + Scala 3 TASTy concurrency issue and how to
   handle it.
+- [`qa.md`](qa.md) — the setup for QA of the app, and running a test plan by hand.
 - [`license-headers.md`](license-headers.md) — the Apache 2.0 header format, the Claude Code
   read-skip hook, and `addlicense`.
 - [`claude-code-setup.md`](claude-code-setup.md) — setting up Claude Code with Metals MCP and the GitHub MCP plugin.
@@ -39,6 +40,8 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
       `curl -LsSf https://astral.sh/uv/install.sh | sh`.
 * Coursier
     - Optional: for Metals MCP.
+* [SendMIDI](https://github.com/gbevin/SendMIDI) and [ReceiveMIDI](https://github.com/gbevin/ReceiveMIDI)
+    - Optional: for QA of the app, on macOS. See [`qa.md`](qa.md#one-time-setup).
 * [`addlicense`](https://github.com/google/addlicense) + Go
     - Optional: only needed to run the license-header commit hook or CI check locally. Install with
       `go install github.com/google/addlicense@latest`. See [`license-headers.md`](license-headers.md).

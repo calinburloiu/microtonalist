@@ -84,7 +84,7 @@ class MidiPortsTest extends AnyWordSpec with Matchers {
 
       // When / Then
       (the[QaException] thrownBy ports.open(Seq(keys, both), Set.empty)).getMessage shouldBe
-        "receivemidi isn't installed; see docs/development/gui-qa.md"
+        "receivemidi isn't installed; see docs/development/qa.md"
       launcher.processes.map(_.isAlive) shouldBe Seq(false, false)
       ports.processes shouldBe empty
       ports.isPlugged("keys") shouldBe false
