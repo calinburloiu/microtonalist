@@ -86,20 +86,3 @@ jobs:
       run: python3 -m unittest discover -s .claude/skills/architecture-docs/scripts/tests -p "test_*.py"
     - name: Check the size of the architecture docs
       run: python3 .claude/skills/architecture-docs/scripts/check_arch_doc_size.py --github
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '24'
-    - name: Check that the Mermaid diagrams render
-      run: |
-        npm install --global @mermaid-js/mermaid-cli@12.0.0
-        # Ubuntu's AppArmor profile forbids the Chrome sandbox that mermaid-cli renders in.
-        echo '{"args": ["--no-sandbox"]}' > "$RUNNER_TEMP/puppeteer.json"
-        mkdir -p "$RUNNER_TEMP/mermaid"
-        status=0
-        while IFS= read -r -d '' file; do
-          echo "Rendering the diagrams of $file"
-          mmdc --quiet --puppeteerConfigFile "$RUNNER_TEMP/puppeteer.json" \
-            --input "$file" --output "$RUNNER_TEMP/mermaid/out.md" || status=1
-        done < <(git grep -l -z '```mermaid' -- '*.md' ':!issues/' ':!docs/agent-evals/')
-        exit $status

@@ -45,6 +45,14 @@ set up AI-assisted development with [Claude Code](https://claude.com/claude-code
 * [scalafmt](https://scalameta.org/scalafmt/) command-line tool
     - Optional: for the formatting step of the pre-commit hook. Install with `cs install scalafmt`. See
       [`build.md`](build.md#pre-commit-hook).
+* [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) (`mmdc`)
+    - Optional: lets Claude render the Mermaid diagrams it draws in the docs and check them. Install with
+      `brew install mermaid-cli`, then install the headless Chrome that it renders in, again after each upgrade:
+
+      ```bash
+      "$(brew --prefix mermaid-cli)/libexec/lib/node_modules/@mermaid-js/mermaid-cli/node_modules/.bin/puppeteer" \
+        browsers install chrome-headless-shell
+      ```
 
 ## direnv
 
