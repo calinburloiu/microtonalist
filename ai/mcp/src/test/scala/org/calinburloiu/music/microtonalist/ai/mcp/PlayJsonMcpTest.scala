@@ -16,8 +16,11 @@
 
 package org.calinburloiu.music.microtonalist.ai.mcp
 
+import ch.qos.logback.classic.Level
 import io.modelcontextprotocol.server.McpServerFeatures.SyncToolSpecification
 import io.modelcontextprotocol.spec.McpSchema.{CallToolRequest, CallToolResult, ImageContent, TextContent}
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.*
 import org.scalatest.Inside
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
@@ -75,7 +78,7 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       val result = call(echoTool)
 
       // Then
-      result.isError() should not be java.lang.Boolean.TRUE
+      result.isError() shouldBe false
       result.structuredContent() shouldBe Json.obj("echoed" -> "hi")
       result.content().asScala.toList shouldBe List(
         TextContent.builder(Json.prettyPrint(Json.obj("echoed" -> "hi"))).build())
@@ -91,8 +94,35 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       val result = call(identity, arguments = null)
 
       // Then
-      result.isError() should not be java.lang.Boolean.TRUE
+      result.isError() shouldBe false
       result.structuredContent() shouldBe Json.obj()
+    }
+
+    "read numbers, arrays and nested objects in the arguments" in {
+      // Given
+      val identity = PlayJsonMcp.tool[JsObject, JsObject]("identity", "Returns its arguments", Json.obj()) { args =>
+        args
+      }
+      val arguments: java.util.Map[String, Object] = java.util.Map.of(
+        "int", Integer.valueOf(7),
+        "double", java.lang.Double.valueOf(1.5),
+        "big", java.math.BigInteger("123456789012345678901234567890"),
+        "list", java.util.List.of(true, "a"),
+        "nested", java.util.Map.of("key", java.lang.Long.valueOf(-3L)),
+      )
+
+      // When
+      val result = call(identity, arguments)
+
+      // Then
+      result.isError() shouldBe false
+      result.structuredContent() shouldBe Json.obj(
+        "int" -> 7,
+        "double" -> 1.5,
+        "big" -> BigDecimal("123456789012345678901234567890"),
+        "list" -> Json.arr(true, "a"),
+        "nested" -> Json.obj("key" -> -3),
+      )
     }
 
     "turn arguments that don't match the Reads into an error result" in {
@@ -100,7 +130,7 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       val result = call(echoTool, arguments = java.util.Map.of("txt", "hi"))
 
       // Then
-      result.isError() shouldBe java.lang.Boolean.TRUE
+      result.isError() shouldBe true
       textOf(result) shouldBe "/text: error.path.missing"
     }
 
@@ -114,8 +144,22 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       val result = call(failing)
 
       // Then
-      result.isError() shouldBe java.lang.Boolean.TRUE
+      result.isError() shouldBe true
       textOf(result) shouldBe "no app running"
+    }
+
+    "log an exception thrown by the tool with its stack trace" in {
+      // Given
+      val exception = IllegalStateException("no app running")
+      val failing = PlayJsonMcp.tool[EchoArgs, EchoResult]("fail", "Fails", echoSchema) { _ => throw exception }
+
+      // When
+      val (_, events) = LogCapture.capturing(PlayJsonMcp.getClass.getName) {
+        call(failing)
+      }
+
+      // Then
+      events.failuresAt(Level.WARN) shouldBe Seq(("""The "fail" tool failed""", Some("no app running")))
     }
 
     "describe an exception without a message by its class" in {
@@ -128,7 +172,7 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       val result = call(failing)
 
       // Then
-      result.isError() shouldBe java.lang.Boolean.TRUE
+      result.isError() shouldBe true
       textOf(result) shouldBe "java.lang.IllegalStateException"
     }
 
@@ -155,7 +199,7 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       val result = call(screenshot)
 
       // Then
-      result.isError() should not be java.lang.Boolean.TRUE
+      result.isError() shouldBe false
       result.structuredContent() shouldBe Json.obj("file" -> "a.png")
       result.content().asScala.toList shouldBe List(
         ImageContent.builder("AQID", "image/png").build(),
@@ -174,7 +218,7 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       val result = call(failing)
 
       // Then
-      result.isError() shouldBe java.lang.Boolean.TRUE
+      result.isError() shouldBe true
       textOf(result) shouldBe "no window"
     }
   }
