@@ -83,7 +83,9 @@ A module's `ARCHITECTURE.md` usually has these sections; leave out one with noth
 
 Draw flows in Mermaid, which GitHub renders: `flowchart` for pipelines, `sequenceDiagram` for event and thread
 hand-offs, `stateDiagram-v2` for lifecycles. Keep a diagram to a few nodes, and let it replace prose rather than
-repeat it. Quote a label that holds punctuation: `a["Track.tune, for every track"]`.
+repeat it. Quote a label that holds punctuation: `a["Track.tune, for every track"]`. Don't name a node after a Mermaid
+keyword, such as `call`, `click`, `end` or `style`. CI's `docs` job renders every diagram of the repository's Markdown
+with [mermaid-cli](https://github.com/mermaid-js/mermaid-cli) and fails on one that doesn't parse.
 
 Draw an ASCII diagram instead when its layout carries meaning that Mermaid would lose, such as states placed on two
 axes, like `MidiDeviceHandle.State` in `docs/architecture/midi-device-lifecycle.md`.

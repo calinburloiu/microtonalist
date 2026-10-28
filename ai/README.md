@@ -1,6 +1,6 @@
 # `ai` module group
 
-Support for AI agents, which reach microtonalist through the Model Context Protocol (MCP).
+The core AI-related modules, such as the base of the Model Context Protocol (MCP) servers.
 
 | Module | Description | Root package |
 | ------ | ----------- | ------------ |

@@ -81,7 +81,7 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       result.isError() shouldBe false
       result.structuredContent() shouldBe Json.obj("echoed" -> "hi")
       result.content().asScala.toList shouldBe List(
-        TextContent.builder(Json.prettyPrint(Json.obj("echoed" -> "hi"))).build())
+        TextContent.builder("""{"echoed":"hi"}""").build())
     }
 
     "read missing arguments as an empty object" in {
@@ -204,7 +204,7 @@ class PlayJsonMcpTest extends AnyWordSpec with Matchers with Inside {
       result.content().asScala.toList shouldBe List(
         ImageContent.builder("AQID", "image/png").build(),
         ImageContent.builder("BAUG", "image/png").build(),
-        TextContent.builder(Json.prettyPrint(Json.obj("file" -> "a.png"))).build(),
+        TextContent.builder("""{"file":"a.png"}""").build(),
       )
     }
 

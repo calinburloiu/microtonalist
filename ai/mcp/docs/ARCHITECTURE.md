@@ -29,8 +29,8 @@ A call to a tool that the helper built:
 ```mermaid
 flowchart LR
   sdk["SDK server"] -->|CallToolRequest| handler["Tool's handler"]
-  handler -->|"arguments, through Reads"| call[Function]
-  call -->|"result, through OWrites"| handler
+  handler -->|"arguments, through Reads"| function[Function]
+  function -->|"result, through OWrites"| handler
   handler -->|"CallToolResult: structured content, text, images"| sdk
 ```
 

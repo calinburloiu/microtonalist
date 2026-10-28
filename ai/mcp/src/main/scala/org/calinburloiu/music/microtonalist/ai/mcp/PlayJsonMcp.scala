@@ -45,7 +45,7 @@ object PlayJsonMcp extends StrictLogging {
 
   /**
    * Builds an SDK tool that reads its arguments with `I`'s `Reads`, calls `call` and writes the result with `O`'s
-   * `OWrites`, as structured content and, for clients that don't read it, as text.
+   * `OWrites`, as structured content and, for clients that don't read it, as compact JSON text.
    *
    * Arguments that `I`'s `Reads` rejects, and an exception thrown by `call`, give a result with `isError` set and the
    * error as its text; the exception is also logged as a warning.
@@ -101,7 +101,7 @@ object PlayJsonMcp extends StrictLogging {
     val images = imageResult.pngs.map { png =>
       ImageContent.builder(Base64.getEncoder.encodeToString(png), "image/png").build()
     }
-    val text = TextContent.builder(Json.prettyPrint(structuredContent)).build()
+    val text = TextContent.builder(Json.stringify(structuredContent)).build()
     val content: Seq[Content] = images :+ text
 
     CallToolResult.builder()
