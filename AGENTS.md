@@ -69,8 +69,8 @@ result, "not found", or the result for something else, such as the enclosing pac
 - `mcp__metals__get-usages`, `mcp__metals__get-docs`, and `mcp__metals__get-source` take the target as `module`, which
   must have the symbol on its classpath; `mcp__metals__get-usages` then searches the whole workspace. Pick it by where
   the symbol lives:
-    * Production code: `app`, which depends on every module except `cli`, `experiments` and `mcp`; use those for their
-      own symbols. `root` only aggregates the modules, so it resolves nothing.
+    * Production code: `app`, which depends on every module except `cli`, `experiments`, `mcp`, `qa-driver` and
+      `qa-mcp`; use those for their own symbols. `root` only aggregates the modules, so it resolves nothing.
     * Code under `src/test/scala`: `<module>-test` of the owning module, which the module table of its group's
       `$GROUP/README.md` gives for the symbol's package. Other targets see a module's tests only through a `test->test`
       dependency.
