@@ -489,6 +489,9 @@ lazy val uiModule = (project in file("ui/ui"))
 
 lazy val mcpModule = (project in file("ai/mcp"))
   .withId("mcp")
+  .dependsOn(
+    commonModule % "compile->compile;test->test",
+  )
   .disablePlugins(AssemblyPlugin)
   .settings(
     name := "microtonalist-mcp",

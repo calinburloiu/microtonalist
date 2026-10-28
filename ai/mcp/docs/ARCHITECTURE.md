@@ -36,4 +36,4 @@ flowchart LR
 
 The SDK checks the arguments against the input schema before the handler runs. Arguments that the `Reads` rejects, and
 an exception that the function throws, give a result with `isError` set, which the agent reads, rather than a protocol
-error.
+error. The exception's stack trace goes to the log.
