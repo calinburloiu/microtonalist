@@ -41,7 +41,8 @@ object Dependencies {
   val ficus = "com.iheart" %% "ficus" % ficusVersion
   val guava = "com.google.guava" % "guava" % guavaVersion
   val jacksonCore = "com.fasterxml.jackson.core" % "jackson-core" % jacksonVersion
-  // Pins every Jackson artifact of the build to one minor version: Jackson doesn't support mixing them.
+  // Pins every Jackson artifact of the build to one minor version: Jackson doesn't support mixing them. Add here any
+  // Jackson artifact that a new or upgraded dependency brings, such as jackson-module-scala.
   val jacksonOverrides: Seq[ModuleID] = Seq(
     jacksonCore,
     "com.fasterxml.jackson.core" % "jackson-databind" % jacksonVersion,

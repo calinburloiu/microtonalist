@@ -17,6 +17,7 @@
 package org.calinburloiu.music.microtonalist.ai.mcp
 
 import com.fasterxml.jackson.databind.ObjectMapper
+import com.typesafe.scalalogging.StrictLogging
 import io.modelcontextprotocol.json.McpJsonMapper
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper
 import io.modelcontextprotocol.server.McpServerFeatures
@@ -33,9 +34,9 @@ import scala.util.control.NonFatal
 /**
  * Bridges play-json and the MCP Java SDK: the JSON mapper of the MCP servers, and the helpers that build their tools.
  *
- * See docs/research/mcp.md, section "The mcp module".
+ * See ai/mcp/docs/ARCHITECTURE.md.
  */
-object PlayJsonMcp {
+object PlayJsonMcp extends StrictLogging {
   /** Jackson's mapper, which also reads and writes play-json's `JsValue`s. */
   val objectMapper: ObjectMapper = ObjectMapper().registerModule(PlayJsonMapperModule(JsonConfig.settings))
 
@@ -47,7 +48,7 @@ object PlayJsonMcp {
    * `OWrites`, as structured content and, for clients that don't read it, as text.
    *
    * Arguments that `I`'s `Reads` rejects, and an exception thrown by `call`, give a result with `isError` set and the
-   * error as its text.
+   * error as its text; the exception is also logged as a warning.
    *
    * @param inputSchema the JSON Schema of the arguments, which `I`'s `Reads` must agree with
    */
@@ -67,18 +68,21 @@ object PlayJsonMcp {
 
     McpServerFeatures.SyncToolSpecification.builder()
       .tool(tool)
-      .callHandler { (_, request) => handle(request, call) }
+      .callHandler { (_, request) => handle(name, request, call) }
       .build()
   }
 
-  private def handle[I: Reads, O: OWrites](request: CallToolRequest, call: I => ImageResult[O]): CallToolResult = {
+  private def handle[I: Reads, O: OWrites](name: String, request: CallToolRequest,
+                                           call: I => ImageResult[O]): CallToolResult = {
     try {
       readArguments(request).validate[I] match {
         case JsSuccess(args, _) => successResult(call(args))
         case JsError(errors) => errorResult(describe(errors))
       }
     } catch {
-      case NonFatal(e) => errorResult(Option(e.getMessage).getOrElse(e.getClass.getName))
+      case NonFatal(e) =>
+        logger.warn(s"""The "$name" tool failed""", e)
+        errorResult(Option(e.getMessage).getOrElse(e.getClass.getName))
     }
   }
 
