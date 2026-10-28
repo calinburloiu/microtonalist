@@ -129,8 +129,12 @@ read from their CC lines.
 
 ### Ports of a rig
 
-Proposed, not agreed yet. The app matches a device by its exact name and vendor, and the port names hold the run's ID,
-so the agent's rig can't name the ports directly:
+Agreed, with changes: see the design's [*Starting the app*](2026-10-26-design.md#starting-the-app). Notably, the server
+refuses every device that isn't a QA device, plugged in or not, and a scenario that needs a device missing at startup
+leaves a QA device unplugged instead.
+
+The app matches a device by its exact name and vendor, and the port names hold the run's ID, so the agent's rig can't
+name the ports directly:
 
 - The agent's rig names a QA device `qa:<device>`, e.g. `{ "name": "qa:mts" }`. Before it starts the app, the server
   turns each into `{ "name": "CoreMIDI4J - <run>-<device>", "vendor": "<Unknown Manufacturer>" }`.
@@ -416,14 +420,13 @@ And the log has no ERROR
 
 ## Open questions
 
-- Which module group holds the QA MCP server and the driver, e.g. a `qa` group with `qa-mcp` and `qa-driver`.
-- How the server finds the IDs of the app's windows for OS screenshots: a short Python script on `pyobjc`, or JXA
-  (`osascript -l JavaScript`) calling `CGWindowListCopyWindowInfo`, which needs nothing installed (untested).
-- How the agent's rig names the run's ports; see the proposal in [Ports of a rig](#ports-of-a-rig).
-- Whether the `accessibleText` rule still joins the view conventions of #99: it served Peekaboo mode, and now serves
-  only screen-reader users.
-- Spikes still to run: replacing `FileChooser` through `Instrumentation`; drag and drop on the headless platform, if
-  #99's GUI uses it.
+The [design](2026-10-26-design.md) settles them:
+
+- The module group: `testbench` holds `qa-mcp` and `qa-driver`.
+- The window IDs for OS screenshots: JXA, which the plan's spike showed to work, so `pyobjc` isn't needed.
+- The rig's port names: [Ports of a rig](#ports-of-a-rig), agreed with changes.
+- The `accessibleText` rule joins #99's view conventions, and the driver's selectors try it first.
+- `FileChooser` and drag and drop: out of scope, and so unspiked, until the GUI has them.
 
 ## Alternatives considered
 
