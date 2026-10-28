@@ -83,6 +83,8 @@ lazy val root = (project in file("."))
     cliModule,
     configModule,
     experimentsModule,
+    qaDriverModule,
+    qaMcpModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -577,6 +579,47 @@ lazy val experimentsModule = (project in file("app/experiments"))
     libraryDependencies ++= Seq(),
     // Throwaway research studies without tests — exclude from coverage measurement.
     coverageEnabled := false,
+  )
+
+lazy val qaDriverModule = (project in file("testbench/qa-driver"))
+  .withId("qa-driver")
+  .settings(
+    name := "microtonalist-qa-driver",
+    commonSettings,
+    assembly / assemblyJarName := "microtonalist-qa-driver.jar",
+    // Only the driver's classes: at run time it uses the JavaFX, Scala library and play-json of the app's JAR.
+    assemblyPackageScala / assembleArtifact := false,
+    assemblyPackageDependency / assembleArtifact := false,
+    assembly / packageOptions += Package.ManifestAttributes(
+      "Premain-Class" -> "org.calinburloiu.music.microtonalist.testbench.driver.QaDriverAgent"),
+    libraryDependencies ++= (javafx :+ playJson).map(_ % Provided),
+    // JavaFX starts once per JVM, and sbt's own JVM is the long-lived BSP server.
+    Test / fork := true,
+    // The forked JVM doesn't get `.sbtopts`' flags: the last one keeps the Scala library's lazy vals from warning.
+    Test / javaOptions ++= Seq(
+      "-Dglass.platform=Headless",
+      "--enable-native-access=ALL-UNNAMED",
+      "--sun-misc-unsafe-memory-access=allow",
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val qaMcpModule = (project in file("testbench/qa-mcp"))
+  .withId("qa-mcp")
+  .dependsOn(
+    mcpModule,
+    qaDriverModule,
+  )
+  .settings(
+    name := "microtonalist-qa-mcp",
+    commonSettings,
+    assemblySettings,
+    assembly / mainClass := Some("org.calinburloiu.music.microtonalist.testbench.qa.QaMcpMain"),
+    libraryDependencies ++= Seq(playJson),
+    // * QaMcpMain only wires the real streams, processes and exit; QaMcpServerIntegrationTest drives the server it
+    //   builds
+    coverageExcludedFiles := ".*/org/calinburloiu/music/microtonalist/testbench/qa/QaMcpMain",
+    coverageSettings(stmt = 80, branch = 80),
   )
 
 // # Dependencies
