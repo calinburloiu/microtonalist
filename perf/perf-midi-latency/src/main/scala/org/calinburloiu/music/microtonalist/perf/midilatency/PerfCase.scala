@@ -66,7 +66,7 @@ case class OutputSeries(mark: Option[String], expected: Seq[Expected]) {
 
 /**
  * A step of an iteration: the suite sends its input series, then waits for all its output series before the next step.
- * The output series may arrive interleaved, as no order is imposed among them.
+ * No order is imposed among the output series, so their messages may arrive interleaved.
  */
 case class Step(inputs: Seq[InputSeries], outputs: Seq[OutputSeries]) {
   require(inputs.nonEmpty, "A step needs an input series")

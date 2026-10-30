@@ -33,8 +33,8 @@ import scala.collection.immutable.ArraySeq
  */
 class MidiLatencyPerfTest extends LatencySuite {
 
-  private val E4 = MidiNote(64)
-  private val A4 = MidiNote(69)
+  private val E4 = MidiNote.E4
+  private val A4 = MidiNote.A4
 
   private val TwoTunings = "compositions/two-tunings.mtlist"
   private val MtsTracks = "tracks/mts.mtlist.tracks"
