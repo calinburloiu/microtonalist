@@ -90,7 +90,8 @@ sequenceDiagram
 
 The floor is the setup's own latency: the suite sends on the app's input device and receives the same message back from
 it, which a loopback device like an IAC bus does, with no app running, once. It tells whether the setup behaves as in
-other runs, not how much of a case's latency is the setup's, since a case's path crosses both devices and the app.
+other runs, not how much of a case's latency is the setup's, since a case's path crosses both devices and the app. It
+always runs the configured warm-up, whatever the run's own, which warms the suite's code up before the first case.
 
 A launch waits until the app is ready, e.g. by sending a probe until its expected output comes back, and drains what the
 app sent while starting; a second probe then finds the app settled, e.g. once its first tuning reached its tracks. Then

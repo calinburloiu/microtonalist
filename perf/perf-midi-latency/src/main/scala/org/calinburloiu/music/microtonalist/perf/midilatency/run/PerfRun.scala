@@ -31,6 +31,8 @@ import scala.util.control.NonFatal
  * directory under `scratchDir`.
  *
  * @param floorPath The loopback of the app's input device, which the floor is measured over with no app running.
+ * @param floorWarmupIterations The floor's warm-up iterations, which also warm up the suite's own code, so that the
+ *   cases measure through a warm suite whatever their own warm-up.
  * @param appPath From the app's input device to its output device.
  * @param resourceText Reads a resource of a case, by its path.
  */
@@ -38,6 +40,7 @@ final class PerfRun(floorPath: MidiPath,
                     appPath: MidiPath,
                     devices: PerfDevices,
                     settings: MeasurementSettings,
+                    floorWarmupIterations: Int,
                     launcher: AppLauncher,
                     resourceText: String => String,
                     scratchDir: Path) {
@@ -50,7 +53,8 @@ final class PerfRun(floorPath: MidiPath,
    */
   def measureFloor(): CaseOutcome =
     // With no app to relaunch, one launch is enough
-    CaseRunner(floorPath, settings.copy(launches = 1)).run(PerfRun.FloorScenario, _ => NoApp)
+    CaseRunner(floorPath, settings.copy(launches = 1, warmupIterations = floorWarmupIterations))
+      .run(PerfRun.FloorScenario, _ => NoApp)
 
   /** Measures `perfCase`, named `name`; a case that fails to run, e.g. for a missing resource, is a failed case. */
   def runCase(name: String, perfCase: PerfCase): CaseResult = {

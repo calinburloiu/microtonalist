@@ -158,11 +158,12 @@ private final class ActiveRun(perfRun: PerfRun,
 private object ActiveRun {
 
   def start(jar: Path, parameters: RunParameters, repoRoot: Path): ActiveRun = {
-    val config = parameters.applyTo(PerfConfig.parse(
+    val configured = PerfConfig.parse(
       Json.parse(resourceText(PerfConfig.ResourceName)),
       resource(PerfConfig.LocalResourceName).map(Json.parse),
       repoRoot
-    ))
+    )
+    val config = parameters.applyTo(configured)
     val devices = config.devices
     val java = config.java.getOrElse(Paths.get(sys.props("java.home"), "bin", "java"))
     val repo = GitRepo(repoRoot, ProcessCommandRunner)
@@ -181,8 +182,8 @@ private object ActiveRun {
       val floorPath = DeviceMidiPath.open(manager, devices.input, devices.input)
       val appPath = DeviceMidiPath.open(manager, devices.input, devices.output)
       val scratchDir = Files.createTempDirectory("microtonalist-perf-")
-      val perfRun = PerfRun(floorPath, appPath, devices, measurement, JarAppLauncher(java, config.jvmOptions, jar),
-        resourceText, scratchDir)
+      val perfRun = PerfRun(floorPath, appPath, devices, measurement, configured.measurement.warmupIterations,
+        JarAppLauncher(java, config.jvmOptions, jar), resourceText, scratchDir)
       ActiveRun(perfRun, Seq(floorPath, appPath, manager), config.resultsDir, scratchDir,
         (startTime, floor, cases) =>
           RunResult(parameters.name, startTime, Instant.now(), app, suite, jvm, machine, runConfig, floor, cases))

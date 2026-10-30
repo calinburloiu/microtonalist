@@ -84,7 +84,7 @@ It runs the suite through `sbtn`. Its options override the defaults of `midi-lat
 | `--commit <sha>` | The commit of a JAR whose `BuildInfo` doesn't record it |
 | `--name <name>` | Names the run, to tell it apart from others of the same app and machine, e.g. `no-warm-up` |
 | `--launches <n>` | How many times the app is launched for each case, in a fresh JVM each time; launches that disagree show that the JVM, not the app, moved the numbers |
-| `--warmup <n>` | How many iterations of a case each launch runs before the timed ones, to let the JIT compiler work; they record nothing |
+| `--warmup <n>` | How many iterations of a case each launch runs before the timed ones, to let the JIT compiler work; they record nothing. The floor keeps the configured warm-up |
 | `--iterations <n>` | How many timed iterations each launch runs; each records one sample of each metric |
 | `--pace <ms>` | The time between the starts of two timed iterations, in milliseconds |
 | `--max-rate <n>` | The most messages a second that each device carries in the warm-up, or `0` for no limit |
@@ -104,8 +104,10 @@ logs stay in the scratch directory the run prints.
 Commit the run file and `perf/perf-midi-latency/results/index.json`. The run also writes the raw samples of each metric
 beside its run file, in a `.samples.json` file that git ignores, and removes those of the machine's previous run.
 
-To see when the JIT compiler kicks in, run without warm-up, e.g. with `--warmup 0 --name no-warm-up`, and look at the
-samples of each timed iteration in the report.
+To see when the app's JIT compiler kicks in, run without warm-up, e.g. with `--warmup 0 --name no-warm-up`, and look at
+the samples of each timed iteration in the report. The floor still runs the configured warm-up, which also warms the
+suite's own code up, so that such a run measures a cold app through a warm suite, and its floor compares with that of
+other runs.
 
 ## Open the report
 
