@@ -64,7 +64,9 @@ class PerfRunTest extends AnyWordSpec with Matchers {
       appPath.launch()
     }
     val scratchDir: Path = Files.createTempDirectory("perf-run")
-    val run: PerfRun = PerfRun(floorPath, appPath, devices, settings, launcher, resources, scratchDir)
+    val floorWarmupIterations: Int = 2
+    val run: PerfRun =
+      PerfRun(floorPath, appPath, devices, settings, floorWarmupIterations, launcher, resources, scratchDir)
   }
 
   "PerfRun" should {
@@ -78,6 +80,18 @@ class PerfRunTest extends AnyWordSpec with Matchers {
       metrics.map(_.name) shouldEqual Seq("floor")
       metrics.head.statistics.count shouldEqual 3
       appPath.launchCount.get shouldEqual 0
+    }
+
+    "warm the floor up with its own warm-up, whatever that of the cases" in new Fixture {
+      // Given
+      private val coldRun = PerfRun(floorPath, appPath, devices, settings.copy(warmupIterations = 0),
+        floorWarmupIterations = 5, launcher, resources, scratchDir)
+
+      // When
+      coldRun.measureFloor()
+
+      // Then
+      floorPath.receivedCount.get shouldEqual 5 + settings.timedIterations
     }
 
     "run a case on a scratch rig with the devices filled in" in new Fixture {

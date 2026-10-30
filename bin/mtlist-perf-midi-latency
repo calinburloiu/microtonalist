@@ -40,7 +40,7 @@ run: measures the app's JAR with the MIDI latency suite and writes a run file.
   --commit <sha>      The commit of a JAR whose BuildInfo doesn't record it.
   --name <name>       Names the run, to tell it apart from others of the same app and machine.
   --launches <n>      How many times the app is launched for each case.
-  --warmup <n>        How many warm-up iterations run after each launch, before the timed ones.
+  --warmup <n>        How many warm-up iterations run after each launch, before the timed ones; not the floor's.
   --iterations <n>    How many timed iterations each launch measures.
   --pace <ms>         The time between the starts of two timed iterations, in milliseconds.
   --max-rate <n>      The most messages a second that each device carries in the warm-up; 0 for no limit.
