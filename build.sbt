@@ -78,6 +78,7 @@ lazy val root = (project in file("."))
     formatModule,
     formatCoreModule,
     uiModule,
+    mcpModule,
     appModule,
     cliModule,
     configModule,
@@ -485,6 +486,23 @@ lazy val uiModule = (project in file("ui/ui"))
     coverageSettings(stmt = 0, branch = 0),
   )
 
+lazy val mcpModule = (project in file("ai/mcp"))
+  .withId("mcp")
+  .dependsOn(
+    commonModule % "compile->compile;test->test",
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-mcp",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      mcpCore,
+      mcpJsonJackson2,
+      playJson,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
 lazy val appModule = (project in file("app/app"))
   .withId("app")
   .dependsOn(
@@ -664,6 +682,7 @@ lazy val commonSettings = Seq(
   scalacOptions ++= compilerOptions,
   resolvers += "Local Maven Repository" at "file://" + Path.userHome.absolutePath + "/.m2/repository",
   libraryDependencies ++= commonDependencies,
+  dependencyOverrides ++= jacksonOverrides,
   Test / unmanagedResourceDirectories += (ThisBuild / baseDirectory).value / "project" / "test-resources",
 ) ++ Warnings.settings ++ targetSuffixOverride
 

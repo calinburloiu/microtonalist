@@ -83,7 +83,21 @@ A module's `ARCHITECTURE.md` usually has these sections; leave out one with noth
 
 Draw flows in Mermaid, which GitHub renders: `flowchart` for pipelines, `sequenceDiagram` for event and thread
 hand-offs, `stateDiagram-v2` for lifecycles. Keep a diagram to a few nodes, and let it replace prose rather than
-repeat it. Quote a label that holds punctuation: `a["Track.tune, for every track"]`.
+repeat it. Quote a label that holds punctuation: `a["Track.tune, for every track"]`. Don't name a node after a Mermaid
+keyword, such as `call`, `click`, `end` or `style`.
+
+When `mmdc` ([mermaid-cli](https://github.com/mermaid-js/mermaid-cli)) is installed, render the diagrams of each doc
+whose diagrams you drew or changed, into your scratchpad directory:
+
+```bash
+mmdc -q -i <doc>.md -o <scratchpad>/<name>.md -e png -s 2
+```
+
+It fails on a diagram that doesn't parse, which GitHub would show as an error, and otherwise writes the doc's diagrams
+as `<name>-1.png`, `<name>-2.png` and so on. Read each image and check that it shows what you meant: every node and
+arrow, the arrows' directions and labels, and a layout that reads well. Without `mmdc`, or when it can't find Chrome,
+say in your reply that you couldn't render the diagrams, and point to the mermaid-cli setup in
+`docs/development/README.md`.
 
 Draw an ASCII diagram instead when its layout carries meaning that Mermaid would lose, such as states placed on two
 axes, like `MidiDeviceHandle.State` in `docs/architecture/midi-device-lifecycle.md`.
