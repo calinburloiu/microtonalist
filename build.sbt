@@ -83,6 +83,7 @@ lazy val root = (project in file("."))
     cliModule,
     configModule,
     experimentsModule,
+    perfMidiLatencyModule,
   )
   .disablePlugins(AssemblyPlugin)
   .settings(
@@ -522,7 +523,18 @@ lazy val appModule = (project in file("app/app"))
     commonSettings,
     assemblySettings,
     assembly / mainClass := Some("org.calinburloiu.music.microtonalist.MicrotonalistApp"),
-    buildInfoKeys := Seq[BuildInfoKey](name, version, scalaVersion, sbtVersion),
+    buildInfoKeys := {
+      val repoRoot = (ThisBuild / baseDirectory).value
+      Seq[BuildInfoKey](
+        name,
+        version,
+        scalaVersion,
+        sbtVersion,
+        // The latency suite (perf-midi-latency) reads them from a JAR, to tell which commit it measures.
+        BuildInfoKey.action("gitCommit")(BuildIdentity.gitCommit(repoRoot)),
+        BuildInfoKey.action("gitDirty")(BuildIdentity.gitDirty(repoRoot)),
+      )
+    },
     buildInfoPackage := "org.calinburloiu.music.microtonalist",
     libraryDependencies ++= Seq(
       guava,
@@ -577,6 +589,31 @@ lazy val experimentsModule = (project in file("app/experiments"))
     libraryDependencies ++= Seq(),
     // Throwaway research studies without tests — exclude from coverage measurement.
     coverageEnabled := false,
+  )
+
+lazy val perfMidiLatencyModule = (project in file("perf/perf-midi-latency"))
+  .withId("perf-midi-latency")
+  .dependsOn(
+    scMidiModule,
+    scMidiJavamidiModule % "compile->compile;test->test",
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-perf-midi-latency",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      playJson,
+    ),
+    // The latency cases measure the app from a JVM of their own, away from the sbt server's load.
+    Test / fork := true,
+    Test / javaOptions ++= Seq(
+      // CoreMIDI4J loads its native library (JEP 472)
+      "--enable-native-access=ALL-UNNAMED",
+      // Scala's lazy vals still use sun.misc.Unsafe, as in .sbtopts for the sbt JVM
+      "--sun-misc-unsafe-memory-access=allow",
+      s"-Dmicrotonalist.perf.repoRoot=${(ThisBuild / baseDirectory).value}",
+    ),
+    coverageSettings(stmt = 80, branch = 80),
   )
 
 // # Dependencies
