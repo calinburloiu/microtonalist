@@ -28,9 +28,10 @@ import java.time.Instant
 
 /**
  * The JSON format of the run files, which the report reads: durations in nanoseconds, a metric's statistics flattened
- * into it, a histogram's bins as `[lower bound, count]` pairs, and unknown values as `null`.
+ * into it, a histogram's bins as `[lower bound, count]` pairs, and unknown values left out, though it reads a `null`
+ * one too.
  */
-object RunResultJson {
+object JsonRunResultFormat {
 
   /** The run as pretty-printed JSON, ending in a newline. */
   def write(run: RunResult): String = Json.prettyPrint(Json.toJson(run)) + "\n"
@@ -38,21 +39,16 @@ object RunResultJson {
   /** Reads a run file. */
   def read(json: String): RunResult = Json.parse(json).as[RunResult]
 
-  private val withNulls = Json.configured(using JsonConfiguration(optionHandlers = OptionHandlers.WritesNull))
-
   private given OFormat[MidiDeviceId] = Json.format[MidiDeviceId]
   private given OFormat[PerfDevices] = Json.format[PerfDevices]
   private given OFormat[OsInfo] = Json.format[OsInfo]
-  private given OFormat[MachineInfo] = withNulls.format[MachineInfo]
+  private given OFormat[MachineInfo] = Json.format[MachineInfo]
   private given OFormat[JvmInfo] = Json.format[JvmInfo]
-  private given OFormat[AppBuild] = withNulls.format[AppBuild]
-  private given OFormat[SuiteBuild] = withNulls.format[SuiteBuild]
+  private given OFormat[AppBuild] = Json.format[AppBuild]
+  private given OFormat[SuiteBuild] = Json.format[SuiteBuild]
   private given OFormat[RunConfigSummary] = Json.format[RunConfigSummary]
   private given OFormat[MetricStatistics] = Json.format[MetricStatistics]
   private given OFormat[LaunchStatistics] = Json.format[LaunchStatistics]
-
-  /** An optional value that is written as `null` when absent, rather than left out. */
-  private def optionalWithNull[A: Format]: Format[Option[A]] = Format(Reads.optionWithNull[A], Writes.OptionWrites[A])
 
   private given Format[HistogramBin] = Format(
     Reads(_.validate[(Long, Int)].map(HistogramBin.apply)),
@@ -85,19 +81,13 @@ object RunResultJson {
 
   private given OFormat[CaseResult] = (
     (__ \ "name").format[String] and
-      (__ \ "tracks").format(using optionalWithNull[String]) and
-      (__ \ "composition").format(using optionalWithNull[String]) and
+      (__ \ "tracks").formatNullable[String] and
+      (__ \ "composition").formatNullable[String] and
       __.format[CaseOutcome]
   )(CaseResult.apply, Tuple.fromProductTyped)
 
-  /** A run's name, written as `null` when it has none, and missing from the run files of older suites. */
-  private val nameFormat: OFormat[Option[String]] = OFormat(
-    (__ \ "name").readNullable[String],
-    (__ \ "name").write(using Writes.OptionWrites[String])
-  )
-
   private val runFieldsFormat: OFormat[RunResult] = (
-    nameFormat and
+    (__ \ "name").formatNullable[String] and
       (__ \ "startTime").format[Instant] and
       (__ \ "endTime").format[Instant] and
       (__ \ "app").format[AppBuild] and

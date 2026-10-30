@@ -1,0 +1,132 @@
+#!/usr/bin/env bash
+#
+# Copyright 2026 Calin-Andrei Burloiu
+#
+#    Licensed under the Apache License, Version 2.0 (the "License");
+#    you may not use this file except in compliance with the License.
+#    You may obtain a copy of the License at
+#
+#        http://www.apache.org/licenses/LICENSE-2.0
+#
+#    Unless required by applicable law or agreed to in writing, software
+#    distributed under the License is distributed on an "AS IS" BASIS,
+#    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#    See the License for the specific language governing permissions and
+#    limitations under the License.
+#
+
+#
+# mtlist-perf-midi-latency — run the MIDI latency suite and serve its report.
+#
+# `run` runs the suite's cases through `sbtn`, on the development stack's sbt server, turning each option into the
+# ScalaTest config-map argument the suite reads (see docs/development/performance-tests.md). `serve` serves the report
+# with the JDK's file server: `report/` at the root and `results/` at `/results/`, where the report reads it.
+#
+
+set -euo pipefail
+
+script_name="$(basename "${BASH_SOURCE[0]}")"
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+module_dir="$repo_root/perf/perf-midi-latency"
+
+usage() {
+  cat <<EOF
+Usage:
+  $script_name run --jar <path> [options]
+  $script_name serve [--port <port>]
+
+run: measures the app's JAR with the MIDI latency suite and writes a run file.
+  --jar <path>        The app's JAR to measure.
+  --commit <sha>      The commit of a JAR whose BuildInfo doesn't record it.
+  --name <name>       Names the run, to tell it apart from others of the same app and machine.
+  --launches <n>      How many times the app is launched for each case.
+  --warmup <n>        How many warm-up iterations run after each launch, before the timed ones.
+  --iterations <n>    How many timed iterations each launch measures.
+  --pace <ms>         The time between the starts of two timed iterations, in milliseconds.
+  --max-rate <n>      The most messages a second that each device carries in the warm-up; 0 for no limit.
+  --results <dir>     Writes the run file to another directory, e.g. for a trial run you won't commit.
+  --suite <id>        Runs only the cases of a suite: mts, mpb or mpe; repeat it for several.
+  --case <text>       Runs only the cases whose name contains the text; repeat it for several.
+  Paths are relative to the current directory. The values can't contain '"' or '|'.
+
+serve: serves the report at http://localhost:<port>/ until stopped with Ctrl-C.
+  --port <port>       The port to listen on; 8000 by default.
+EOF
+}
+
+die() {
+  echo "$script_name: $*" >&2
+  exit 2
+}
+
+absolute_path() {
+  if [[ "$1" = /* ]]; then echo "$1"; else echo "$PWD/$1"; fi
+}
+
+run() {
+  local args=() jar="" suites="" cases=""
+  while [[ $# -gt 0 ]]; do
+    local option="$1"
+    [[ $# -ge 2 ]] || die "$option needs a value"
+    local value="$2"
+    [[ "$value" == *[\"\|]* ]] && die "the value of $option can't contain '\"' or '|': '$value'"
+    case "$option" in
+      --jar) jar="$(absolute_path "$value")" ;;
+      --commit) args+=("-Dcommit=$value") ;;
+      --name) args+=("-Dname=$value") ;;
+      --launches) args+=("-Dlaunches=$value") ;;
+      --warmup) args+=("-Dwarmup=$value") ;;
+      --iterations) args+=("-Diterations=$value") ;;
+      --pace) args+=("-Dpace=$value") ;;
+      --max-rate) args+=("-DmaxRate=$value") ;;
+      --results) args+=("-Dresults=$(absolute_path "$value")") ;;
+      --suite) suites="${suites:+$suites,}$value" ;;
+      --case) cases="${cases:+$cases|}$value" ;;
+      *) die "unknown option $option for run; see --help" ;;
+    esac
+    shift 2
+  done
+  [[ -n "$jar" ]] || die "run needs --jar <path>"
+  [[ -f "$jar" ]] || die "no JAR at $jar"
+  args+=("-Djar=$jar")
+  [[ -n "$suites" ]] && args+=("-Dsuites=$suites")
+  [[ -n "$cases" ]] && args+=("-Dcases=$cases")
+
+  # sbt splits its command on spaces, except within double quotes
+  local quoted="" arg
+  for arg in "${args[@]}"; do
+    quoted+=" \"$arg\""
+  done
+  cd "$repo_root"
+  exec sbtn "perf-midi-latency/testOnly org.calinburloiu.music.microtonalist.perf.midilatency.cases.MidiLatencyPerfTest \
+-- -oNCXEHLOPQRMWS$quoted"
+}
+
+serve() {
+  local port=8000
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --port)
+        [[ $# -ge 2 ]] || die "--port needs a value"
+        port="$2"
+        shift 2
+        ;;
+      *) die "unknown option $1 for serve; see --help" ;;
+    esac
+  done
+  [[ "$port" =~ ^[0-9]+$ ]] || die "--port must be a number, but was '$port'"
+
+  local java="java"
+  [[ -n "${JAVA_HOME:-}" ]] && java="$JAVA_HOME/bin/java"
+  exec "$java" "$module_dir/report-server/ReportServer.java" "$module_dir" "$port"
+}
+
+[[ $# -gt 0 ]] || { usage >&2; exit 2; }
+command="$1"
+shift
+case "$command" in
+  run) run "$@" ;;
+  serve) serve "$@" ;;
+  -h|--help|help) usage ;;
+  *) usage >&2; exit 2 ;;
+esac

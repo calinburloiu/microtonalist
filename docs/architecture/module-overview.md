@@ -16,7 +16,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | [`format`](../../format/README.md) | Persistence of compositions, scales and rigs: what the format modules share, and their wiring |
 | [`ui`](../../ui/README.md) | The desktop GUI |
 | [`app`](../../app/README.md) | The application layer: the executables, and their configuration and wiring |
-| [`perf`](../../perf/README.md) | End-to-end performance measurement of the app, from its JAR |
+| [`perf`](../../perf/README.md) | Performance measurement of the app, from its JAR |
 
 ## Main modules
 
@@ -47,7 +47,8 @@ e.g. `tuner-mts`, `tuner-mpe` and `tuning-changer-pedal`, and its family's forma
 
 ## Dependencies
 
-The main modules and their direct dependencies, leaving out those that others imply; `build.sbt` has them all.
+The main modules of the app and their direct dependencies, leaving out those that others imply; `build.sbt` has them
+all.
 
 ```mermaid
 flowchart TD
@@ -55,9 +56,6 @@ flowchart TD
     app
     config
     cli
-  end
-  subgraph perfGroup ["perf/"]
-    perfMidiLatency["perf-midi-latency"]
   end
   subgraph uiGroup ["ui/"]
     ui
@@ -96,7 +94,6 @@ flowchart TD
   tuningChanger --> tuning
   tuning --> scMidi
   cli --> scMidiJavamidi
-  perfMidiLatency --> scMidiJavamidi
   scMidiJavamidi --> scMidi
   scMidi --> common
   config --> common

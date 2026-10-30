@@ -51,8 +51,8 @@ async function main() {
   try {
     index = await fetchJson(`${ResultsDir}index.json`);
   } catch (error) {
-    setStatus(`Couldn't load ${ResultsDir}index.json (${error.message}). Serve the module's directory, e.g. ` +
-      'with "$JAVA_HOME/bin/jwebserver" -d "$(pwd)/perf/perf-midi-latency", and open /report/.');
+    setStatus(`Couldn't load ${ResultsDir}index.json (${error.message}). Serve the report with ` +
+      '"bin/mtlist-perf-midi-latency serve", and open the address it prints.');
     return;
   }
   if (!index.runs?.length) {
@@ -254,7 +254,7 @@ function toggleDetails(tr, row, run, runPath, vsRun, vsMetric, result) {
   const timeline = element('section', {}, [element('h2', { text: 'Timeline across the machine\'s runs' })]);
   const distribution = element('section', {}, [element('h2', { text: 'Distribution' })]);
   const samples = element('section', {}, [element('h2', { text: 'Samples of this run' })]);
-  cell.append(
+  cell.append(element('div', { className: 'details-body' }, [
     element('div', { className: 'panels' }, [timeline, distribution, samples]),
     element('div', { className: 'panels' }, [
       statisticsSection(row.metric, vsMetric),
@@ -262,8 +262,9 @@ function toggleDetails(tr, row, run, runPath, vsRun, vsMetric, result) {
       driftSection(result, vsMetric),
       metadataSection(run)
     ])
-  );
-  renderDistribution(distribution, row.metric, vsMetric, vsRun);
+  ]));
+  const floor = row.caseName === 'floor' ? undefined : metricOf(run, 'floor', 'floor');
+  renderDistribution(distribution, row.metric, vsMetric, vsRun, floor);
   renderTimeline(timeline, row).catch(error =>
     timeline.append(element('p', { className: 'note', text: `Couldn't load the runs (${error.message}).` })));
   renderSamples(samples, row, runPath).catch(error =>
@@ -340,7 +341,7 @@ function formatSigned(ns) {
 
 function metadataSection(run) {
   const { machine, jvm, app, suite, config } = run;
-  const commit = (hash, dirty) => `${hash ?? 'unknown'}${dirty === true ? ' (dirty)' : dirty === null ? ' (dirty unknown)' : ''}`;
+  const commit = (hash, dirty) => `${hash ?? 'unknown'}${dirty === true ? ' (dirty)' : dirty === undefined ? ' (dirty unknown)' : ''}`;
   return element('section', {}, [
     element('h2', { text: 'Run' }),
     element('dl', {}, [
@@ -474,7 +475,12 @@ function histogramOutline(metric, factor) {
   return points;
 }
 
-function renderDistribution(section, metric, vsMetric, vsRun) {
+/**
+ * The distribution of `metric`, against that of `vsMetric` if any, with its median, p90 and p99, and the median of
+ * `floor`, if any, for reference: the setup alone takes about that much over one device, which the app's path crosses
+ * twice, so it isn't a baseline to subtract.
+ */
+function renderDistribution(section, metric, vsMetric, vsRun, floor) {
   const Chart = chartLibrary(section);
   if (!Chart) return;
   const { color, grid } = axisColors();
@@ -483,14 +489,16 @@ function renderDistribution(section, metric, vsMetric, vsRun) {
   const points = histogramOutline(metric, factor);
   const vsPoints = vsMetric ? histogramOutline(vsMetric, factor) : [];
   const top = Math.max(...points.map(p => p.y), ...vsPoints.map(p => p.y));
-  const marker = (key, i) => ({
-    label: `${key} ${formatNs(metric[key])}`,
-    data: [{ x: metric[key] / 1000, y: 0 }, { x: metric[key] / 1000, y: top }],
-    borderColor: cssColor(`--series-${i}`),
-    borderDash: [2, 3],
+  const verticalLine = (label, ns, color, dash) => ({
+    label: `${label} ${formatNs(ns)}`,
+    data: [{ x: ns / 1000, y: 0 }, { x: ns / 1000, y: top }],
+    borderColor: color,
+    backgroundColor: color,
+    borderDash: dash,
     pointRadius: 0,
     showLine: true
   });
+  const marker = (key, i) => verticalLine(key, metric[key], cssColor(`--series-${i}`), [2, 3]);
 
   const datasets = [{
     label: 'This run',
@@ -512,6 +520,7 @@ function renderDistribution(section, metric, vsMetric, vsRun) {
     });
   }
   datasets.push(marker('median', 3), marker('p90', 4), marker('p99', 7));
+  if (floor) datasets.push(verticalLine('floor median', floor.median, cssColor('--muted'), [8, 3, 2, 3]));
 
   new Chart(chartCanvas(section), {
     type: 'scatter',

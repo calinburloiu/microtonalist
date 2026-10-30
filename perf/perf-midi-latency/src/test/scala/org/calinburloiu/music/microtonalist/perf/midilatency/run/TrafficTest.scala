@@ -30,8 +30,8 @@ class TrafficTest extends AnyWordSpec with Matchers {
 
   private val noteOn = NoteOnMidiMsg(0, MidiNote(64))
   private val noteOff = NoteOffMidiMsg(0, MidiNote(64))
-  private val pedalDown = CcMidiMsg(0, 66, 127)
-  private val pedalUp = CcMidiMsg(0, 66, 0)
+  private val pedalDown = CcMidiMsg(0, MidiCc.SostenutoPedal, 127)
+  private val pedalUp = CcMidiMsg(0, MidiCc.SostenutoPedal, 0)
 
   /** A SysEx of `length` bytes, its `0xF0` and `0xF7` included. */
   private def sysEx(length: Int): SysExMidiMsg =

@@ -21,7 +21,7 @@ import org.calinburloiu.music.microtonalist.perf.midilatency.results.RunResultFi
 }
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import play.api.libs.json.{JsNull, JsValue, Json}
+import play.api.libs.json.{JsValue, Json}
 
 import java.nio.file.{Files, Path}
 import java.time.Instant
@@ -45,7 +45,7 @@ class ResultsStoreTest extends AnyWordSpec with Matchers {
 
       // Then
       file shouldEqual dir.resolve("f00d/20261026T101500Z-1.6.0-SNAPSHOT-a8ba00df.json")
-      RunResultJson.read(Files.readString(file)) shouldEqual withoutSamples(sampleRun)
+      JsonRunResultFormat.read(Files.readString(file)) shouldEqual withoutSamples(sampleRun)
     }
 
     "create the index with the first run" in {
@@ -69,7 +69,7 @@ class ResultsStoreTest extends AnyWordSpec with Matchers {
       ))
     }
 
-    "write an unnamed run's name as null in the index" in {
+    "leave out an unnamed run's name in the index" in {
       // Given
       val dir = Files.createTempDirectory("results")
 
@@ -77,7 +77,7 @@ class ResultsStoreTest extends AnyWordSpec with Matchers {
       ResultsStore(dir).write(sampleRun.copy(name = None))
 
       // Then
-      ((readIndex(dir) \ "runs")(0) \ "name").toOption shouldEqual Some(JsNull)
+      ((readIndex(dir) \ "runs")(0) \ "name").toOption shouldBe empty
     }
 
     "add later runs to the index in time order, keeping the others" in {
@@ -104,7 +104,7 @@ class ResultsStoreTest extends AnyWordSpec with Matchers {
 
       // Then
       val samplesFile = dir.resolve("f00d/20261026T101500Z-1.6.0-SNAPSHOT-a8ba00df.samples.json")
-      Files.readString(samplesFile) shouldEqual RunSamplesJson.write(sampleRun)
+      Files.readString(samplesFile) shouldEqual JsonRunSamplesFormat.write(sampleRun)
     }
 
     "keep the raw samples of the machine's last written run only" in {

@@ -21,11 +21,11 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.{JsValue, Json}
 
-class RunSamplesJsonTest extends AnyWordSpec with Matchers {
+class JsonRunSamplesFormatTest extends AnyWordSpec with Matchers {
 
-  private lazy val json: JsValue = Json.parse(RunSamplesJson.write(sampleRun))
+  private lazy val json: JsValue = Json.parse(JsonRunSamplesFormat.write(sampleRun))
 
-  "RunSamplesJson" should {
+  "JsonRunSamplesFormat" should {
     "write the schema version" in {
       // When / Then
       (json \ "schemaVersion").as[Int] shouldEqual 1
@@ -57,7 +57,7 @@ class RunSamplesJsonTest extends AnyWordSpec with Matchers {
 
     "write compactly, on one line" in {
       // When / Then
-      RunSamplesJson.write(sampleRun).linesIterator.size shouldEqual 1
+      JsonRunSamplesFormat.write(sampleRun).linesIterator.size shouldEqual 1
     }
   }
 }

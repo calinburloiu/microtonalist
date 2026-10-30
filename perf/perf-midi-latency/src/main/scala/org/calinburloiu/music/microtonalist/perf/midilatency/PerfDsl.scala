@@ -21,7 +21,7 @@ import org.calinburloiu.music.scmidi.message.MidiMsg
 /**
  * The language the latency cases are written in, e.g.
  * {{{
- *   input("pedal")(CcMidiMsg(0, 66, 127), CcMidiMsg(0, 66, 0)) ~> output("tuning")(sysEx)
+ *   input("pedal")(CcMidiMsg(0, MidiCc.SostenutoPedal, 127), CcMidiMsg(0, MidiCc.SostenutoPedal, 0)) ~> output("tuning")(sysEx)
  *   metric("pedal", "tuning")
  * }}}
  */

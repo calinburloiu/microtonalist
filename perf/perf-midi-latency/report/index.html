@@ -88,9 +88,10 @@
     h1 { margin: 0 1rem 0 0; font-size: 1.1rem; }
     h2 { margin: 1rem 0 0.5rem; font-size: 0.95rem; }
 
-    label { display: flex; gap: 0.4rem; align-items: center; color: var(--muted); }
+    label { display: flex; gap: 0.4rem; align-items: center; max-width: 100%; color: var(--muted); }
 
     select {
+      min-width: 0;
       max-width: 22rem;
       padding: 0.2rem 0.4rem;
       color: var(--fg);
@@ -121,6 +122,8 @@
     .case { max-width: 28rem; }
 
     tr.details > td { padding: 0.25rem 0.6rem 1.25rem; background: var(--bg); }
+    /* The details span the table, which may be wider than the screen: they keep to its visible width instead. */
+    .details-body { position: sticky; left: 0.6rem; max-width: calc(100vw - 3.2rem); }
     .panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 0 2rem; }
     .chart { position: relative; height: 260px; }
     .toggles { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; margin-bottom: 0.25rem; }

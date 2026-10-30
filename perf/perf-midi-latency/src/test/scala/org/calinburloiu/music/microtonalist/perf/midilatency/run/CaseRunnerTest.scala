@@ -177,7 +177,7 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
     "fail when the app sends more than expected" in {
       // Given
       val app = FakeApp {
-        case `noteOffE4` => Seq(noteOffE4, CcMidiMsg(0, 1, 0))
+        case `noteOffE4` => Seq(noteOffE4, CcMidiMsg(0, MidiCc.ModulationMsb, 0))
         case message => Seq(message)
       }
 
@@ -185,7 +185,7 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
       val reason = failureOf(runOn(app, settings()))
 
       // Then
-      reason should include(CcMidiMsg(0, 1, 0).toString)
+      reason should include(CcMidiMsg(0, MidiCc.ModulationMsb, 0).toString)
     }
 
     "fail at once when the app exits before it is ready" in {
@@ -206,7 +206,7 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
     "discard the output an app sends while it starts" in {
       // Given
       val app = FakeApp()
-      app.startupOutput = Seq(PitchBendMidiMsg(0, 0), CcMidiMsg(0, 101, 0), CcMidiMsg(0, 100, 0))
+      app.startupOutput = Seq(PitchBendMidiMsg(0, 0), CcMidiMsg(0, MidiCc.RpnMsb, 0), CcMidiMsg(0, MidiCc.RpnLsb, 0))
 
       // When
       val outcome = runOn(app, settings())
@@ -218,7 +218,7 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
     "fail when the app sends more after the last iteration" in {
       // Given
       val app = FakeApp {
-        case `noteOffE4` => Seq(noteOffE4, CcMidiMsg(0, 1, 0))
+        case `noteOffE4` => Seq(noteOffE4, CcMidiMsg(0, MidiCc.ModulationMsb, 0))
         case message => Seq(message)
       }
 
@@ -227,12 +227,12 @@ class CaseRunnerTest extends AnyWordSpec with Matchers {
 
       // Then
       reason should include("after the last iteration")
-      reason should include(CcMidiMsg(0, 1, 0).toString)
+      reason should include(CcMidiMsg(0, MidiCc.ModulationMsb, 0).toString)
     }
 
     "wait for an output after the launch" in {
       // Given
-      val ready = CcMidiMsg(0, 101, 0)
+      val ready = CcMidiMsg(0, MidiCc.RpnMsb, 0)
       val app = FakeApp()
       app.startupOutput = Seq(PitchBendMidiMsg(0, 0), ready)
 

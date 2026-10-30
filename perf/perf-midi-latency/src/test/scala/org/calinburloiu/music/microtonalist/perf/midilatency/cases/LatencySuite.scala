@@ -26,7 +26,7 @@ import org.calinburloiu.music.microtonalist.perf.midilatency.run.{CaseOutcome, P
 import org.calinburloiu.music.scmidi.javamidi.JavaMidiManager
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
-import org.scalatest.{BeforeAndAfterAllConfigMap, ConfigMap, Outcome}
+import org.scalatest.{Args, ConfigMap, Outcome, Status, SucceededStatus}
 import play.api.libs.json.Json
 
 import java.nio.charset.StandardCharsets
@@ -36,23 +36,60 @@ import scala.collection.mutable
 import scala.util.Using
 
 /**
- * The base of the latency cases: it runs them against the app's JAR given with `-Djar=<path>`, and cancels them without
- * one, so that the normal test suite never launches the app nor needs MIDI devices.
+ * The run that the latency suites of [[MidiLatencyPerfTest]] share: it measures their cases against the app's JAR given
+ * with `-Djar=<path>`, and cancels them without one, so that the normal test suite never launches the app nor needs
+ * MIDI devices.
  *
- * It is the composition root of a run: before the first case it describes the app, the suite, the JVM and the machine,
- * opens the configured MIDI devices and measures the floor; after the last one it writes the run file and prints the
- * summary. See `perf/perf-midi-latency/docs/ARCHITECTURE.md`.
+ * It is the composition root of a run: on [[start]] it describes the app, the suite, the JVM and the machine, opens the
+ * configured MIDI devices and measures the floor; on [[finish]] it writes the run file and prints the summary. See
+ * `perf/perf-midi-latency/docs/ARCHITECTURE.md`.
  */
-abstract class LatencySuite extends AnyWordSpec with Matchers with BeforeAndAfterAllConfigMap {
+final class LatencySession {
 
-  private var activeRun: Option[ActiveRun] = None
+  @volatile private var parameters: Option[RunParameters] = None
+  @volatile private var activeRun: Option[ActiveRun] = None
+
+  /**
+   * Starts the run with the parameters in ScalaTest's config map, if it gives a JAR.
+   *
+   * @param suiteIds The ids of the latency suites that the run may select.
+   * @throws org.calinburloiu.music.microtonalist.perf.midilatency.PerfSetupException if it selects another suite.
+   */
+  def start(configMap: ConfigMap, suiteIds: Seq[String]): Unit = {
+    val repoRoot = Paths.get(sys.props.getOrElse("microtonalist.perf.repoRoot", sys.props("user.dir")))
+    val runParameters = RunParameters.fromConfigMap(configMap.toMap, repoRoot)
+    for (unknown <- runParameters.suites.diff(suiteIds.toSet).headOption) {
+      throw PerfSetupException(s"No latency suite $unknown: the suites are ${suiteIds.mkString(", ")}")
+    }
+    parameters = Some(runParameters)
+    activeRun = runParameters.jar.map(jar => ActiveRun.start(jar, runParameters, repoRoot))
+  }
+
+  /** Tells whether the run selects the latency suite with the given id; any suite before the run starts. */
+  def selectsSuite(id: String): Boolean = parameters.forall(_.selectsSuite(id))
+
+  /** Tells whether the run selects the case with the given name; any case before the run starts. */
+  def selectsCase(name: String): Boolean = parameters.forall(_.selectsCase(name))
+
+  /** Writes the run file of a started run. */
+  def finish(): Unit = activeRun.foreach(_.finish())
+
+  private[cases] def run: Option[ActiveRun] = activeRun
+}
+
+/**
+ * The base of the latency suites, which measure their cases in the run of `session`; [[MidiLatencyPerfTest]] runs them,
+ * so that they share a run.
+ *
+ * @param id Selects the suite in a run, e.g. `mts`.
+ */
+abstract class LatencySuite(val id: String, session: LatencySession) extends AnyWordSpec with Matchers {
+
   @volatile private var currentTestName: String = ""
 
-  override protected def beforeAll(configMap: ConfigMap): Unit = {
-    val repoRoot = Paths.get(sys.props.getOrElse("microtonalist.perf.repoRoot", sys.props("user.dir")))
-    val parameters = RunParameters.fromConfigMap(configMap.toMap, repoRoot)
-    activeRun = parameters.jar.map(jar => ActiveRun.start(jar, parameters, repoRoot))
-  }
+  // The run selects its cases itself, since ScalaTest's -z doesn't reach the tests of nested suites
+  override protected def runTest(testName: String, args: Args): Status =
+    if (session.selectsCase(testName)) super.runTest(testName, args) else SucceededStatus
 
   override protected def withFixture(test: NoArgTest): Outcome = {
     currentTestName = test.name
@@ -75,29 +112,13 @@ abstract class LatencySuite extends AnyWordSpec with Matchers with BeforeAndAfte
     for (path <- Seq(tracks, composition) ++ appConfig) {
       assert(getClass.getResource(s"/$path") != null, s"No resource $path in the latency suite")
     }
-    assume(activeRun.isDefined, NoJarMessage)
+    assume(session.run.isDefined, NoJarMessage)
 
-    activeRun.get.runCase(currentTestName, latencyCase).outcome match {
+    session.run.get.runCase(currentTestName, latencyCase).outcome match {
       case CaseOutcome.Failed(reason) => fail(reason)
       case CaseOutcome.Passed(_) =>
     }
   }
-
-  /**
-   * Measures a loopback case named after the running test: the scenario over the loopback of the app's input device,
-   * with no app running, which tells the setup's own cost for the messages of a flow.
-   */
-  protected def loopbackCase(steps: Step*)(metrics: Metric*): Unit = {
-    val scenario = Scenario(Readiness.Immediately, steps, metrics)
-    assume(activeRun.isDefined, NoJarMessage)
-
-    activeRun.get.runLoopbackCase(currentTestName, scenario).outcome match {
-      case CaseOutcome.Failed(reason) => fail(reason)
-      case CaseOutcome.Passed(_) =>
-    }
-  }
-
-  override protected def afterAll(configMap: ConfigMap): Unit = activeRun.foreach(_.finish())
 
   private val NoJarMessage = "No -Djar=<app JAR> given: the latency cases need the app"
 }
@@ -114,8 +135,6 @@ private final class ActiveRun(perfRun: PerfRun,
   private val results = mutable.ArrayBuffer[CaseResult]()
 
   def runCase(name: String, perfCase: PerfCase): CaseResult = record(perfRun.runCase(name, perfCase))
-
-  def runLoopbackCase(name: String, scenario: Scenario): CaseResult = record(perfRun.runLoopbackCase(name, scenario))
 
   private def record(result: CaseResult): CaseResult = {
     results += result
@@ -164,7 +183,6 @@ private object ActiveRun {
       val scratchDir = Files.createTempDirectory("microtonalist-perf-")
       val perfRun = PerfRun(floorPath, appPath, devices, measurement, JarAppLauncher(java, config.jvmOptions, jar),
         resourceText, scratchDir)
-      // The loopback cases keep using the floor's path, so it stays open until the run's end
       ActiveRun(perfRun, Seq(floorPath, appPath, manager), config.resultsDir, scratchDir,
         (startTime, floor, cases) =>
           RunResult(parameters.name, startTime, Instant.now(), app, suite, jvm, machine, runConfig, floor, cases))

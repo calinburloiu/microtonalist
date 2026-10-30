@@ -28,6 +28,8 @@ import scala.concurrent.duration.{DurationLong, FiniteDuration}
  * @param commit The commit of a JAR whose `BuildInfo` doesn't tell it.
  * @param resultsDir Where the run file goes, instead of the configured directory.
  * @param name A label that tells the run apart from the others, e.g. one without warm-up.
+ * @param suites The ids of the latency suites to run, e.g. `mts`; all of them when empty.
+ * @param cases Texts that the name of each case to run contains one of; all the cases when empty.
  */
 case class RunParameters(jar: Option[Path],
                          commit: Option[String],
@@ -37,7 +39,15 @@ case class RunParameters(jar: Option[Path],
                          pace: Option[FiniteDuration],
                          maxMessageRate: Option[Int],
                          resultsDir: Option[Path],
-                         name: Option[String]) {
+                         name: Option[String],
+                         suites: Set[String] = Set.empty,
+                         cases: Seq[String] = Seq.empty) {
+
+  /** Tells whether the latency suite with the given id runs. */
+  def selectsSuite(id: String): Boolean = suites.isEmpty || suites.contains(id)
+
+  /** Tells whether the case with the given name runs. */
+  def selectsCase(name: String): Boolean = cases.isEmpty || cases.exists(name.contains)
 
   /** `config` with the values these parameters override. */
   def applyTo(config: PerfConfig): PerfConfig = {
@@ -59,7 +69,8 @@ object RunParameters {
 
   /**
    * Reads the keys `jar`, `commit`, `launches`, `warmup`, `iterations`, `pace` (in milliseconds), `maxRate` (in
-   * messages a second), `results` and `name`. Relative paths resolve against `repoRoot`.
+   * messages a second), `results`, `name`, `suites` (separated by commas) and `cases` (separated by `|`). Relative
+   * paths resolve against `repoRoot`.
    *
    * @throws org.calinburloiu.music.microtonalist.perf.midilatency.PerfSetupException for a number that isn't one.
    */
@@ -69,6 +80,9 @@ object RunParameters {
     def number(key: String): Option[Long] = text(key).map { value =>
       value.toLongOption.getOrElse(throw PerfSetupException(s"-D$key must be a whole number, but was $value"))
     }
+
+    def list(key: String, separator: String): Seq[String] =
+      text(key).toSeq.flatMap(_.split(java.util.regex.Pattern.quote(separator))).map(_.trim).filter(_.nonEmpty)
 
     def path(key: String): Option[Path] = text(key).map(value => repoRoot.resolve(Paths.get(value)))
 
@@ -81,7 +95,9 @@ object RunParameters {
       pace = number("pace").map(_.millis),
       maxMessageRate = number("maxRate").map(_.toInt),
       resultsDir = path("results"),
-      name = text("name").filter(_.nonEmpty)
+      name = text("name").filter(_.nonEmpty),
+      suites = list("suites", ",").toSet,
+      cases = list("cases", "|")
     )
   }
 }

@@ -17,7 +17,8 @@ Besides the code, the module holds:
   which lists the runs; they are committed to track the latency across versions. The last run of each machine also
   keeps its raw samples beside its run file, in a `.samples.json` file that git ignores.
 - `report/` — a single page, `index.html`, that explores the results, and `test.html`, which tests its statistics in
-  the browser. It needs no build step, only a static file server.
+  the browser. It needs no build step, only a static file server: `report-server/` holds the one that
+  `bin/mtlist-perf-midi-latency serve` runs.
 
 The cases run only when a JAR is given (`-Djar=<path>`) and are canceled otherwise, so that the normal test suite and
 coverage never launch the app nor need MIDI devices. How to run them:
@@ -25,12 +26,12 @@ coverage never launch the app nor need MIDI devices. How to run them:
 
 ## Key types
 
-The model of a case:
+The model of a case, which [`case-model.md`](case-model.md) explains:
 
 - **`PerfCase`** — a case: the resources of its rig, a tracks template and a composition, and its **`Scenario`**: when
-  the launched app is ready (**`Readiness`**), the **`Step`**s of an iteration and the **`Metric`**s. A step sends
-  **`InputSeries`** of messages and waits for **`OutputSeries`** of **`Expected`** messages, exact ones or patterns. A
-  metric names a marked input series and a marked output series.
+  the launched app is ready (**`Readiness`**), the **`Step`**s of an iteration, which the suite repeats, and the
+  **`Metric`**s. A step sends **`InputSeries`** of messages, then waits for **`OutputSeries`** of **`Expected`**
+  messages, exact ones or patterns. A metric measures from a marked input series to a marked output series.
 - **`PerfDsl`** — the language the cases are written in.
 
 Running:
@@ -57,13 +58,14 @@ Results:
 
 - **`MetricResult`** — a metric's statistics over all launches and over each, from **`SampleStatistics`**
   (nearest-rank percentiles) and **`LogHistogram`** (1%-wide bins), and its raw samples.
-- **`RunResult`** and **`RunResultJson`** — a run file and its JSON format, which leaves out the raw samples;
-  **`RunSamplesJson`** writes them. **`ResultsStore`** writes both and updates `index.json`; **`SummaryTable`** is what
+- **`RunResult`** and **`JsonRunResultFormat`** — a run file and its JSON format, which leaves out the raw samples;
+  **`JsonRunSamplesFormat`** writes them. **`ResultsStore`** writes both and updates `index.json`; **`SummaryTable`** is what
   a run prints.
 - **`PerfConfig`** and **`RunParameters`** — the configuration, `midi-latency-config.json` with the git-ignored
   `midi-latency-config.local.json` over it, and the parameters of one run, from ScalaTest's config map.
 
-In the tests, **`LatencySuite`** is the composition root of a run, and **`MidiLatencyPerfTest`** holds the cases.
+In the tests, **`MidiLatencyPerfTest`** runs the latency suites, a **`LatencySuite`** each, in one run, whose
+composition root is **`LatencySession`**: a suite per tuner, such as **`MtsTunerLatencyTest`**, holds its cases.
 
 ## Flows
 
@@ -71,12 +73,12 @@ A run, from ScalaTest's point of view:
 
 ```mermaid
 sequenceDiagram
-  participant Suite as LatencySuite
+  participant Suite as MidiLatencyPerfTest
   participant Run as PerfRun
   participant Runner as CaseRunner
   Suite->>Suite: beforeAll: describe the app, suite, JVM and machine, open the devices
   Suite->>Run: measureFloor
-  loop each test
+  loop each case of its latency suites
     Suite->>Run: runCase
     Run->>Runner: run the scenario on a scratch rig
     loop each launch
@@ -87,19 +89,16 @@ sequenceDiagram
 ```
 
 The floor is the setup's own latency: the suite sends on the app's input device and receives the same message back from
-it, which a loopback device like an IAC bus does, with no app running. The loopback cases do the same with the messages
-of the tuners' flows, such as an MTS SysEx or a Pitch Bend and a Note On, so that each case through the app has a
-baseline; they run once, as there is no app to launch again.
+it, which a loopback device like an IAC bus does, with no app running, once. It tells whether the setup behaves as in
+other runs, not how much of a case's latency is the setup's, since a case's path crosses both devices and the app.
 
 A launch waits until the app is ready, e.g. by sending a probe until its expected output comes back, and drains what the
-app sent while starting; a second probe then finds the app settled, e.g. once its first tuning reached its tracks. Each
-iteration runs the scenario's steps in order: a step sends its input series back to back, taking the time before each
-series' first message, then waits until its output series are complete, taking the time each one's last message arrived.
-In each iteration, the measured step, the first that sends a metric's input series, starts on a pace: that of the
-warm-up keeps each device under the configured maximum rate of messages, since macOS's IAC Driver mutes a bus that
-carries too many (see the guide), and that of the timed iterations spaces the samples. A metric's sample is its output
-series' receive time minus its input series' send time. A missing, extra or different message fails the case with the
-expected and received messages; the run goes on with the next case and records the failure.
+app sent while starting; a second probe then finds the app settled, e.g. once its first tuning reached its tracks. Then
+come the warm-up and the timed iterations, which run the scenario's steps in order; the measured step starts on a pace,
+which in the warm-up keeps each device under the configured maximum rate of messages, since macOS's IAC Driver mutes a
+bus that carries too many (see the guide). A metric's sample is its output series' receive time minus its input
+series' send time. A missing, extra or different message fails the case with the expected and received messages; the
+run goes on with the next case and records the failure.
 
 ## Threading
 

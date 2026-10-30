@@ -73,8 +73,9 @@ case class RunConfigSummary(launches: Int,
 /**
  * The result of a case.
  *
- * @param tracks Resource path of the case's tracks template; `None` for a loopback case, which runs no app.
- * @param composition Resource path of the case's composition; `None` for a loopback case.
+ * @param tracks Resource path of the case's tracks template; `None` for the loopback cases of older runs, which ran no
+ *   app.
+ * @param composition Resource path of the case's composition; `None` for the loopback cases of older runs.
  */
 case class CaseResult(name: String, tracks: Option[String], composition: Option[String], outcome: CaseOutcome)
 

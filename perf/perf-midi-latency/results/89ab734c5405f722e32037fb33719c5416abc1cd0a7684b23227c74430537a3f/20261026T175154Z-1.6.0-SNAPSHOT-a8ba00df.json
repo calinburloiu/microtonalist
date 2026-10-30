@@ -5,7 +5,6 @@
   "app" : {
     "version" : "1.6.0-SNAPSHOT",
     "commit" : "a8ba00dfd5f5d66743e93e6266f902f9feca7bce",
-    "dirty" : null,
     "scalaVersion" : "3.9.0",
     "jarSha256" : "2d7eba1b06c8aecd7d78aaae9459302c5fe7b67a90ffff404f17cb7a11b8d0ae"
   },
@@ -79,8 +78,6 @@
   },
   "cases" : [ {
     "name" : "The MIDI loopback should carry a Note On, as the MTS tuner passes it through",
-    "tracks" : null,
-    "composition" : null,
     "outcome" : "passed",
     "metrics" : [ {
       "name" : "noteOn→noteOn",
@@ -108,8 +105,6 @@
     } ]
   }, {
     "name" : "The MIDI loopback should carry a Pitch Bend and a Note On, as the Pitch Bend and MPE tuners play a note",
-    "tracks" : null,
-    "composition" : null,
     "outcome" : "passed",
     "metrics" : [ {
       "name" : "noteOn→noteOn",
@@ -137,8 +132,6 @@
     } ]
   }, {
     "name" : "The MIDI loopback should carry an MTS SysEx, as the MTS tuner changes the tuning",
-    "tracks" : null,
-    "composition" : null,
     "outcome" : "passed",
     "metrics" : [ {
       "name" : "tuning→tuning",
@@ -166,8 +159,6 @@
     } ]
   }, {
     "name" : "The MIDI loopback should carry a Pitch Bend while a note sounds, as the Pitch Bend and MPE tuners change the tuning",
-    "tracks" : null,
-    "composition" : null,
     "outcome" : "passed",
     "metrics" : [ {
       "name" : "tuning→tuning",
@@ -195,8 +186,6 @@
     } ]
   }, {
     "name" : "The MIDI loopback should carry a Pitch Bend without a note",
-    "tracks" : null,
-    "composition" : null,
     "outcome" : "passed",
     "metrics" : [ {
       "name" : "tuning→tuning",
@@ -224,8 +213,6 @@
     } ]
   }, {
     "name" : "The MIDI loopback should carry the pedal's Control Changes, as a performer presses it",
-    "tracks" : null,
-    "composition" : null,
     "outcome" : "passed",
     "metrics" : [ {
       "name" : "pedal→pedal",

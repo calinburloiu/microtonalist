@@ -26,8 +26,8 @@ import scala.collection.immutable.ArraySeq
 
 class PerfDslTest extends AnyWordSpec with Matchers {
 
-  private val cc66On = CcMidiMsg(0, 66, 127)
-  private val cc66Off = CcMidiMsg(0, 66, 0)
+  private val pedalDown = CcMidiMsg(0, MidiCc.SostenutoPedal, 127)
+  private val pedalUp = CcMidiMsg(0, MidiCc.SostenutoPedal, 0)
   private val sysEx = SysExMidiMsg(ArraySeq(0xF0.toByte, 0x7E.toByte, 0xF7.toByte))
   private val noteOn = NoteOnMidiMsg(0, MidiNote(64))
   private val noteOff = NoteOffMidiMsg(0, MidiNote(64))
@@ -35,11 +35,11 @@ class PerfDslTest extends AnyWordSpec with Matchers {
   "PerfDsl" should {
     "build a step from a marked input and a marked output" in {
       // When
-      val step = input("pedal")(cc66On, cc66Off) ~> output("tuning")(sysEx)
+      val step = input("pedal")(pedalDown, pedalUp) ~> output("tuning")(sysEx)
 
       // Then
       step shouldEqual Step(
-        Seq(InputSeries(Some("pedal"), Seq(cc66On, cc66Off))),
+        Seq(InputSeries(Some("pedal"), Seq(pedalDown, pedalUp))),
         Seq(OutputSeries(Some("tuning"), Seq(Expected.Exactly(sysEx))))
       )
     }

@@ -21,7 +21,7 @@ import org.calinburloiu.music.microtonalist.perf.midilatency.app.{AppLauncher, S
 import org.calinburloiu.music.microtonalist.perf.midilatency.midi.MidiPath
 import org.calinburloiu.music.microtonalist.perf.midilatency.results.CaseResult
 import org.calinburloiu.music.microtonalist.perf.midilatency.{Metric, PerfCase, PerfDevices, Readiness, Scenario}
-import org.calinburloiu.music.scmidi.message.CcMidiMsg
+import org.calinburloiu.music.scmidi.message.{CcMidiMsg, MidiCc}
 
 import java.nio.file.{Path, Paths}
 import scala.util.control.NonFatal
@@ -48,7 +48,9 @@ final class PerfRun(floorPath: MidiPath,
    * Measures the suite's own latency, sending a message on the app's input device and receiving it back from the same
    * device, which a loopback device like an IAC bus does, with no app running. Its metric is named `floor`.
    */
-  def measureFloor(): CaseOutcome = measureLoopback(PerfRun.FloorScenario)
+  def measureFloor(): CaseOutcome =
+    // With no app to relaunch, one launch is enough
+    CaseRunner(floorPath, settings.copy(launches = 1)).run(PerfRun.FloorScenario, _ => NoApp)
 
   /** Measures `perfCase`, named `name`; a case that fails to run, e.g. for a missing resource, is a failed case. */
   def runCase(name: String, perfCase: PerfCase): CaseResult = {
@@ -63,23 +65,6 @@ final class PerfRun(floorPath: MidiPath,
 
     CaseResult(name, Some(perfCase.tracks), Some(perfCase.composition), outcome)
   }
-
-  /**
-   * Measures `scenario`, named `name`, over the loopback of the app's input device, with no app running, as the floor:
-   * the cost of the setup alone for the messages of the scenario.
-   */
-  def runLoopbackCase(name: String, scenario: Scenario): CaseResult = {
-    val outcome = try {
-      measureLoopback(scenario)
-    } catch {
-      case NonFatal(exception) => CaseOutcome.Failed(s"The case failed to run: $exception")
-    }
-    CaseResult(name, tracks = None, composition = None, outcome)
-  }
-
-  private def measureLoopback(scenario: Scenario): CaseOutcome =
-    // With no app to relaunch, one launch is enough
-    CaseRunner(floorPath, settings.copy(launches = 1)).run(scenario, _ => NoApp)
 
   private def measure(perfCase: PerfCase, caseDir: Path): CaseOutcome = {
     val rig = ScratchRig.prepare(
@@ -102,7 +87,8 @@ object PerfRun {
   /** Sends a message on the loopback and expects it back; any message would do. */
   private val FloorScenario: Scenario = Scenario(
     readiness = Readiness.Immediately,
-    steps = Seq(input("loopback")(CcMidiMsg(0, 1, 0)) ~> output("loopback")(CcMidiMsg(0, 1, 0))),
+    steps = Seq(input("loopback")(CcMidiMsg(0, MidiCc.ModulationMsb, 0)) ~>
+      output("loopback")(CcMidiMsg(0, MidiCc.ModulationMsb, 0))),
     metrics = Seq(Metric("floor", from = "loopback", to = "loopback"))
   )
 }

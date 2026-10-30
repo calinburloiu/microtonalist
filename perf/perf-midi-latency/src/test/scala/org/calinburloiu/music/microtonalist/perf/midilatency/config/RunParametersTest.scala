@@ -54,6 +54,46 @@ class RunParametersTest extends AnyWordSpec with Matchers {
       RunParameters.fromConfigMap(Map("name" -> ""), repoRoot).name shouldBe empty
     }
 
+    "read the suites and the cases to run" in {
+      // Given
+      val configMap = Map("suites" -> "mts, mpe", "cases" -> "pass a note|on a pedal")
+
+      // When
+      val parameters = RunParameters.fromConfigMap(configMap, repoRoot)
+
+      // Then
+      parameters.suites shouldEqual Set("mts", "mpe")
+      parameters.cases shouldEqual Seq("pass a note", "on a pedal")
+    }
+
+    "select every suite and case when none is given" in {
+      // Given
+      val parameters = RunParameters.fromConfigMap(Map.empty, repoRoot)
+
+      // When / Then
+      parameters.selectsSuite("mts") shouldBe true
+      parameters.selectsCase("The MPE tuner should pass a note through") shouldBe true
+    }
+
+    "select only the given suites" in {
+      // Given
+      val parameters = RunParameters.fromConfigMap(Map("suites" -> "mts"), repoRoot)
+
+      // When / Then
+      parameters.selectsSuite("mts") shouldBe true
+      parameters.selectsSuite("mpe") shouldBe false
+    }
+
+    "select the cases whose name contains one of the given texts" in {
+      // Given
+      val parameters = RunParameters.fromConfigMap(Map("cases" -> "MPE tuner|on a pedal"), repoRoot)
+
+      // When / Then
+      parameters.selectsCase("The MPE tuner should pass a note through") shouldBe true
+      parameters.selectsCase("The MTS Octave 1-byte tuner should change the tuning on a pedal") shouldBe true
+      parameters.selectsCase("The MTS Octave 1-byte tuner should pass a note through") shouldBe false
+    }
+
     "reject a count that isn't a number" in {
       // When
       val exception = the[PerfSetupException] thrownBy RunParameters.fromConfigMap(Map("launches" -> "x"), repoRoot)

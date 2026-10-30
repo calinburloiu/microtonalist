@@ -16,7 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.perf.midilatency.results
 
-import play.api.libs.json.{JsObject, Json, JsonConfiguration, OFormat, OptionHandlers}
+import play.api.libs.json.{JsObject, Json, OFormat}
 
 import java.nio.file.{Files, Path}
 import java.time.format.DateTimeFormatter
@@ -40,11 +40,11 @@ final class ResultsStore(dir: Path) {
     val path = relativePath(run)
     val file = dir.resolve(path)
     Files.createDirectories(file.getParent)
-    Files.writeString(file, RunResultJson.write(run))
+    Files.writeString(file, JsonRunResultFormat.write(run))
 
     val samplesFile = dir.resolve(samplesPath(run))
     // Written first, so that a failed write leaves the previous run's samples in place
-    Files.writeString(samplesFile, RunSamplesJson.write(run))
+    Files.writeString(samplesFile, JsonRunSamplesFormat.write(run))
     Using.resource(Files.list(samplesFile.getParent)) { files =>
       files.filter(file => file.getFileName.toString.endsWith(SamplesSuffix) && file != samplesFile)
         .forEach(file => Files.delete(file))
@@ -82,7 +82,7 @@ object ResultsStore {
   private val FileTimestamp: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMdd'T'HHmmss'Z'")
     .withZone(ZoneOffset.UTC)
 
-  /** A run as the index lists it; an unknown value is `null`, as in the run files. */
+  /** A run as the index lists it; an unknown value is left out, as in the run files. */
   private case class IndexEntry(path: String,
                                 name: Option[String],
                                 machineId: String,
@@ -91,6 +91,5 @@ object ResultsStore {
                                 appVersion: String,
                                 appCommit: String)
 
-  private given OFormat[IndexEntry] =
-    Json.configured(using JsonConfiguration(optionHandlers = OptionHandlers.WritesNull)).format[IndexEntry]
+  private given OFormat[IndexEntry] = Json.format[IndexEntry]
 }

@@ -21,14 +21,14 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 import play.api.libs.json.{JsNull, JsNumber, JsObject, JsValue, Json}
 
-class RunResultJsonTest extends AnyWordSpec with Matchers {
+class JsonRunResultFormatTest extends AnyWordSpec with Matchers {
 
-  private lazy val json: JsValue = Json.parse(RunResultJson.write(sampleRun))
+  private lazy val json: JsValue = Json.parse(JsonRunResultFormat.write(sampleRun))
 
-  "RunResultJson" should {
+  "JsonRunResultFormat" should {
     "round-trip a run, except its raw samples" in {
       // When / Then
-      RunResultJson.read(RunResultJson.write(sampleRun)) shouldEqual withoutSamples(sampleRun)
+      JsonRunResultFormat.read(JsonRunResultFormat.write(sampleRun)) shouldEqual withoutSamples(sampleRun)
     }
 
     "leave the raw samples out" in {
@@ -44,12 +44,12 @@ class RunResultJsonTest extends AnyWordSpec with Matchers {
       (json \ "name").as[String] shouldEqual "baseline"
     }
 
-    "write an unnamed run's name as null" in {
+    "leave out the name of an unnamed run" in {
       // Given
-      val unnamed = Json.parse(RunResultJson.write(sampleRun.copy(name = None)))
+      val unnamed = Json.parse(JsonRunResultFormat.write(sampleRun.copy(name = None)))
 
       // Then
-      (unnamed \ "name").toOption shouldEqual Some(JsNull)
+      (unnamed \ "name").toOption shouldBe empty
     }
 
     "read a run file written before runs had a name" in {
@@ -57,12 +57,12 @@ class RunResultJsonTest extends AnyWordSpec with Matchers {
       val older = Json.stringify(json.as[JsObject] - "name")
 
       // When / Then
-      RunResultJson.read(older).name shouldBe empty
+      JsonRunResultFormat.read(older).name shouldBe empty
     }
 
     "start with the schema version" in {
       // When / Then
-      RunResultJson.write(sampleRun) should startWith("{\n  \"schemaVersion\" : 1,")
+      JsonRunResultFormat.write(sampleRun) should startWith("{\n  \"schemaVersion\" : 1,")
     }
 
     "flatten the statistics into the metric" in {
@@ -91,20 +91,33 @@ class RunResultJsonTest extends AnyWordSpec with Matchers {
       (failed \ "metrics").toOption shouldBe empty
     }
 
-    "write the rig of a loopback case, which has none, as null" in {
+    "leave out the rig of an older run's loopback case, which has none" in {
       // Given
       val loopback = (json \ "cases")(2)
 
       // Then
-      (loopback \ "tracks").toOption shouldEqual Some(JsNull)
-      (loopback \ "composition").toOption shouldEqual Some(JsNull)
+      (loopback \ "tracks").toOption shouldBe empty
+      (loopback \ "composition").toOption shouldBe empty
       (loopback \ "outcome").as[String] shouldEqual "passed"
     }
 
-    "write an unknown dirty flag as null" in {
+    "leave out an unknown dirty flag" in {
       // When / Then
-      (json \ "app" \ "dirty").toOption shouldEqual Some(JsNull)
+      (json \ "app" \ "dirty").toOption shouldBe empty
       (json \ "machine" \ "memoryBytes").toOption shouldEqual Some(JsNumber(51539607552L))
+    }
+
+    "read a run file that writes unknown values as null" in {
+      // Given
+      val app = (json \ "app").as[JsObject] + ("dirty" -> JsNull)
+      val withNulls = Json.stringify(json.as[JsObject] + ("app" -> app) + ("name" -> JsNull))
+
+      // When
+      val run = JsonRunResultFormat.read(withNulls)
+
+      // Then
+      run.app.dirty shouldBe empty
+      run.name shouldBe empty
     }
   }
 }

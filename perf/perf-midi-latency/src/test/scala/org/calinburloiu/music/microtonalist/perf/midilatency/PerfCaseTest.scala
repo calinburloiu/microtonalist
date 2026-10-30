@@ -26,7 +26,7 @@ class PerfCaseTest extends AnyWordSpec with Matchers {
 
   private val noteOn = NoteOnMidiMsg(0, MidiNote(64))
   private val noteOff = NoteOffMidiMsg(0, MidiNote(64))
-  private val pedal = CcMidiMsg(0, 66, 127)
+  private val pedal = CcMidiMsg(0, MidiCc.SostenutoPedal, 127)
   private val pitchBend = PitchBendMidiMsg(0, 100)
 
   private val noteOnStep: Step = input(noteOn) ~> output(noteOn)

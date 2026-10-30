@@ -23,7 +23,7 @@ import play.api.libs.json.{JsObject, Json}
  * The JSON format of a run's raw samples, which the report plots per sample: each metric's samples of each launch, in
  * nanoseconds, in the order they were taken, laid out like the run file.
  */
-object RunSamplesJson {
+object JsonRunSamplesFormat {
 
   /** The version of the samples files' schema; it increases on a change that breaks their readers. */
   val SchemaVersion: Int = 1
