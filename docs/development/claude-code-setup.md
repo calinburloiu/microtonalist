@@ -193,7 +193,7 @@ Latest. The script refuses to release unless `main` is clean, in sync with `orig
 [`.claude/skills/architecture-docs/SKILL.md`](../../.claude/skills/architecture-docs/SKILL.md) tells Claude where an
 architecture doc lives (`<group>/<module>/docs/ARCHITECTURE.md`, `<group>/docs/` for what spans the modules of one
 group, or `docs/architecture/` for what spans groups), what it holds, what a module group's `README.md` lists, how to
-draw its flows in Mermaid, and how to keep it within its budget of 1000 words, splitting it when needed. Its bundled
+draw its flows in Mermaid and check them with mermaid-cli, and how to keep it within its budget of 1000 words, splitting it when needed. Its bundled
 script checks the budget, and has a `unittest` suite; CI's `docs` job runs both:
 
 ```bash

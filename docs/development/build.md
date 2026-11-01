@@ -158,3 +158,11 @@ The `bin/mtlist` and `bin/mtlist-tool` launchers run the fat JARs from `app/app/
 instead (see [Build output directories](#build-output-directories)).
 
 It is recommended to compile, build, or test the whole project before committing changes.
+
+## Dependencies
+
+The versions of the libraries are in `project/Dependencies.scala`. One of them needs care:
+
+- **Jackson**: `dependencyOverrides` pin every Jackson artifact to the version that the MCP Java SDK needs, since
+  Jackson doesn't support mixing minor versions and play-json brings an older one. Upgrade them together; see
+  [`mcp.md`](../research/mcp.md#dependencies).

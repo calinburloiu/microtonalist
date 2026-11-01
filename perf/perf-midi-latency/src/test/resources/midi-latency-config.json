@@ -1,0 +1,26 @@
+{
+  "devices": {
+    "input": { "name": "", "vendor": "" },
+    "output": { "name": "", "vendor": "" },
+    "maxMessagesPerSecond": 1000
+  },
+  "machineName": "",
+  "run": {
+    "launches": 3,
+    "warmupIterations": 10000,
+    "timedIterations": 1000,
+    "paceMillis": 50
+  },
+  "timeouts": {
+    "readinessMillis": 60000,
+    "probeIntervalMillis": 1000,
+    "quietMillis": 250,
+    "stepMillis": 2000,
+    "exitMillis": 10000
+  },
+  "app": {
+    "java": "",
+    "jvmOptions": []
+  },
+  "resultsDir": "perf/perf-midi-latency/results"
+}

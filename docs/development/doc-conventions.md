@@ -24,6 +24,7 @@ instructions. Code conventions live in [`coding-conventions.md`](coding-conventi
 | Agent docs | `AGENTS.md`, `docs/agents/`, `.claude/skills/` | Imperative instructions. The facts an agent needs stay in always-loaded context; their rationale goes in a doc loaded on demand. |
 | READMEs | a directory's root | What the directory holds and how to start. |
 | Papers and reference notes | e.g. `tuner/tuner-mpe/docs/mpe-tuner-paper.md` | A design paper, or notes on an external specification. |
+| Research | `docs/research/` | Research, and plans for future work, dated and tied to the commit researched. The documents of one issue go in `issues/`; see the `contributing` skill. |
 | Release notes | `docs/release-notes.md` | What changed for users in each release; see the `release` skill. |
 | Agent eval reports | `docs/agent-evals/` | Archived results of an experiment on the agent setup, dated and tied to the commit it measured. Not loaded by agents. |
 

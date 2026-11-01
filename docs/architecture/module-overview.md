@@ -15,7 +15,9 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | [`rig`](../../rig/README.md) | The tracks a performer plays, one per instrument |
 | [`format`](../../format/README.md) | Persistence of compositions, scales and rigs: what the format modules share, and their wiring |
 | [`ui`](../../ui/README.md) | The desktop GUI |
+| [`ai`](../../ai/README.md) | The core AI-related modules, such as the base of the MCP servers |
 | [`app`](../../app/README.md) | The application layer: the executables, and their configuration and wiring |
+| [`perf`](../../perf/README.md) | Performance measurement of the app, from its JAR |
 
 ## Main modules
 
@@ -24,6 +26,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `app` | `app` | The desktop application, which wires the modules together |
 | `config` | `app` | HOCON configuration of the application |
 | `cli` | `app` | Command-line utility tool, e.g. for listing the MIDI devices |
+| `perf-midi-latency` | `perf` | The MIDI latency suite, which measures the app's JAR end to end |
 | `ui` | `ui` | Swing GUI |
 | `format` | `format` | Wiring of the format modules into the repositories of compositions, scales and rigs |
 | `format-core` | `format` | What the format modules share, such as (de)serializing plugins |
@@ -46,7 +49,8 @@ e.g. `tuner-mts`, `tuner-mpe` and `tuning-changer-pedal`, and its family's forma
 
 ## Dependencies
 
-The main modules and their direct dependencies, leaving out those that others imply; `build.sbt` has them all.
+The main modules of the app and their direct dependencies, leaving out those that others imply; `build.sbt` has them
+all.
 
 ```mermaid
 flowchart TD

@@ -1,7 +1,10 @@
 -J--add-exports=java.desktop/com.sun.media.sound=ALL-UNNAMED
 -J--sun-misc-unsafe-memory-access=allow
 # The launcher's default 1 GB heap runs out while the coverage commands compile every module at once. This applies to
-# every sbt JVM started here and overrides the heap flags of JAVA_OPTS and SBT_OPTS; pass -mem to sbt to change it.
--mem 4096
+# every sbt JVM started here and overrides the heap flags of JAVA_OPTS; pass e.g. -J-Xmx8g to sbt to change it. These
+# spell out what `-mem 4096` sets, because IntelliJ rejects -mem in .sbtopts.
+-J-Xmx4g
+-J-Xss4M
+-J-XX:ReservedCodeCacheSize=512m
 # Start small, so that a JVM that needs little memory doesn't hold 4 GB.
 -J-Xms1g

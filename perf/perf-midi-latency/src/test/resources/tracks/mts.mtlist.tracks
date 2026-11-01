@@ -1,0 +1,16 @@
+{
+  "tracks": [
+    {
+      "id": "perf",
+      "name": "Latency suite",
+      "input": {
+        "midiDeviceId": { "name": "{{input.name}}", "vendor": "{{input.vendor}}" }
+      },
+      "tuningChangers": ["pedal"],
+      "tuner": { "type": "mtsOctave1ByteNonRealTime", "thru": true },
+      "output": {
+        "midiDeviceId": { "name": "{{output.name}}", "vendor": "{{output.vendor}}" }
+      }
+    }
+  ]
+}

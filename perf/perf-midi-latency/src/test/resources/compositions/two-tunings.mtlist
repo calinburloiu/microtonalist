@@ -1,0 +1,16 @@
+{
+  "intonationStandard": "justIntonation",
+  "tuningReference": {
+    "basePitchClass": 0
+  },
+  "tunings": [
+    {
+      "name": "Just major",
+      "scale": ["9/8", "5/4", "4/3", "3/2", "5/3", "15/8", "2/1"]
+    },
+    {
+      "name": "Pythagorean major",
+      "scale": ["9/8", "81/64", "4/3", "3/2", "27/16", "243/128", "2/1"]
+    }
+  ]
+}
