@@ -417,6 +417,19 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         onUi shouldBe true
       }
 
+      "deliver an event to both its Business and UI subscribers" in new Fixture {
+        // Given
+        messageBus.subscribe(classOf[Dog])(dog => log += s"business ${dog.name}")
+        messageBus.subscribeOnUi(classOf[Dog])(dog => log += s"ui ${dog.name}")
+
+        // When
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+
+        // Then
+        log should contain theSameElementsAs Seq("business Rex", "ui Rex")
+      }
+
       "not deliver to a cancelled subscription" in new Fixture {
         // Given
         messageBus.subscribe(classOf[Dog])(dog => log += dog.name).cancel()
