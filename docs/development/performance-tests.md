@@ -102,7 +102,7 @@ path of the run file it wrote. A case that fails records its reason instead; the
 logs stay in the scratch directory the run prints.
 
 Commit the run file and `perf/perf-midi-latency/results/index.json`. The run also writes the raw samples of each metric
-beside its run file, in a `.samples.json` file that git ignores, and removes those of the machine's previous run.
+beside its run file, in a `.samples.json` file that git ignores.
 
 To see when the app's JIT compiler kicks in, run without warm-up, e.g. with `--warmup 0 --name no-warm-up`, and look at
 the samples of each timed iteration in the report. The floor still runs the configured warm-up, which also warms the
@@ -119,8 +119,8 @@ Browsers don't let a page opened from disk read files, so this serves `perf/perf
 file server, and the results it reads beside it. Then open <http://localhost:8000/>. Pick a machine, a run, and a run to
 compare it with ("vs", by default the previous run of the machine). A metric that drifted significantly is highlighted;
 click a metric for its timeline across the machine's runs, its distribution, with the floor's median for reference, its
-samples, the agreement of its launches and the run's details. Only the last run of each machine written on this computer keeps its raw samples. The report
-only compares runs of one machine.
+samples, the agreement of its launches and the run's details. Only the runs written on this computer have raw samples.
+The report only compares runs of one machine.
 
 <http://localhost:8000/test.html> runs the tests of the report's statistics in the browser.
 

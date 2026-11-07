@@ -117,7 +117,7 @@ function loadRun(path) {
   return runFiles.get(path);
 }
 
-/** The raw samples of the run file at `path`, or null, since only the last run of a machine keeps them. */
+/** The raw samples of the run file at `path`, or null, since git ignores them. */
 function loadSamples(path) {
   if (!samplesFiles.has(path)) {
     samplesFiles.set(path, fetch(ResultsDir + path.replace(/\.json$/, '.samples.json'))
@@ -555,7 +555,7 @@ async function renderSamples(section, row, path) {
   if (!launches) {
     section.append(element('p', {
       className: 'note',
-      text: 'This run has no raw samples here: only the last run of a machine keeps them, and git ignores them.'
+      text: 'This run has no raw samples here: git ignores them, so only the computer that wrote the run has them.'
     }));
     return;
   }
