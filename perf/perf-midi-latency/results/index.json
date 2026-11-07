@@ -16,5 +16,21 @@
     "startTime" : "2026-11-07T20:44:10.816320Z",
     "appVersion" : "1.5.1",
     "appCommit" : "438ae4962ab804edf4c582674c6a98da0922f18d"
+  }, {
+    "path" : "8a15d401afcc0c2357044e59aca9736435128890bfd5cb5f42b1834f99d77218/20261107T222121Z-1.5.1-438ae496.json",
+    "name" : "no-warm-up",
+    "machineId" : "8a15d401afcc0c2357044e59aca9736435128890bfd5cb5f42b1834f99d77218",
+    "machineName" : "MacBookPro15,2 · Intel(R) Core(TM) i5-8259U CPU @ 2.30GHz",
+    "startTime" : "2026-11-07T22:21:21.354336Z",
+    "appVersion" : "1.5.1",
+    "appCommit" : "438ae4962ab804edf4c582674c6a98da0922f18d"
+  }, {
+    "path" : "8a15d401afcc0c2357044e59aca9736435128890bfd5cb5f42b1834f99d77218/20261107T223846Z-1.5.1-438ae496.json",
+    "name" : "warm-up",
+    "machineId" : "8a15d401afcc0c2357044e59aca9736435128890bfd5cb5f42b1834f99d77218",
+    "machineName" : "MacBookPro15,2 · Intel(R) Core(TM) i5-8259U CPU @ 2.30GHz",
+    "startTime" : "2026-11-07T22:38:46.524333Z",
+    "appVersion" : "1.5.1",
+    "appCommit" : "438ae4962ab804edf4c582674c6a98da0922f18d"
   } ]
 }
