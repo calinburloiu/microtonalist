@@ -58,7 +58,7 @@ trait MessagingRuntime {
  */
 object MessagingRuntime {
   /** The name of the mailbox that [[MessagingRuntime.startUiMailbox]] starts. */
-  val UiThreadName: String = "UI"
+  val UiMailboxName: String = "UI"
 }
 
 /**
@@ -70,7 +70,7 @@ object MessagingRuntime {
  */
 trait Mailbox[-M <: AnyRef] {
 
-  /** The name it was started with, which [[MessagingRuntime.UiThreadName]] gives for the UI mailbox. */
+  /** The name it was started with, which [[MessagingRuntime.UiMailboxName]] gives for the UI mailbox. */
   def name: String
 
   /**

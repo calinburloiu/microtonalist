@@ -43,7 +43,7 @@ final class ManualMessagingRuntime extends MessagingRuntime {
    * Starts a [[ManualMailbox]] named `UI`, with no priority.
    */
   override def startUiMailbox[M <: AnyRef](handler: M => Unit): ManualMailbox[M] =
-    register(ManualMailbox(MessagingRuntime.UiThreadName, None, handler, this))
+    register(ManualMailbox(MessagingRuntime.UiMailboxName, None, handler, this))
 
   /**
    * The mailboxes started, in start order.

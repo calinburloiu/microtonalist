@@ -72,7 +72,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   private val businessBlockContext: BlockContext =
     refusingBlockContext(BusinessThreadName, "BusinessContinuations")
 
-  private val uiBlockContext: BlockContext = refusingBlockContext(MessagingRuntime.UiThreadName, "UiContinuations")
+  private val uiBlockContext: BlockContext = refusingBlockContext(MessagingRuntime.UiMailboxName, "UiContinuations")
 
   private val business: Mailbox[BusinessMessage] =
     runtime.startMailbox[BusinessMessage](BusinessThreadName, Thread.NORM_PRIORITY)(runBusinessMessage)
