@@ -25,9 +25,9 @@ import scala.concurrent.Future
  * classes, so that a command's class resolves to a handler unambiguously unless it extends several handled ones.
  */
 @ThreadSafe
-private[messaging] final class CommandHandlers {
+private[messaging] final class CommandHandlerRegistry {
 
-  import CommandHandlers.{CommandHandler, Snapshot}
+  import CommandHandlerRegistry.{CommandHandler, Snapshot}
 
   /** Replaced under the lock of `this`, read without it. */
   @volatile private var snapshot: Snapshot = Snapshot(Map.empty)
@@ -37,8 +37,8 @@ private[messaging] final class CommandHandlers {
    *
    * @throws IllegalArgumentException if `commandClass` is, extends or is extended by a registered class
    */
-  def register[C <: Command](commandClass: Class[C], handler: C => Unit): Unit = {
-    add(commandClass, CommandHandler.Plain(command => handler(commandClass.cast(command))))
+  def registerCommand[C <: Command](commandClass: Class[C], handler: C => Unit): Unit = {
+    register(commandClass, CommandHandler.NonReplying(command => handler(commandClass.cast(command))))
   }
 
   /**
@@ -47,7 +47,7 @@ private[messaging] final class CommandHandlers {
    * @throws IllegalArgumentException if `requestClass` is, extends or is extended by a registered class
    */
   def registerRequest[R, C <: Request[R]](requestClass: Class[C], handler: C => Future[R]): Unit = {
-    add(requestClass, CommandHandler.Replying(command => handler(requestClass.cast(command))))
+    register(requestClass, CommandHandler.Replying(command => handler(requestClass.cast(command))))
   }
 
   /**
@@ -57,7 +57,7 @@ private[messaging] final class CommandHandlers {
    */
   def resolve(commandClass: Class[? <: Command]): CommandHandler = snapshot.resolve(commandClass)
 
-  private def add(commandClass: Class[?], handler: CommandHandler): Unit = synchronized {
+  private def register(commandClass: Class[?], handler: CommandHandler): Unit = synchronized {
     val related = snapshot.handlers.keys.filter { registered =>
       registered.isAssignableFrom(commandClass) || commandClass.isAssignableFrom(registered)
     }
@@ -68,17 +68,17 @@ private[messaging] final class CommandHandlers {
   }
 }
 
-private[messaging] object CommandHandlers {
+private[messaging] object CommandHandlerRegistry {
 
-  /** A registered handler, registered either with `handle` or with `handleRequest`. */
+  /** A registered handler, registered either with `handleCommand` or with `handleRequest`. */
   sealed trait CommandHandler {
     /** Runs the handler on `command`, returning the reply of a request handler. */
     def run(command: Command): Option[Future[Any]]
   }
 
   object CommandHandler {
-    /** A handler registered with `handle`, which gives no reply. */
-    final case class Plain(handler: Command => Unit) extends CommandHandler {
+    /** A handler registered with `handleCommand`, which gives no reply. */
+    final case class NonReplying(handler: Command => Unit) extends CommandHandler {
       override def run(command: Command): Option[Future[Any]] = {
         handler(command)
         None
@@ -98,9 +98,12 @@ private[messaging] object CommandHandlers {
   private final class Snapshot(val handlers: Map[Class[?], CommandHandler]) {
     private val resolved: ConcurrentHashMap[Class[?], CommandHandler] = ConcurrentHashMap()
 
-    /** `computeIfAbsent` caches no failure, so an unresolvable class throws on each call. */
+    /**
+     * An exact match is the only one, since no two related classes have handlers. `computeIfAbsent` caches no failure,
+     * so an unresolvable class throws on each call.
+     */
     def resolve(commandClass: Class[? <: Command]): CommandHandler =
-      resolved.computeIfAbsent(commandClass, _ => find(commandClass))
+      handlers.getOrElse(commandClass, resolved.computeIfAbsent(commandClass, _ => find(commandClass)))
 
     private def find(commandClass: Class[? <: Command]): CommandHandler = {
       handlers.filter { case (registered, _) => registered.isAssignableFrom(commandClass) }.toSeq match {

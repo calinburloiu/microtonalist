@@ -17,7 +17,7 @@
 package org.calinburloiu.music.microtonalist.messaging
 
 /**
- * A subscriber's registration for the events of a class, made with [[MessageBus.subscribe]] or
+ * A subscriber's registration for the events of a class, made with [[MessageBus.subscribeOnBusiness]] or
  * [[MessageBus.subscribeOnUi]].
  */
 trait Subscription {

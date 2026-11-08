@@ -19,68 +19,96 @@ package org.calinburloiu.music.microtonalist.messaging
 import scala.concurrent.Future
 import scala.util.Try
 
-// The contract that the continuations share is in MessageBus's ScalaDoc, since scaladoc drops a comment on an extension
-// group.
-extension [T](future: Future[T])(using messageBus: MessageBus) {
+/**
+ * The `Future` continuations of the Business Thread, kept apart from [[UiContinuations]] so that code imports only
+ * those of its thread. [[MessageBus]] has the contract that they share.
+ */
+object BusinessContinuations {
 
-  /**
-   * Maps the `Future`'s value with `f` on the Business Thread, once it completes; a failure skips `f`.
-   *
-   * @return a `Future` that completes with the result of `f`, or fails with the `Future`'s failure or with the
-   *   exception that `f` throws
-   * @throws IllegalStateException off the Business Thread
-   */
-  def mapOnBusiness[U](f: T => U): Future[U] = {
-    messageBus.requireBusinessThread()
-    future.map(f)(using messageBus.businessContinuations)
+  extension [T](future: Future[T])(using messageBus: MessageBus) {
+
+    /**
+     * Maps the `Future`'s value with `f` on the Business Thread, once it completes; a failure skips `f`.
+     *
+     * @return a `Future` that completes with the result of `f`, or fails with the `Future`'s failure or with the
+     *   exception that `f` throws
+     * @throws IllegalStateException off the Business Thread
+     */
+    def mapOnBusiness[U](f: T => U): Future[U] = {
+      messageBus.requireBusinessThread()
+      future.map(f)(using messageBus.businessContinuations)
+    }
+
+    /**
+     * Continues with the `Future` that `f` returns for the `Future`'s value, calling `f` on the Business Thread, once
+     * the `Future` completes; a failure skips `f`.
+     *
+     * @return a `Future` that completes like the `Future` returned by `f`, or fails with the `Future`'s failure or with
+     *   the exception that `f` throws
+     * @throws IllegalStateException off the Business Thread
+     */
+    def flatMapOnBusiness[U](f: T => Future[U]): Future[U] = {
+      messageBus.requireBusinessThread()
+      future.flatMap(f)(using messageBus.businessContinuations)
+    }
+
+    /**
+     * Calls `f` with the `Future`'s outcome on the Business Thread, once it completes.
+     *
+     * An exception that `f` throws is logged at ERROR as `A continuation failed.`.
+     *
+     * @throws IllegalStateException off the Business Thread
+     */
+    def onCompleteOnBusiness(f: Try[T] => Unit): Unit = {
+      messageBus.requireBusinessThread()
+      future.onComplete(f)(using messageBus.businessContinuations)
+    }
   }
+}
 
-  /**
-   * Continues with the `Future` that `f` returns for the `Future`'s value, calling `f` on the Business Thread, once the
-   * `Future` completes; a failure skips `f`.
-   *
-   * @return a `Future` that completes like the `Future` returned by `f`, or fails with the `Future`'s failure or with
-   *   the exception that `f` throws
-   * @throws IllegalStateException off the Business Thread
-   */
-  def flatMapOnBusiness[U](f: T => Future[U]): Future[U] = {
-    messageBus.requireBusinessThread()
-    future.flatMap(f)(using messageBus.businessContinuations)
-  }
+/**
+ * The `Future` continuations of the UI Thread, kept apart from [[BusinessContinuations]] so that code imports only
+ * those of its thread. [[MessageBus]] has the contract that they share.
+ */
+object UiContinuations {
 
-  /**
-   * Calls `f` with the `Future`'s outcome on the Business Thread, once it completes.
-   *
-   * An exception that `f` throws is logged at ERROR as `A continuation failed.`.
-   *
-   * @throws IllegalStateException off the Business Thread
-   */
-  def onCompleteOnBusiness(f: Try[T] => Unit): Unit = {
-    messageBus.requireBusinessThread()
-    future.onComplete(f)(using messageBus.businessContinuations)
-  }
+  extension [T](future: Future[T])(using messageBus: MessageBus) {
 
-  /**
-   * Maps the `Future`'s value with `f` on the UI Thread, once it completes; a failure skips `f`.
-   *
-   * @return a `Future` that completes with the result of `f`, or fails with the `Future`'s failure or with the
-   *   exception that `f` throws
-   * @throws IllegalStateException off the UI Thread
-   */
-  def mapOnUi[U](f: T => U): Future[U] = {
-    messageBus.requireUiThread()
-    future.map(f)(using messageBus.uiContinuations)
-  }
+    /**
+     * Maps the `Future`'s value with `f` on the UI Thread, once it completes; a failure skips `f`.
+     *
+     * @return a `Future` that completes with the result of `f`, or fails with the `Future`'s failure or with the
+     *   exception that `f` throws
+     * @throws IllegalStateException off the UI Thread
+     */
+    def mapOnUi[U](f: T => U): Future[U] = {
+      messageBus.requireUiThread()
+      future.map(f)(using messageBus.uiContinuations)
+    }
 
-  /**
-   * Calls `f` with the `Future`'s outcome on the UI Thread, once it completes.
-   *
-   * An exception that `f` throws is only logged at ERROR, as `A continuation failed.`.
-   *
-   * @throws IllegalStateException off the UI Thread
-   */
-  def onCompleteOnUi(f: Try[T] => Unit): Unit = {
-    messageBus.requireUiThread()
-    future.onComplete(f)(using messageBus.uiContinuations)
+    /**
+     * Continues with the `Future` that `f` returns for the `Future`'s value, calling `f` on the UI Thread, once the
+     * `Future` completes; a failure skips `f`.
+     *
+     * @return a `Future` that completes like the `Future` returned by `f`, or fails with the `Future`'s failure or with
+     *   the exception that `f` throws
+     * @throws IllegalStateException off the UI Thread
+     */
+    def flatMapOnUi[U](f: T => Future[U]): Future[U] = {
+      messageBus.requireUiThread()
+      future.flatMap(f)(using messageBus.uiContinuations)
+    }
+
+    /**
+     * Calls `f` with the `Future`'s outcome on the UI Thread, once it completes.
+     *
+     * An exception that `f` throws is only logged at ERROR, as `A continuation failed.`.
+     *
+     * @throws IllegalStateException off the UI Thread
+     */
+    def onCompleteOnUi(f: Try[T] => Unit): Unit = {
+      messageBus.requireUiThread()
+      future.onComplete(f)(using messageBus.uiContinuations)
+    }
   }
 }

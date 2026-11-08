@@ -26,8 +26,10 @@ import scala.util.{Failure, Success, Try}
 
 class FutureContinuationsTest extends AnyWordSpec with Matchers {
 
+  import BusinessContinuations.*
   import LogCapture.*
   import MessageBusTest.*
+  import UiContinuations.*
 
   "the Business continuations" should {
     "run mapOnBusiness's function on the Business Thread once the Future completes" in new Fixture {
@@ -35,7 +37,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       private val input = Promise[Int]()
       private var output: Future[Int] = Future.never
       private var onBusiness = false
-      messageBus.handle(classOf[Retune]) { _ =>
+      messageBus.handleCommand(classOf[Retune]) { _ =>
         output = input.future.mapOnBusiness { value =>
           onBusiness = Try(messageBus.requireBusinessThread()).isSuccess
           value * 2
@@ -60,7 +62,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
 
     "enqueue the continuation of a completed Future instead of running it in place" in new Fixture {
       // Given
-      messageBus.handle(classOf[Retune]) { _ =>
+      messageBus.handleCommand(classOf[Retune]) { _ =>
         Future.successful(1).onCompleteOnBusiness(_ => log += "continuation")
         log += "handler"
       }
@@ -75,13 +77,13 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
 
     "deliver the events a continuation publishes after it returns" in new Fixture {
       // Given
-      messageBus.handle(classOf[Retune]) { _ =>
+      messageBus.handleCommand(classOf[Retune]) { _ =>
         Future.unit.onCompleteOnBusiness { _ =>
           messageBus.publish(Dog("Rex"))
           log += "continuation"
         }
       }
-      messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
+      messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += dog.name)
 
       // When
       messageBus.dispatch(Retune(1))
@@ -95,9 +97,10 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       // Given
       private val input = Promise[Unit]()
       private var stamp: Option[Long] = None
-      messageBus.handle(classOf[Retune])(_ => input.future.onCompleteOnBusiness(_ => messageBus.publish(Dog("Rex"))))
-      messageBus.handle(classOf[Reset])(_ => ())
-      messageBus.subscribe(classOf[Dog])(_ => stamp = ManualRuntime.causingCommandId)
+      messageBus.handleCommand(classOf[Retune])(_ =>
+        input.future.onCompleteOnBusiness(_ => messageBus.publish(Dog("Rex"))))
+      messageBus.handleCommand(classOf[Reset])(_ => ())
+      messageBus.subscribeOnBusiness(classOf[Dog])(_ => stamp = ManualMessagingRuntime.causingCommandId)
       messageBus.dispatch(Retune(1))
       runtime.drainAll()
       messageBus.dispatch(Reset())
@@ -142,7 +145,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
           text
         }
       }
-      messageBus.subscribe(classOf[Dog])(_ => completedAtDelivery = Some(reply.isCompleted))
+      messageBus.subscribeOnBusiness(classOf[Dog])(_ => completedAtDelivery = Some(reply.isCompleted))
       reply = messageBus.ask(Later())
       runtime.drainAll()
 
@@ -175,7 +178,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
     "continue with the Future that flatMapOnBusiness's function returns" in new Fixture {
       // Given
       private var output: Future[Int] = Future.never
-      messageBus.handle(classOf[Retune]) { _ =>
+      messageBus.handleCommand(classOf[Retune]) { _ =>
         output = Future.successful(1).flatMapOnBusiness(value => Future.successful(value + 1))
       }
 
@@ -190,7 +193,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
     "fail the Future that mapOnBusiness returns when its function throws" in new Fixture {
       // Given
       private var output: Future[Int] = Future.never
-      messageBus.handle(classOf[Retune]) { _ =>
+      messageBus.handleCommand(classOf[Retune]) { _ =>
         output = Future.successful(1).mapOnBusiness(_ => throw RuntimeException("boom"))
       }
 
@@ -207,7 +210,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       private val failure = RuntimeException("unreadable")
       private var completion: Option[Try[Int]] = None
       private var mapped: Future[Int] = Future.never
-      messageBus.handle(classOf[Retune]) { _ =>
+      messageBus.handleCommand(classOf[Retune]) { _ =>
         val read = Future.failed[Int](failure)
         read.onCompleteOnBusiness(result => completion = Some(result))
         mapped = read.mapOnBusiness { value =>
@@ -244,6 +247,30 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       // Then
       reply.value.get.failed.get.getMessage shouldEqual "boom"
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
+    }
+
+    "suppress in a continuation's failure the failures of the subscribers of its events" in new Fixture {
+      // Given
+      private val pending = Promise[String]()
+      messageBus.handleRequest(classOf[Later]) { _ =>
+        Future.unit.onCompleteOnBusiness { _ =>
+          messageBus.publish(Dog("Rex"))
+          throw RuntimeException("boom")
+        }
+        pending.future
+      }
+      messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("bite"))
+
+      // When
+      private val (reply, _) = LogCapture.capturing(classOf[MessageBus].getName) {
+        val reply = messageBus.ask(Later())
+        runtime.drainAll()
+        reply
+      }
+
+      // Then
+      reply.value.get.failed.get.getMessage shouldEqual "boom"
+      suppressedMessages(reply) shouldEqual Seq("bite")
     }
 
     "log the handler's Future that fails after a continuation failed the reply" in new Fixture {
@@ -351,6 +378,26 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       completedOnUi shouldBe true
     }
 
+    "continue with the Future that flatMapOnUi's function returns, calling it on the UI Thread" in new Fixture {
+      // Given
+      private var output: Future[Int] = Future.never
+      private var calledOnUi = false
+      messageBus.subscribeOnUi(classOf[Dog]) { _ =>
+        output = Future.successful(1).flatMapOnUi { value =>
+          calledOnUi = Try(messageBus.requireUiThread()).isSuccess
+          Future.successful(value + 1)
+        }
+      }
+
+      // When
+      messageBus.publish(Dog("Rex"))
+      runtime.drainAll()
+
+      // Then
+      output.value shouldEqual Some(Success(2))
+      calledOnUi shouldBe true
+    }
+
     "log an onCompleteOnUi function that throws" in new Fixture {
       // Given
       messageBus.subscribeOnUi(classOf[Dog])(_ => Future.unit.onCompleteOnUi(_ => throw RuntimeException("boom")))
@@ -372,7 +419,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       var stamp: Option[Option[Long]] = None
 
       // When
-      onToolkit(Future.unit.onCompleteOnUi(_ => stamp = Some(ManualRuntime.causingCommandId)))
+      onToolkit(Future.unit.onCompleteOnUi(_ => stamp = Some(ManualMessagingRuntime.causingCommandId)))
       runtime.drainAll()
 
       // Then
@@ -383,7 +430,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       // Given
       private val completed = Future.successful(1)
       private var onBusiness: Option[Try[Future[Int]]] = None
-      messageBus.handle(classOf[Retune])(_ => onBusiness = Some(Try(completed.mapOnUi(identity))))
+      messageBus.handleCommand(classOf[Retune])(_ => onBusiness = Some(Try(completed.mapOnUi(identity))))
 
       // When
       messageBus.dispatch(Retune(1))
@@ -391,6 +438,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
 
       // Then
       an[IllegalStateException] should be thrownBy completed.mapOnUi(identity)
+      an[IllegalStateException] should be thrownBy completed.flatMapOnUi(Future.successful)
       an[IllegalStateException] should be thrownBy completed.onCompleteOnUi(_ => ())
       onBusiness.get.failed.get shouldBe an[IllegalStateException]
     }

@@ -57,24 +57,30 @@ object MessageBusTest {
 
   case class Wolf(name: String) extends Animal
 
+  /** The messages of the exceptions that the exception of the failed `reply` suppresses, in the order added. */
+  def suppressedMessages(reply: Future[?]): Seq[String] =
+    reply.value.get.failed.get.getSuppressed.toSeq.map(_.getMessage)
+
   abstract class Fixture {
-    val runtime: ManualRuntime = ManualRuntime()
+    val runtime: ManualMessagingRuntime = ManualMessagingRuntime()
     val messageBus: MessageBus = MessageBus(runtime)
     given MessageBus = messageBus
     val log: mutable.ArrayBuffer[String] = mutable.ArrayBuffer()
   }
 
   /**
-   * A [[MessagingRuntime]] over a [[ManualRuntime]] whose UI mailbox also counts `toolkitThread` as its thread outside
-   * its messages, as a production runtime counts the UI toolkit's thread.
+   * A [[MessagingRuntime]] over a [[ManualMessagingRuntime]] whose UI mailbox also counts `toolkitThread` as its thread
+   * outside its messages, as a production runtime counts the UI toolkit's thread.
    */
-  final class ToolkitRuntime(manualRuntime: ManualRuntime, toolkitThread: Thread) extends MessagingRuntime {
+  final class ToolkitRuntime(manualRuntime: ManualMessagingRuntime, toolkitThread: Thread) extends MessagingRuntime {
     override def startMailbox[M <: AnyRef](name: String, priority: Int)(handler: M => Unit): Mailbox[M] =
       manualRuntime.startMailbox(name, priority)(handler)
 
     override def startUiMailbox[M <: AnyRef](handler: M => Unit): Mailbox[M] = {
       val mailbox = manualRuntime.startUiMailbox(handler)
       new Mailbox[M] {
+        override def name: String = mailbox.name
+
         override def enqueue(message: M): Unit = mailbox.enqueue(message)
 
         override def isCurrentThread: Boolean = mailbox.isCurrentThread || Thread.currentThread() == toolkitThread
@@ -91,7 +97,7 @@ object MessageBusTest {
   final class ToolkitFixture {
     val toolkit: ExecutorService = Executors.newSingleThreadExecutor()
     private val toolkitThread: Thread = CompletableFuture.supplyAsync(() => Thread.currentThread(), toolkit).join()
-    val runtime: ManualRuntime = ManualRuntime()
+    val runtime: ManualMessagingRuntime = ManualMessagingRuntime()
     val messageBus: MessageBus = MessageBus(ToolkitRuntime(runtime, toolkitThread))
     given MessageBus = messageBus
 
@@ -129,6 +135,7 @@ object MessageBusTest {
 
 class MessageBusTest extends AnyWordSpec with Matchers {
 
+  import BusinessContinuations.*
   import LogCapture.*
   import MessageBusTest.*
 
@@ -142,7 +149,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "run a command's handler on the Business Thread once the Business mailbox drains" in new Fixture {
         // Given
         private var onBusiness = false
-        messageBus.handle(classOf[Retune]) { retune =>
+        messageBus.handleCommand(classOf[Retune]) { retune =>
           log += s"retune ${retune.index}"
           onBusiness = Try(messageBus.requireBusinessThread()).isSuccess
         }
@@ -163,7 +170,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "run the handler registered for a supertype of the command's class" in new Fixture {
         // Given
-        messageBus.handle(classOf[TunerCommand])(command => log += command.toString)
+        messageBus.handleCommand(classOf[TunerCommand])(command => log += command.toString)
 
         // When
         messageBus.dispatch(Retune(1))
@@ -176,7 +183,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "throw on the caller's thread when no handler matches the command" in new Fixture {
         // Given
-        messageBus.handle(classOf[Retune])(_ => ())
+        messageBus.handleCommand(classOf[Retune])(_ => ())
 
         // When / Then
         an[IllegalStateException] should be thrownBy messageBus.dispatch(Unhandled())
@@ -184,8 +191,8 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "throw on the caller's thread when several handlers match the command" in new Fixture {
         // Given
-        messageBus.handle(classOf[TunerCommand])(_ => ())
-        messageBus.handle(classOf[RigCommand])(_ => ())
+        messageBus.handleCommand(classOf[TunerCommand])(_ => ())
+        messageBus.handleCommand(classOf[RigCommand])(_ => ())
 
         // When / Then
         an[IllegalStateException] should be thrownBy messageBus.dispatch(TuneRig())
@@ -193,35 +200,35 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "reject a handler for a class that already has one" in new Fixture {
         // Given
-        messageBus.handle(classOf[Retune])(_ => ())
+        messageBus.handleCommand(classOf[Retune])(_ => ())
 
         // When / Then
-        an[IllegalArgumentException] should be thrownBy messageBus.handle(classOf[Retune])(_ => ())
+        an[IllegalArgumentException] should be thrownBy messageBus.handleCommand(classOf[Retune])(_ => ())
       }
 
       "reject a handler for a subtype of a handled class" in new Fixture {
         // Given
-        messageBus.handle(classOf[TunerCommand])(_ => ())
+        messageBus.handleCommand(classOf[TunerCommand])(_ => ())
 
         // When / Then
-        an[IllegalArgumentException] should be thrownBy messageBus.handle(classOf[Retune])(_ => ())
+        an[IllegalArgumentException] should be thrownBy messageBus.handleCommand(classOf[Retune])(_ => ())
       }
 
       "reject a handler for a supertype of a handled class" in new Fixture {
         // Given
-        messageBus.handle(classOf[Retune])(_ => ())
+        messageBus.handleCommand(classOf[Retune])(_ => ())
 
         // When / Then
-        an[IllegalArgumentException] should be thrownBy messageBus.handle(classOf[TunerCommand])(_ => ())
+        an[IllegalArgumentException] should be thrownBy messageBus.handleCommand(classOf[TunerCommand])(_ => ())
       }
 
       "enqueue a command that a handler dispatches instead of running it inside the handler" in new Fixture {
         // Given
-        messageBus.handle(classOf[Retune]) { _ =>
+        messageBus.handleCommand(classOf[Retune]) { _ =>
           messageBus.dispatch(Reset())
           log += "retune done"
         }
-        messageBus.handle(classOf[Reset])(_ => log += "reset")
+        messageBus.handleCommand(classOf[Reset])(_ => log += "reset")
 
         // When
         messageBus.dispatch(Retune(1))
@@ -233,7 +240,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "accept a command dispatched from another thread" in new Fixture {
         // Given
-        messageBus.handle(classOf[Retune])(retune => log += s"retune ${retune.index}")
+        messageBus.handleCommand(classOf[Retune])(retune => log += s"retune ${retune.index}")
 
         // When
         CompletableFuture.runAsync(() => messageBus.dispatch(Retune(2))).join()
@@ -245,8 +252,8 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "log a failing handler and go on with the next command" in new Fixture {
         // Given
-        messageBus.handle(classOf[Explode])(_ => throw RuntimeException("boom"))
-        messageBus.handle(classOf[Retune])(retune => log += s"retune ${retune.index}")
+        messageBus.handleCommand(classOf[Explode])(_ => throw RuntimeException("boom"))
+        messageBus.handleCommand(classOf[Retune])(retune => log += s"retune ${retune.index}")
 
         // When
         private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
@@ -276,7 +283,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         new Fixture {
           // Given
           private var onBusiness = false
-          messageBus.subscribe(classOf[Dog]) { dog =>
+          messageBus.subscribeOnBusiness(classOf[Dog]) { dog =>
             log += dog.name
             onBusiness = Try(messageBus.requireBusinessThread()).isSuccess
           }
@@ -297,10 +304,10 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "deliver an event to the subscribers of its class and of its supertypes, classes and traits" in new Fixture {
         // Given
-        messageBus.subscribe(classOf[Animal])(event => log += s"animal $event")
-        messageBus.subscribe(classOf[Pet])(event => log += s"pet $event")
-        messageBus.subscribe(classOf[Dog])(event => log += s"dog $event")
-        messageBus.subscribe(classOf[Wolf])(event => log += s"wolf $event")
+        messageBus.subscribeOnBusiness(classOf[Animal])(event => log += s"animal $event")
+        messageBus.subscribeOnBusiness(classOf[Pet])(event => log += s"pet $event")
+        messageBus.subscribeOnBusiness(classOf[Dog])(event => log += s"dog $event")
+        messageBus.subscribeOnBusiness(classOf[Wolf])(event => log += s"wolf $event")
 
         // When
         messageBus.publish(Dog("Rex"))
@@ -312,7 +319,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "deliver an event of any class" in new Fixture {
         // Given
-        messageBus.subscribe(classOf[String])(event => log += event)
+        messageBus.subscribeOnBusiness(classOf[String])(event => log += event)
 
         // When
         messageBus.publish("plain")
@@ -325,9 +332,9 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "deliver an event once per matching subscription, in subscription order" in new Fixture {
         // Given
         private val record: AnyRef => Unit = event => log += s"twice $event"
-        messageBus.subscribe(classOf[Animal])(event => log += s"animal $event")
-        messageBus.subscribe(classOf[Pet])(record)
-        messageBus.subscribe(classOf[Animal])(record)
+        messageBus.subscribeOnBusiness(classOf[Animal])(event => log += s"animal $event")
+        messageBus.subscribeOnBusiness(classOf[Pet])(record)
+        messageBus.subscribeOnBusiness(classOf[Animal])(record)
 
         // When
         messageBus.publish(Dog("Rex"))
@@ -337,13 +344,62 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         log shouldEqual Seq("animal Dog(Rex)", "twice Dog(Rex)", "twice Dog(Rex)")
       }
 
+      "reach a subscription made after its event's class was first published, in subscription order" in new Fixture {
+        // Given
+        messageBus.subscribeOnBusiness(classOf[Animal])(event => log += s"animal $event")
+        messageBus.publish(Dog("a"))
+        runtime.drainAll()
+        log.clear()
+        messageBus.subscribeOnBusiness(classOf[Dog])(event => log += s"dog $event")
+
+        // When
+        messageBus.publish(Dog("b"))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("animal Dog(b)", "dog Dog(b)")
+      }
+
+      "not reach a subscription cancelled after its event's class was first published" in new Fixture {
+        // Given
+        private val subscription = messageBus.subscribeOnBusiness(classOf[Animal])(event => log += s"animal $event")
+        messageBus.subscribeOnBusiness(classOf[Dog])(event => log += s"dog $event")
+        messageBus.publish(Dog("a"))
+        runtime.drainAll()
+        log.clear()
+
+        // When
+        subscription.cancel()
+        messageBus.publish(Dog("b"))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("dog Dog(b)")
+      }
+
+      "deliver last to a subscriber that was cancelled and subscribed again" in new Fixture {
+        // Given
+        private val record: AnyRef => Unit = event => log += s"again $event"
+        private val subscription = messageBus.subscribeOnBusiness(classOf[Animal])(record)
+        messageBus.subscribeOnBusiness(classOf[Dog])(event => log += s"dog $event")
+        subscription.cancel()
+        messageBus.subscribeOnBusiness(classOf[Animal])(record)
+
+        // When
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("dog Dog(Rex)", "again Dog(Rex)")
+      }
+
       "deliver the events a handler publishes after it returns and before the next command" in new Fixture {
         // Given
-        messageBus.handle(classOf[Retune]) { retune =>
+        messageBus.handleCommand(classOf[Retune]) { retune =>
           messageBus.publish(Dog(s"d${retune.index}"))
           log += s"retune ${retune.index}"
         }
-        messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
+        messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += dog.name)
 
         // When
         messageBus.dispatch(Retune(1))
@@ -356,13 +412,13 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "deliver the events published while draining in the same drain" in new Fixture {
         // Given
-        messageBus.handle(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
-        messageBus.handle(classOf[Reset])(_ => log += "reset")
-        messageBus.subscribe(classOf[Dog]) { dog =>
+        messageBus.handleCommand(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.handleCommand(classOf[Reset])(_ => log += "reset")
+        messageBus.subscribeOnBusiness(classOf[Dog]) { dog =>
           log += dog.name
           messageBus.publish(Wolf("Grey"))
         }
-        messageBus.subscribe(classOf[Wolf])(wolf => log += wolf.name)
+        messageBus.subscribeOnBusiness(classOf[Wolf])(wolf => log += wolf.name)
 
         // When
         messageBus.dispatch(Retune(1))
@@ -377,7 +433,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         // Given
         private var uiQueued = false
         messageBus.subscribeOnUi(classOf[Dog])(_ => ())
-        messageBus.handle(classOf[Retune]) { _ =>
+        messageBus.handleCommand(classOf[Retune]) { _ =>
           messageBus.publish(Dog("Rex"))
           uiQueued = !runtime.mailbox("UI").isEmpty
         }
@@ -397,7 +453,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
           log += dog.name
           onUi = Try(messageBus.requireUiThread()).isSuccess
         }
-        messageBus.handle(classOf[Retune]) { _ =>
+        messageBus.handleCommand(classOf[Retune]) { _ =>
           messageBus.publish(Dog("a"))
           messageBus.publish(Dog("b"))
         }
@@ -419,7 +475,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "deliver an event to both its Business and UI subscribers" in new Fixture {
         // Given
-        messageBus.subscribe(classOf[Dog])(dog => log += s"business ${dog.name}")
+        messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += s"business ${dog.name}")
         messageBus.subscribeOnUi(classOf[Dog])(dog => log += s"ui ${dog.name}")
 
         // When
@@ -432,7 +488,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "not deliver to a cancelled subscription" in new Fixture {
         // Given
-        messageBus.subscribe(classOf[Dog])(dog => log += dog.name).cancel()
+        messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += dog.name).cancel()
 
         // When
         messageBus.publish(Dog("Rex"))
@@ -444,7 +500,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "not deliver an event published before its subscription was cancelled" in new Fixture {
         // Given
-        private val business = messageBus.subscribe(classOf[Dog])(dog => log += s"business ${dog.name}")
+        private val business = messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += s"business ${dog.name}")
         private val ui = messageBus.subscribeOnUi(classOf[Dog])(dog => log += s"ui ${dog.name}")
         messageBus.publish(Dog("Rex"))
 
@@ -459,8 +515,8 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "give a subscription made while delivering an event the events published after it" in new Fixture {
         // Given
-        messageBus.subscribe(classOf[Wolf]) { _ =>
-          messageBus.subscribe(classOf[Dog])(dog => log += s"new ${dog.name}")
+        messageBus.subscribeOnBusiness(classOf[Wolf]) { _ =>
+          messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += s"new ${dog.name}")
           messageBus.publish(Dog("after"))
         }
 
@@ -475,8 +531,8 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "log a failing Business subscriber and still run the others" in new Fixture {
         // Given
-        messageBus.subscribe(classOf[Dog])(_ => throw RuntimeException("bite"))
-        messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("bite"))
+        messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += dog.name)
 
         // When
         private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
@@ -508,7 +564,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "throw from requireUiThread off the UI Thread" in new Fixture {
         // Given
         private var inHandler: Option[Try[Unit]] = None
-        messageBus.handle(classOf[Retune])(_ => inHandler = Some(Try(messageBus.requireUiThread())))
+        messageBus.handleCommand(classOf[Retune])(_ => inHandler = Some(Try(messageBus.requireUiThread())))
 
         // When
         messageBus.dispatch(Retune(1))
@@ -524,7 +580,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "give each dispatched command the next id of one counter" in new Fixture {
         // Given
         private val ids = mutable.ArrayBuffer[Option[Long]]()
-        messageBus.handle(classOf[Retune])(_ => ids += ManualRuntime.causingCommandId(using messageBus))
+        messageBus.handleCommand(classOf[Retune])(_ => ids += ManualMessagingRuntime.causingCommandId(using messageBus))
 
         // When
         (1 to 3).foreach(index => messageBus.dispatch(Retune(index)))
@@ -537,13 +593,14 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "stamp the events a handler publishes with its command's id, for Business and UI subscribers" in new Fixture {
         // Given
         private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
-        messageBus.handle(classOf[Retune]) { _ =>
-          stamps += "handler" -> ManualRuntime.causingCommandId(using messageBus)
+        messageBus.handleCommand(classOf[Retune]) { _ =>
+          stamps += "handler" -> ManualMessagingRuntime.causingCommandId(using messageBus)
           messageBus.publish(Dog("Rex"))
         }
-        messageBus.subscribe(classOf[Dog])(_ =>
-          stamps += "business" -> ManualRuntime.causingCommandId(using messageBus))
-        messageBus.subscribeOnUi(classOf[Dog])(_ => stamps += "ui" -> ManualRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ =>
+          stamps += "business" -> ManualMessagingRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnUi(classOf[Dog])(_ =>
+          stamps += "ui" -> ManualMessagingRuntime.causingCommandId(using messageBus))
 
         // When
         messageBus.dispatch(Retune(1))
@@ -556,11 +613,12 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "keep the stamp of the events that Business subscribers publish while draining" in new Fixture {
         // Given
         private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
-        messageBus.handle(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
-        messageBus.subscribe(classOf[Dog])(_ => messageBus.publish(Wolf("Grey")))
-        messageBus.subscribe(classOf[Wolf])(_ =>
-          stamps += "business" -> ManualRuntime.causingCommandId(using messageBus))
-        messageBus.subscribeOnUi(classOf[Wolf])(_ => stamps += "ui" -> ManualRuntime.causingCommandId(using messageBus))
+        messageBus.handleCommand(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => messageBus.publish(Wolf("Grey")))
+        messageBus.subscribeOnBusiness(classOf[Wolf])(_ =>
+          stamps += "business" -> ManualMessagingRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnUi(classOf[Wolf])(_ =>
+          stamps += "ui" -> ManualMessagingRuntime.causingCommandId(using messageBus))
 
         // When
         messageBus.dispatch(Retune(1))
@@ -573,10 +631,10 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "keep the stamp of the events that UI subscribers publish" in new Fixture {
         // Given
         private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
-        messageBus.handle(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.handleCommand(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
         messageBus.subscribeOnUi(classOf[Dog])(_ => messageBus.publish(Wolf("Grey")))
-        messageBus.subscribe(classOf[Wolf])(_ =>
-          stamps += "business" -> ManualRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnBusiness(classOf[Wolf])(_ =>
+          stamps += "business" -> ManualMessagingRuntime.causingCommandId(using messageBus))
 
         // When
         messageBus.dispatch(Retune(1))
@@ -589,12 +647,13 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "give a command that a handler dispatches an id of its own" in new Fixture {
         // Given
         private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
-        messageBus.handle(classOf[Retune]) { _ =>
-          stamps += "retune" -> ManualRuntime.causingCommandId(using messageBus)
+        messageBus.handleCommand(classOf[Retune]) { _ =>
+          stamps += "retune" -> ManualMessagingRuntime.causingCommandId(using messageBus)
           messageBus.dispatch(Reset())
         }
-        messageBus.handle(classOf[Reset])(_ => messageBus.publish(Dog("Rex")))
-        messageBus.subscribe(classOf[Dog])(_ => stamps += "dog" -> ManualRuntime.causingCommandId(using messageBus))
+        messageBus.handleCommand(classOf[Reset])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ =>
+          stamps += "dog" -> ManualMessagingRuntime.causingCommandId(using messageBus))
 
         // When
         messageBus.dispatch(Retune(1))
@@ -604,12 +663,13 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         stamps shouldEqual Seq("retune" -> Some(1L), "dog" -> Some(2L))
       }
 
-      "stamp nothing published off the Business and UI Threads" in new Fixture {
+      "stamp nothing published outside the messages that a command caused" in new Fixture {
         // Given
         private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
-        messageBus.subscribe(classOf[Dog])(_ =>
-          stamps += "business" -> ManualRuntime.causingCommandId(using messageBus))
-        messageBus.subscribeOnUi(classOf[Dog])(_ => stamps += "ui" -> ManualRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ =>
+          stamps += "business" -> ManualMessagingRuntime.causingCommandId(using messageBus))
+        messageBus.subscribeOnUi(classOf[Dog])(_ =>
+          stamps += "ui" -> ManualMessagingRuntime.causingCommandId(using messageBus))
 
         // When
         messageBus.publish(Dog("Rex"))
@@ -617,14 +677,15 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
         // Then
         stamps shouldEqual Seq("business" -> None, "ui" -> None)
-        ManualRuntime.causingCommandId(using messageBus) shouldBe None
+        ManualMessagingRuntime.causingCommandId(using messageBus) shouldBe None
       }
 
       "stamp nothing published off the Business Thread after a command's message" in new Fixture {
         // Given
         private var stamp: Option[Option[Long]] = None
-        messageBus.handle(classOf[Retune])(_ => ())
-        messageBus.subscribe(classOf[Dog])(_ => stamp = Some(ManualRuntime.causingCommandId(using messageBus)))
+        messageBus.handleCommand(classOf[Retune])(_ => ())
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ =>
+          stamp = Some(ManualMessagingRuntime.causingCommandId(using messageBus)))
         messageBus.dispatch(Retune(1))
         runtime.drainAll()
 
@@ -643,7 +704,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
         // When
         val onUi = onToolkit(Try(messageBus.requireUiThread()).isSuccess)
-        val stamp = onToolkit(ManualRuntime.causingCommandId(using messageBus))
+        val stamp = onToolkit(ManualMessagingRuntime.causingCommandId(using messageBus))
 
         // Then
         onUi shouldBe true
@@ -678,7 +739,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
             messageBus.publish(Dog("Rex"))
             Future.successful(echo.text)
           }
-          messageBus.subscribe(classOf[Dog])(_ => completedAtDelivery = Some(reply.isCompleted))
+          messageBus.subscribeOnBusiness(classOf[Dog])(_ => completedAtDelivery = Some(reply.isCompleted))
 
           // When
           reply = messageBus.ask(Echo("hi"))
@@ -695,7 +756,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
           messageBus.publish(Dog("Rex"))
           throw RuntimeException("boom")
         }
-        messageBus.subscribe(classOf[Dog])(dog => log += dog.name)
+        messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += dog.name)
 
         // When
         private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
@@ -732,7 +793,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
           messageBus.publish(Dog("Rex"))
           Future.successful(echo.text)
         }
-        messageBus.subscribe(classOf[Dog])(_ => throw RuntimeException("bite"))
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("bite"))
 
         // When
         private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
@@ -753,7 +814,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
           messageBus.publish(Dog("Rex"))
           pending.future
         }
-        messageBus.subscribe(classOf[Dog])(_ => throw RuntimeException("bite"))
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("bite"))
 
         // When
         private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
@@ -771,12 +832,122 @@ class MessageBusTest extends AnyWordSpec with Matchers {
           ("The handler of Later() failed.", Some("late")))
       }
 
+      "suppress in the reply's failure the failures of the other subscribers of an event" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo]) { echo =>
+          messageBus.publish(Dog("Rex"))
+          Future.successful(echo.text)
+        }
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("bite"))
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("growl"))
+
+        // When
+        private val (reply, _) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        reply.value.get.failed.get.getMessage shouldEqual "bite"
+        suppressedMessages(reply) shouldEqual Seq("growl")
+      }
+
+      "suppress in the reply's failure the failures of the subscribers of a later event" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo]) { echo =>
+          messageBus.publish(Dog("Rex"))
+          messageBus.publish(Wolf("Grey"))
+          Future.successful(echo.text)
+        }
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("bite"))
+        messageBus.subscribeOnBusiness(classOf[Wolf])(_ => throw RuntimeException("howl"))
+
+        // When
+        private val (reply, _) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        reply.value.get.failed.get.getMessage shouldEqual "bite"
+        suppressedMessages(reply) shouldEqual Seq("howl")
+      }
+
+      "suppress a subscriber's failure in the failure of the handler that published its event" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo]) { _ =>
+          messageBus.publish(Dog("Rex"))
+          throw RuntimeException("boom")
+        }
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("bite"))
+
+        // When
+        private val (reply, _) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        reply.value.get.failed.get.getMessage shouldEqual "boom"
+        suppressedMessages(reply) shouldEqual Seq("bite")
+      }
+
+      "suppress the handler's already failed Future in a subscriber's failure, and still log it" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo]) { _ =>
+          messageBus.publish(Dog("Rex"))
+          Future.failed(RuntimeException("nope"))
+        }
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw RuntimeException("bite"))
+
+        // When
+        private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        reply.value.get.failed.get.getMessage shouldEqual "bite"
+        suppressedMessages(reply) shouldEqual Seq("nope")
+        events.failuresAt(Level.ERROR) shouldEqual Seq(
+          ("A subscriber of Dog(Rex) failed.", Some("bite")),
+          ("The handler of Echo(hi) failed.", Some("nope")))
+      }
+
+      "not suppress an exception in itself when two subscribers throw the same one" in new Fixture {
+        // Given
+        private val shared = RuntimeException("bite")
+        messageBus.handleRequest(classOf[Echo]) { echo =>
+          messageBus.publish(Dog("Rex"))
+          Future.successful(echo.text)
+        }
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw shared)
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => throw shared)
+        messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += dog.name)
+
+        // When
+        private val (reply, _) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Echo("hi"))
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        reply.value.get.failed.get should be theSameInstanceAs shared
+        suppressedMessages(reply) shouldBe empty
+        log shouldEqual Seq("Rex")
+      }
+
       "keep the reply pending when the toolkit publishes an event whose Business subscriber throws" in
         withToolkitFixture { fixture =>
           import fixture.*
           // Given
           val reply = askWithUiEvent()
-          messageBus.subscribe(classOf[Wolf])(_ => throw RuntimeException("bite"))
+          messageBus.subscribeOnBusiness(classOf[Wolf])(_ => throw RuntimeException("bite"))
 
           // When
           val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
@@ -804,9 +975,9 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "give an asked request the next id of the dispatch counter" in new Fixture {
         // Given
         private val ids = mutable.ArrayBuffer[Option[Long]]()
-        messageBus.handle(classOf[Retune])(_ => ids += ManualRuntime.causingCommandId(using messageBus))
+        messageBus.handleCommand(classOf[Retune])(_ => ids += ManualMessagingRuntime.causingCommandId(using messageBus))
         messageBus.handleRequest(classOf[Echo]) { echo =>
-          ids += ManualRuntime.causingCommandId(using messageBus)
+          ids += ManualMessagingRuntime.causingCommandId(using messageBus)
           Future.successful(echo.text)
         }
 
@@ -850,7 +1021,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
       "throw on the caller's thread when asking a request whose handler was registered with handle" in new Fixture {
         // Given
-        messageBus.handle(classOf[Echo])(_ => ())
+        messageBus.handleCommand(classOf[Echo])(_ => ())
 
         // When / Then
         an[IllegalStateException] should be thrownBy messageBus.ask(Echo("hi"))
@@ -870,7 +1041,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "throw instead of blocking in a Business handler" in new Fixture {
         // Given
         private var attempt: Option[Try[Int]] = None
-        messageBus.handle(classOf[Retune]) { _ =>
+        messageBus.handleCommand(classOf[Retune]) { _ =>
           attempt = Some(Try(Await.result(Promise[Int]().future, RefusedAwaitTimeout)))
         }
 
@@ -886,7 +1057,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         // Given
         private var attempt: Option[Try[String]] = None
         messageBus.handleRequest(classOf[Echo])(echo => Future.successful(echo.text))
-        messageBus.handle(classOf[Retune]) { _ =>
+        messageBus.handleCommand(classOf[Retune]) { _ =>
           attempt = Some(Try(Await.result(messageBus.ask(Echo("hi")), RefusedAwaitTimeout)))
         }
 
@@ -901,8 +1072,8 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "throw instead of blocking in a Business subscriber" in new Fixture {
         // Given
         private var attempt: Option[Try[Int]] = None
-        messageBus.handle(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
-        messageBus.subscribe(classOf[Dog]) { _ =>
+        messageBus.handleCommand(classOf[Retune])(_ => messageBus.publish(Dog("Rex")))
+        messageBus.subscribeOnBusiness(classOf[Dog]) { _ =>
           attempt = Some(Try(Await.result(Promise[Int]().future, RefusedAwaitTimeout)))
         }
 
@@ -917,7 +1088,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "throw instead of blocking in a Business continuation" in new Fixture {
         // Given
         private var attempt: Option[Try[Int]] = None
-        messageBus.handle(classOf[Retune]) { _ =>
+        messageBus.handleCommand(classOf[Retune]) { _ =>
           Future.unit.onCompleteOnBusiness { _ =>
             attempt = Some(Try(Await.result(Promise[Int]().future, RefusedAwaitTimeout)))
           }
@@ -949,7 +1120,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
       "return the result of a completed Future in a handler" in new Fixture {
         // Given
         private var attempt: Option[Try[Int]] = None
-        messageBus.handle(classOf[Retune]) { _ =>
+        messageBus.handleCommand(classOf[Retune]) { _ =>
           attempt = Some(Try(Await.result(Future.successful(1), RefusedAwaitTimeout)))
         }
 

@@ -15,21 +15,21 @@ of the domain and depends on no Pekko, JavaFX or Guava, only on `common`.
 can serve a sealed family. A `Request[R]` is a command with a reply. An event is any `AnyRef`, so a library's events
 need no wrapper; it reaches the subscribers of its class and of its supertypes. Both are immutable values.
 
-**`MessageBus`** is the API: `dispatch`, `ask` and `publish` from any thread, `handle`, `handleRequest`, `subscribe`
-and `subscribeOnUi` to register, and the thread checks `requireBusinessThread` and `requireUiThread`. Constructing it
-starts the Business mailbox, named `Business`, then the UI mailbox. `subscribe` returns a `Subscription`, which
-cancels it.
+**`MessageBus`** is the API: `dispatch`, `ask` and `publish` from any thread, `handleCommand`, `handleRequest`,
+`subscribeOnBusiness` and `subscribeOnUi` to register, and the thread checks `requireBusinessThread` and
+`requireUiThread`. Constructing it starts the Business mailbox, named `Business`, then the UI mailbox. Each subscribing
+method returns a `Subscription`, which cancels it.
 
-**Continuations.** The `Future` extension methods `mapOnBusiness`, `flatMapOnBusiness`, `onCompleteOnBusiness`,
-`mapOnUi` and `onCompleteOnUi`, which take a `given MessageBus`, continue a `Future` on their thread, and may be called
-on that thread only, so that they continue work started there.
+**Continuations.** The `Future` extension methods of `BusinessContinuations` and `UiContinuations`, such as
+`mapOnBusiness` and `onCompleteOnUi`, take a `given MessageBus` and continue a `Future` on their thread. Code imports
+the group of its thread, and each method may be called on that thread only, so that it continues work started there.
 
 **Runtime interface.** `MessagingRuntime` starts each `Mailbox`: one on a named thread of its own, at a given
 priority, and the UI toolkit's. A mailbox runs its messages one at a time, in arrival order, save that an `Urgent` one
-overtakes the others queued. `ManualRuntime`, in the test sources, implements it for tests.
+overtakes the others queued. `ManualMessagingRuntime`, in the test sources, implements it for tests.
 
-Inside, `CommandHandlers` resolves a command's class to its handler, caching the resolution per class, and
-`Subscribers` is the copy-on-write subscription registry.
+Inside, `CommandHandlerRegistry` resolves a command's class to its handler, caching the resolution per class, and
+`SubscriberRegistry` holds the subscriptions, in copy-on-write snapshots that cache the matches per event class.
 
 ## Flows
 
@@ -68,7 +68,7 @@ is skipped.
 Each `dispatch` and `ask` gives its command an id, from a counter per bus. The messages it causes carry the id: its
 handler's, the deliveries of the events published there and by their subscribers, and the continuations started
 there. What is published or started outside the messages, including by code that the toolkit runs on the UI Thread,
-carries none. The stamp is internal for now; tests read it with `ManualRuntime.causingCommandId`.
+carries none. The stamp is internal for now; tests read it with `ManualMessagingRuntime.causingCommandId`.
 
 ### Continuations
 
@@ -79,8 +79,8 @@ it is a Business message like the others, so its events are drained after it. Th
 ## Errors
 
 A command or request that matches no handler, or several, throws `IllegalStateException` on the caller's thread, as
-does an `ask` of a request handled with `handle`. Registering a handler for a class related to a handled one throws
-`IllegalArgumentException`.
+does an `ask` of a request handled with `handleCommand`. Registering a handler for a class related to a handled one
+throws `IllegalArgumentException`.
 
 An exception thrown on either thread is logged at ERROR, with the exception, and the mailbox goes on:
 
@@ -90,10 +90,10 @@ An exception thrown on either thread is logged at ERROR, with the exception, and
 | A subscriber; the other subscribers still run | `A subscriber of <event> failed.` |
 | An `onComplete…` continuation | `A continuation failed.` |
 
-On Business, the first of them also fails the reply of the `ask` that caused it, once the message's drain is over. On
-the UI Thread it is only logged, since the reply has usually completed by then. The failed `Future` of an asked request
-isn't logged, since the reply carries it, unless the reply has already failed; and a `map…` or `flatMap…`
-continuation that throws fails the `Future` it returns.
+On Business, the first of them also fails the reply of the `ask` that caused it, once the message's drain is over, and
+suppresses the later ones. On the UI Thread it is only logged, since the reply has usually completed by then. The
+failed `Future` of an asked request isn't logged, since the reply carries it, unless the reply has already failed; and
+a `map…` or `flatMap…` continuation that throws fails the `Future` it returns.
 
 ## Threading
 
@@ -108,10 +108,10 @@ misses code that the toolkit calls directly, and blocking without `Await`, e.g. 
 
 ## Testing
 
-`ManualRuntime`'s mailboxes run their messages only when a test drains them, with `drainAll()` or a `ManualMailbox`'s
-`drain()`, on the test's thread. That thread counts as the mailbox's while it runs one of its messages, so the thread
-checks behave as in production, and the messages run in production order. A module whose tests use it depends on
-`messaging` with `"compile->compile;test->test"`.
+`ManualMessagingRuntime`'s mailboxes run their messages only when a test drains them, with `drainAll()` or a
+`ManualMailbox`'s `drain()`, on the test's thread. That thread counts as the mailbox's while it runs one of its
+messages, so the thread checks behave as in production, and the messages run in production order. A module whose tests
+use it depends on `messaging` with `"compile->compile;test->test"`.
 
 ## Subject to change
 

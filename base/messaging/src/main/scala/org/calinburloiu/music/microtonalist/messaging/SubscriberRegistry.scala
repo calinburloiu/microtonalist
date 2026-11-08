@@ -16,45 +16,55 @@
 
 package org.calinburloiu.music.microtonalist.messaging
 
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
 import javax.annotation.concurrent.ThreadSafe
+import scala.collection.immutable.VectorMap
 
 /**
- * The subscription registry of a [[MessageBus]], copied on write so that matching an event reads one snapshot of it,
- * unaffected by the subscriptions made or cancelled meanwhile.
+ * The subscription registry of a [[MessageBus]], whose snapshot each change replaces so that matching an event reads
+ * one snapshot of it, unaffected by the subscriptions made or cancelled meanwhile.
  */
 @ThreadSafe
-private[messaging] final class Subscribers {
+private[messaging] final class SubscriberRegistry {
 
-  import Subscribers.Subscriber
+  import SubscriberRegistry.{Snapshot, Subscriber}
 
-  private val subscribers: AtomicReference[Vector[Subscriber]] = AtomicReference(Vector.empty)
+  private val snapshot: AtomicReference[Snapshot] = AtomicReference(Snapshot(VectorMap.empty))
 
   /**
    * Registers a subscriber of the events of `eventClass` and of its subtypes.
    *
    * @param onUi whether the subscriber runs on the UI Thread, rather than on the Business Thread
    */
-  def add[E <: AnyRef](eventClass: Class[E], onUi: Boolean, handler: E => Unit): Subscriber = {
+  def register[E <: AnyRef](eventClass: Class[E], onUi: Boolean, handler: E => Unit): Subscriber = {
     val subscriber = Subscriber(eventClass, onUi, event => handler(eventClass.cast(event)), this)
-    subscribers.updateAndGet(_ :+ subscriber)
+    snapshot.updateAndGet(current => Snapshot(current.subscribers.updated(subscriber, ())))
     subscriber
   }
 
   /**
    * Returns the subscribers of the event's class or of one of its supertypes, in subscription order.
    */
-  def matching(event: AnyRef): Vector[Subscriber] = {
-    val eventClass = event.getClass
-    subscribers.get.filter(_.eventClass.isAssignableFrom(eventClass))
-  }
+  def matching(event: AnyRef): Vector[Subscriber] = snapshot.get.matching(event.getClass)
 
-  private def remove(subscriber: Subscriber): Unit = {
-    subscribers.updateAndGet(_.filterNot(_ eq subscriber))
+  private def unregister(subscriber: Subscriber): Unit = {
+    snapshot.updateAndGet(current => Snapshot(current.subscribers.removed(subscriber)))
   }
 }
 
-private[messaging] object Subscribers {
+private[messaging] object SubscriberRegistry {
+
+  /**
+   * The subscribers at one time, as the keys of an insertion-ordered map, with the matches made against them; a change
+   * replaces the snapshot, so that no match against older subscribers outlives it.
+   */
+  private final class Snapshot(val subscribers: VectorMap[Subscriber, Unit]) {
+    private val matches: ConcurrentHashMap[Class[?], Vector[Subscriber]] = ConcurrentHashMap()
+
+    def matching(eventClass: Class[?]): Vector[Subscriber] = matches.computeIfAbsent(eventClass,
+      _ => subscribers.keysIterator.filter(_.eventClass.isAssignableFrom(eventClass)).toVector)
+  }
 
   /**
    * A registered subscriber, which its [[Subscription]] deactivates before removing it from the registry, so that the
@@ -63,7 +73,7 @@ private[messaging] object Subscribers {
   final class Subscriber(val eventClass: Class[?],
                          val onUi: Boolean,
                          handler: AnyRef => Unit,
-                         registry: Subscribers) extends Subscription {
+                         registry: SubscriberRegistry) extends Subscription {
     @volatile private var _isActive: Boolean = true
 
     /** Tells whether the subscription hasn't been cancelled. */
@@ -74,7 +84,7 @@ private[messaging] object Subscribers {
 
     override def cancel(): Unit = {
       _isActive = false
-      registry.remove(this)
+      registry.unregister(this)
     }
   }
 }

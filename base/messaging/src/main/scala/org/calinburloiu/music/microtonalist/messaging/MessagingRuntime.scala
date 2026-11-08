@@ -54,6 +54,14 @@ trait MessagingRuntime {
 }
 
 /**
+ * Holds the name of the UI mailbox.
+ */
+object MessagingRuntime {
+  /** The name of the mailbox that [[MessagingRuntime.startUiMailbox]] starts. */
+  val UiThreadName: String = "UI"
+}
+
+/**
  * A queue of messages that runs them one at a time on its thread: a thread of its own, or the UI toolkit's.
  *
  * An [[Urgent]] message overtakes the non-urgent ones queued; each kind keeps its arrival order.
@@ -61,6 +69,9 @@ trait MessagingRuntime {
  * @tparam M the type of the messages
  */
 trait Mailbox[-M <: AnyRef] {
+
+  /** The name it was started with, which [[MessagingRuntime.UiThreadName]] gives for the UI mailbox. */
+  def name: String
 
   /**
    * Queues a message to run on the mailbox's thread; after [[stop]], drops it.

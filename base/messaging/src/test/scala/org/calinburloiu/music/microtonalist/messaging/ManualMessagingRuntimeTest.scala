@@ -23,7 +23,7 @@ import java.util.concurrent.CompletableFuture
 import scala.collection.mutable
 import scala.util.Try
 
-object ManualRuntimeTest {
+object ManualMessagingRuntimeTest {
   sealed trait Message {
     def name: String
   }
@@ -33,18 +33,18 @@ object ManualRuntimeTest {
   case class UrgentMessage(name: String) extends Message with Urgent
 }
 
-class ManualRuntimeTest extends AnyWordSpec with Matchers {
+class ManualMessagingRuntimeTest extends AnyWordSpec with Matchers {
 
-  import ManualRuntimeTest.*
+  import ManualMessagingRuntimeTest.*
 
   abstract class Fixture {
-    val runtime: ManualRuntime = ManualRuntime()
+    val runtime: ManualMessagingRuntime = ManualMessagingRuntime()
     val handled: mutable.ArrayBuffer[String] = mutable.ArrayBuffer()
     val business: ManualMailbox[Message] =
       runtime.startMailbox[Message]("Business", Thread.NORM_PRIORITY)(message => handled += message.name)
   }
 
-  "a ManualRuntime" should {
+  "a ManualMessagingRuntime" should {
     "record the name and priority of each mailbox it starts, in start order" in new Fixture {
       // When
       runtime.startUiMailbox[Message](_ => ())

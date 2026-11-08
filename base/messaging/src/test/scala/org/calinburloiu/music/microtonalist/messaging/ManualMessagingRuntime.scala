@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.messaging
 
+import javax.annotation.concurrent.GuardedBy
 import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 
@@ -26,9 +27,9 @@ import scala.concurrent.{Future, Promise}
  * Its mailboxes accept messages from any thread. Draining isn't thread-safe: drain from one thread at a time. An
  * exception thrown by a mailbox's handler propagates to the caller of the drain.
  */
-final class ManualRuntime extends MessagingRuntime {
+final class ManualMessagingRuntime extends MessagingRuntime {
 
-  import ManualRuntime.MaxDrainedMessages
+  import ManualMessagingRuntime.MaxDrainedMessages
 
   @volatile private var _mailboxes: Vector[ManualMailbox[?]] = Vector.empty
 
@@ -42,7 +43,7 @@ final class ManualRuntime extends MessagingRuntime {
    * Starts a [[ManualMailbox]] named `UI`, with no priority.
    */
   override def startUiMailbox[M <: AnyRef](handler: M => Unit): ManualMailbox[M] =
-    register(ManualMailbox("UI", None, handler, this))
+    register(ManualMailbox(MessagingRuntime.UiThreadName, None, handler, this))
 
   /**
    * The mailboxes started, in start order.
@@ -65,7 +66,7 @@ final class ManualRuntime extends MessagingRuntime {
    * the messages enqueued meanwhile.
    *
    * @throws IllegalStateException if a mailbox of this runtime is running a message, or once this call has run
-   *   [[ManualRuntime.MaxDrainedMessages]] messages
+   *   [[ManualMessagingRuntime.MaxDrainedMessages]] messages
    */
   def drainAll(): Unit = drain(() => _mailboxes)
 
@@ -102,9 +103,9 @@ final class ManualRuntime extends MessagingRuntime {
 }
 
 /**
- * Constants of [[ManualRuntime]] and helpers for the tests that run a [[MessageBus]] on it.
+ * Constants of [[ManualMessagingRuntime]] and helpers for the tests that run a [[MessageBus]] on it.
  */
-object ManualRuntime {
+object ManualMessagingRuntime {
   /**
    * The most messages that one drain runs before it fails, assuming that its messages keep enqueuing others.
    */
@@ -118,19 +119,24 @@ object ManualRuntime {
 }
 
 /**
- * A [[Mailbox]] of a [[ManualRuntime]], which runs its messages only when drained.
+ * A [[Mailbox]] of a [[ManualMessagingRuntime]], which runs its messages only when drained.
  *
  * @param name the name it was started with
  * @param priority the thread priority it was started with, or `None` for the UI mailbox
  * @tparam M the type of the messages
  */
-final class ManualMailbox[M <: AnyRef] private[messaging] (val name: String,
+final class ManualMailbox[M <: AnyRef] private[messaging] (override val name: String,
                                                            val priority: Option[Int],
                                                            handler: M => Unit,
-                                                           runtime: ManualRuntime) extends Mailbox[M] {
+                                                           runtime: ManualMessagingRuntime) extends Mailbox[M] {
 
+  @GuardedBy("this")
   private val urgentQueue: mutable.Queue[M] = mutable.Queue()
+
+  @GuardedBy("this")
   private val normalQueue: mutable.Queue[M] = mutable.Queue()
+
+  @GuardedBy("this")
   private var stopPromise: Option[Promise[Unit]] = None
 
   @volatile private var runningThread: Option[Thread] = None
@@ -171,7 +177,7 @@ final class ManualMailbox[M <: AnyRef] private[messaging] (val name: String,
    * Runs this mailbox's messages, the urgent ones first, until none is queued, including those enqueued meanwhile.
    *
    * @throws IllegalStateException if a mailbox of its runtime is running a message, or once this call has run
-   *   [[ManualRuntime.MaxDrainedMessages]] messages
+   *   [[ManualMessagingRuntime.MaxDrainedMessages]] messages
    */
   def drain(): Unit = runtime.drain(() => Seq(this))
 
