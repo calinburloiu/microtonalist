@@ -15,7 +15,7 @@ Besides the code, the module holds:
 
 - `results/` — a run file per run, `<machine id>/<UTC start time>-<app version>-<short commit>.json`, and `index.json`,
   which lists the runs; they are committed to track the latency across versions. Each run also keeps its raw samples
-  beside its run file, in a `.samples.json` file that git ignores.
+  beside its run file, in a `.samples.json` file that is committed too.
 - `report/` — a single page, `index.html`, that explores the results, and `test.html`, which tests its statistics in
   the browser. It needs no build step, only a static file server: `report-server/` holds the one that
   `bin/mtlist-perf-midi-latency serve` runs.

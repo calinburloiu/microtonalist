@@ -147,7 +147,7 @@ private final class ActiveRun(perfRun: PerfRun,
       val file = ResultsStore(resultsDir).write(run)
       println(SummaryTable.render(run))
       println(s"Run file: $file")
-      println(s"Raw samples, which git ignores: ${resultsDir.resolve(ResultsStore.samplesPath(run))}")
+      println(s"Raw samples: ${resultsDir.resolve(ResultsStore.samplesPath(run))}")
       println(s"Scratch directory, with the app's logs: $scratchDir")
     } finally {
       closeables.foreach(_.close())
