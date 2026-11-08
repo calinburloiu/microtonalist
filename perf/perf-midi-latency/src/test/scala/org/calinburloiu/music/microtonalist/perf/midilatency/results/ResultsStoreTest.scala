@@ -107,23 +107,21 @@ class ResultsStoreTest extends AnyWordSpec with Matchers {
       Files.readString(samplesFile) shouldEqual JsonRunSamplesFormat.write(sampleRun)
     }
 
-    "keep the raw samples of the machine's last written run only" in {
+    "keep the raw samples of the machine's earlier runs" in {
       // Given
       val dir = Files.createTempDirectory("results")
       val store = ResultsStore(dir)
-      val otherMachine = sampleRun.copy(machine = sampleRun.machine.copy(id = "beef"))
       val later = sampleRun.copy(startTime = Instant.parse("2026-10-27T08:00:00Z"))
 
       // When
-      store.write(otherMachine)
       store.write(sampleRun)
       store.write(later)
 
       // Then
-      Files.exists(dir.resolve("f00d/20261026T101500Z-1.6.0-SNAPSHOT-a8ba00df.samples.json")) shouldBe false
-      Files.exists(dir.resolve("f00d/20261026T101500Z-1.6.0-SNAPSHOT-a8ba00df.json")) shouldBe true
-      Files.exists(dir.resolve("f00d/20261027T080000Z-1.6.0-SNAPSHOT-a8ba00df.samples.json")) shouldBe true
-      Files.exists(dir.resolve("beef/20261026T101500Z-1.6.0-SNAPSHOT-a8ba00df.samples.json")) shouldBe true
+      Files.readString(dir.resolve("f00d/20261026T101500Z-1.6.0-SNAPSHOT-a8ba00df.samples.json")) shouldEqual
+        JsonRunSamplesFormat.write(sampleRun)
+      Files.readString(dir.resolve("f00d/20261027T080000Z-1.6.0-SNAPSHOT-a8ba00df.samples.json")) shouldEqual
+        JsonRunSamplesFormat.write(later)
     }
   }
 }

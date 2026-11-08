@@ -1,0 +1,4 @@
+# The MIDI latency suite's results. The raw samples are one huge line each, so they stay out of diffs altogether; the
+# run files stay readable locally, and GitHub collapses them in pull requests.
+*.samples.json -diff linguist-generated
+perf/perf-midi-latency/results/*/*.json linguist-generated
