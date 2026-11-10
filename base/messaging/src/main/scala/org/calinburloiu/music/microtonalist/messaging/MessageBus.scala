@@ -209,8 +209,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /**
    * An `ExecutionContext` that runs each task in a Business message of its own, stamped with the cause of the message
-   * that the calling thread runs. It logs a failure that a task reports as `A continuation failed.`, and keeps it to
-   * fail the reply of the causing `ask` once the message's drain is over.
+   * that the calling thread runs. It logs a failure that a task reports as `A continuation failed.`, and keeps one
+   * reported on the Business Thread to fail the reply of the causing `ask` once the message's drain is over.
    */
   private[messaging] def businessContinuations: ExecutionContext =
     continuations(business, cause)(exception =>
@@ -235,7 +235,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /**
    * An `ExecutionContext` that queues each task to `mailbox`, stamped with `stamp`, and logs the failure that a task
-   * reports, then passes it to `keepFailure` on the mailbox's thread.
+   * reports, then passes it to `keepFailure` if it is reported on the mailbox's thread.
    */
   private def continuations(mailbox: Mailbox[ContinuationMessage], stamp: Option[Cause])(
       keepFailure: Throwable => Unit): ExecutionContext = new ExecutionContext {
@@ -243,7 +243,11 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
     override def reportFailure(exception: Throwable): Unit = {
       logger.error("A continuation failed.", exception)
-      keepFailure(exception)
+      // Scala reports a failure of `execute` itself on the thread that completes the Future, but `keepFailure` touches
+      // state confined to the mailbox's thread.
+      if (mailbox.isCurrentThread) {
+        keepFailure(exception)
+      }
     }
   }
 

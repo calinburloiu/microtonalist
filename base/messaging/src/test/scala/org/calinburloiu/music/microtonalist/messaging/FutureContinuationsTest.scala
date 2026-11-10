@@ -454,6 +454,26 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
     }
 
+    "only log a failure reported off the Business Thread, failing no reply" in new Fixture {
+      // Given
+      private val input = Promise[String]()
+      messageBus.handleRequest(classOf[Later])(_ => input.future.mapOnBusiness(identity))
+      private val reply = messageBus.ask(Later())
+      runtime.drainAll()
+
+      // When
+      private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+        // Scala reports a failure of the context's `execute` on the thread that completes the Future, such as this.
+        messageBus.businessContinuations.reportFailure(RuntimeException("elsewhere"))
+        input.success("loaded")
+        runtime.drainAll()
+      }
+
+      // Then
+      reply.value shouldEqual Some(Success("loaded"))
+      events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("elsewhere")))
+    }
+
     "refuse a Business continuation off the Business Thread" in new Fixture {
       // Given
       private val completed = Future.successful(1)
