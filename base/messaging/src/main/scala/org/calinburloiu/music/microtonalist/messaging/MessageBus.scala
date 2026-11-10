@@ -107,6 +107,9 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * `onCompleteOnBusiness` function or by a Business subscriber that the request caused, which suppresses the others
    * thrown by then. A failure of the handler's `Future` after that is logged at ERROR like a thrown exception.
    *
+   * A continuation that the handler starts on the `Future` it returns may thus run after the reply completes, too late
+   * for its events to precede the reply and for its failure to fail it.
+   *
    * @throws IllegalStateException on the calling thread, if no handler or several match the request's class, or if its
    *   handler was registered with [[handleCommand]]
    */
@@ -127,7 +130,9 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /**
    * Registers the handler of the requests of `requestClass` and of its subtypes, which runs on the Business Thread and
-   * replies with a `Future`. A handler with a value at hand returns it in `Future.successful`.
+   * replies with a `Future`. A handler with a value at hand returns it in `Future.successful`; one that continues a
+   * `Future` returns the `Future` of its last continuation, such as the one that `mapOnBusiness` returns, since the
+   * reply of [[ask]] waits for no other continuation.
    *
    * A request [[dispatch]]ed instead of asked runs its handler and drops its reply; a failure of the handler's
    * `Future`, then or later, is logged at ERROR like a thrown exception.

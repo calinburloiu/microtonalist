@@ -21,6 +21,7 @@ import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import scala.collection.mutable
 import scala.concurrent.{Future, Promise}
 import scala.util.{Failure, Success, Try}
 
@@ -114,6 +115,64 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       stamp shouldEqual Some(1L)
     }
 
+    "stamp the continuations of overlapping requests with their own commands, whichever completes first" in
+      new Fixture {
+        // Given
+        private val inputs = Map("first" -> Promise[String](), "second" -> Promise[String]())
+        private val stamps = mutable.ArrayBuffer[(String, Option[Long])]()
+        messageBus.handleRequest(classOf[Echo]) { echo =>
+          inputs(echo.text).future.mapOnBusiness { text =>
+            messageBus.publish(Dog(text))
+            text
+          }
+        }
+        messageBus.handleCommand(classOf[Retune])(_ => ())
+        messageBus.subscribeOnBusiness(classOf[Dog])(dog =>
+          stamps += dog.name -> ManualMessagingRuntime.causingCommandId)
+        messageBus.subscribeOnUi(classOf[Dog])(dog =>
+          stamps += s"${dog.name} on UI" -> ManualMessagingRuntime.causingCommandId)
+        private val first = messageBus.ask(Echo("first"))
+        private val second = messageBus.ask(Echo("second"))
+        messageBus.dispatch(Retune(3))
+        runtime.drainAll()
+
+        // When
+        inputs("second").success("second")
+        runtime.drainAll()
+        inputs("first").success("first")
+        runtime.drainAll()
+
+        // Then
+        stamps shouldEqual Seq(
+          "second" -> Some(2L), "second on UI" -> Some(2L), "first" -> Some(1L), "first on UI" -> Some(1L))
+        first.value shouldEqual Some(Success("first"))
+        second.value shouldEqual Some(Success("second"))
+      }
+
+    "stamp a continuation with the command that started it when a later command completes its Future" in
+      new Fixture {
+        // Given
+        private val input = Promise[String]()
+        private var stamp: Option[Long] = None
+        messageBus.handleRequest(classOf[Later]) { _ =>
+          input.future.mapOnBusiness { text =>
+            messageBus.publish(Dog(text))
+            text
+          }
+        }
+        messageBus.handleCommand(classOf[Retune])(retune => input.success(s"Rex ${retune.index}"))
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => stamp = ManualMessagingRuntime.causingCommandId)
+
+        // When
+        private val reply = messageBus.ask(Later())
+        messageBus.dispatch(Retune(1))
+        runtime.drainAll()
+
+        // Then
+        stamp shouldEqual Some(1L)
+        reply.value shouldEqual Some(Success("Rex 1"))
+      }
+
     "complete an ask's reply through the Business mailbox when the handler's Future completes later" in new Fixture {
       // Given
       private val input = Promise[String]()
@@ -157,6 +216,31 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       completedAtDelivery shouldEqual Some(false)
       reply.value shouldEqual Some(Success("Rex"))
     }
+
+    // TODO #386 Consider removing this case before merging. It fails, since a continuation that the handler starts on
+    //  the Future it returns may come after the reply, as MessageBus.ask documents.
+    "complete an ask's reply after the events of a continuation the handler started on the Future it returns" ignore
+      new Fixture {
+        // Given
+        private val input = Promise[String]()
+        private var reply: Future[String] = Future.never
+        private var completedAtDelivery: Option[Boolean] = None
+        messageBus.handleRequest(classOf[Later]) { _ =>
+          input.future.onCompleteOnBusiness(_ => messageBus.publish(Dog("Rex")))
+          input.future
+        }
+        messageBus.subscribeOnBusiness(classOf[Dog])(_ => completedAtDelivery = Some(reply.isCompleted))
+        reply = messageBus.ask(Later())
+        runtime.drainAll()
+
+        // When
+        input.success("loaded")
+        runtime.drainAll()
+
+        // Then
+        completedAtDelivery shouldEqual Some(false)
+        reply.value shouldEqual Some(Success("loaded"))
+      }
 
     "log the late failure of a dispatched request's Future" in new Fixture {
       // Given
@@ -247,6 +331,59 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       // Then
       reply.value.get.failed.get.getMessage shouldEqual "boom"
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
+    }
+
+    // TODO #386 Consider removing this case before merging. It fails, since a continuation that the handler starts on
+    //  the Future it returns may come after the reply, as MessageBus.ask documents.
+    "fail an ask's reply when a continuation the handler started on the Future it returns throws" ignore
+      new Fixture {
+        // Given
+        private val input = Promise[String]()
+        messageBus.handleRequest(classOf[Later]) { _ =>
+          input.future.onCompleteOnBusiness(_ => throw RuntimeException("boom"))
+          input.future
+        }
+
+        // When
+        private val (reply, _) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Later())
+          runtime.drainAll()
+          input.success("loaded")
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        reply.value.get.failed.get.getMessage shouldEqual "boom"
+      }
+
+    "fail each overlapping request's reply with the failure of its own continuation's subscriber" in new Fixture {
+      // Given
+      private val inputs = Map("first" -> Promise[String](), "second" -> Promise[String]())
+      messageBus.handleRequest(classOf[Echo]) { echo =>
+        inputs(echo.text).future.mapOnBusiness { text =>
+          messageBus.publish(Dog(text))
+          text
+        }
+      }
+      messageBus.subscribeOnBusiness(classOf[Dog])(dog => throw RuntimeException(s"bite ${dog.name}"))
+
+      // When
+      private val ((first, second), _) = LogCapture.capturing(classOf[MessageBus].getName) {
+        val first = messageBus.ask(Echo("first"))
+        val second = messageBus.ask(Echo("second"))
+        runtime.drainAll()
+        inputs("second").success("second")
+        inputs("first").success("first")
+        runtime.drainAll()
+        (first, second)
+      }
+
+      // Then
+      first.value.get.failed.get.getMessage shouldEqual "bite first"
+      second.value.get.failed.get.getMessage shouldEqual "bite second"
+      suppressedMessages(first) shouldBe empty
+      suppressedMessages(second) shouldBe empty
     }
 
     "suppress in a continuation's failure the failures of the subscribers of its events" in new Fixture {

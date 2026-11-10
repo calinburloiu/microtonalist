@@ -21,7 +21,7 @@ import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.util.concurrent.{CompletableFuture, ExecutorService, Executors}
+import java.util.concurrent.{CompletableFuture, CountDownLatch, ExecutorService, Executors}
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.concurrent.{Await, Future, Promise}
@@ -30,6 +30,12 @@ import scala.util.{Success, Try}
 object MessageBusTest {
   /** How long an `Await` in a test waits, which happens only when the bus fails to refuse it. */
   private val RefusedAwaitTimeout: FiniteDuration = 1.second
+
+  /** How many threads dispatch at once in the concurrent-id test. */
+  private val DispatcherCount: Int = 8
+
+  /** How many commands each of those threads dispatches, kept under `ManualMessagingRuntime.MaxDrainedMessages`. */
+  private val DispatchesPerThread: Int = 500
 
   sealed trait TunerCommand extends Command
 
@@ -588,6 +594,32 @@ class MessageBusTest extends AnyWordSpec with Matchers {
 
         // Then
         ids shouldEqual Seq(Some(1L), Some(2L), Some(3L))
+      }
+
+      "give distinct ids to commands dispatched at once from several threads" in new Fixture {
+        // Given
+        private val ids = mutable.ArrayBuffer[Long]()
+        messageBus.handleCommand(classOf[Retune])(_ =>
+          ids ++= ManualMessagingRuntime.causingCommandId(using messageBus))
+        private val dispatchers = Executors.newFixedThreadPool(DispatcherCount)
+        private val start = CountDownLatch(1)
+        private val dispatchAll: Runnable = () => {
+          start.await()
+          (1 to DispatchesPerThread).foreach(index => messageBus.dispatch(Retune(index)))
+        }
+
+        // When
+        try {
+          val dispatched = (1 to DispatcherCount).map(_ => CompletableFuture.runAsync(dispatchAll, dispatchers))
+          start.countDown()
+          dispatched.foreach(_.join())
+        } finally {
+          dispatchers.shutdown()
+        }
+        runtime.drainAll()
+
+        // Then
+        ids.sorted shouldEqual (1L to (DispatcherCount * DispatchesPerThread).toLong)
       }
 
       "stamp the events a handler publishes with its command's id, for Business and UI subscribers" in new Fixture {
