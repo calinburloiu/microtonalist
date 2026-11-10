@@ -46,7 +46,7 @@ private[messaging] final class SubscriberRegistry {
   /**
    * Returns the subscribers of the event's class or of one of its supertypes, in subscription order.
    */
-  def matching(event: AnyRef): Vector[Subscriber] = snapshot.get.matching(event.getClass)
+  def subscribersOf(event: AnyRef): Vector[Subscriber] = snapshot.get.matching(event.getClass)
 
   private def unregister(subscriber: Subscriber): Unit = {
     snapshot.updateAndGet(current => Snapshot(current.subscribers.removed(subscriber)))

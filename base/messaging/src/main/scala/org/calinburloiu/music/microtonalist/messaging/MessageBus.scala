@@ -51,9 +51,9 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     BusinessMessage, BusinessThreadName, Cause, CommandMessage, ContinuationMessage, EventMessage, UiMessage
   }
 
-  private val commandHandlers: CommandHandlerRegistry = CommandHandlerRegistry()
+  private val commandHandlerRegistry: CommandHandlerRegistry = CommandHandlerRegistry()
 
-  private val subscribers: SubscriberRegistry = SubscriberRegistry()
+  private val subscriberRegistry: SubscriberRegistry = SubscriberRegistry()
 
   private val nextCommandId: AtomicLong = AtomicLong(1)
 
@@ -85,7 +85,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * @throws IllegalStateException on the calling thread, if no handler or several match the command's class
    */
   def dispatch(command: Command): Unit = {
-    val handler = commandHandlers.resolve(command.getClass)
+    val handler = commandHandlerRegistry.resolve(command.getClass)
     business.enqueue(CommandMessage(command, handler, Some(Cause(nextCommandId.getAndIncrement(), None))))
   }
 
@@ -95,7 +95,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * @throws IllegalArgumentException if `commandClass` is, extends or is extended by a class that already has a handler
    */
   def handleCommand[C <: Command](commandClass: Class[C])(handler: C => Unit): Unit = {
-    commandHandlers.registerCommand(commandClass, handler)
+    commandHandlerRegistry.registerCommand(commandClass, handler)
   }
 
   /**
@@ -114,7 +114,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    *   handler was registered with [[handleCommand]]
    */
   def ask[R](request: Request[R]): Future[R] = {
-    val handler = commandHandlers.resolve(request.getClass)
+    val handler = commandHandlerRegistry.resolve(request.getClass)
     handler match {
       case _: CommandHandler.NonReplying => throw IllegalStateException(
           s"Cannot ask ${request.getClass.getName}, whose handler was registered with handleCommand and gives no reply.")
@@ -140,7 +140,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * @throws IllegalArgumentException if `requestClass` is, extends or is extended by a class that already has a handler
    */
   def handleRequest[R, C <: Request[R]](requestClass: Class[C])(handler: C => Future[R]): Unit = {
-    commandHandlers.registerRequest(requestClass, handler)
+    commandHandlerRegistry.registerRequest(requestClass, handler)
   }
 
   /**
@@ -152,7 +152,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * messages already queued on the UI Thread.
    */
   def publish(event: AnyRef): Unit = {
-    val (uiSubscribers, businessSubscribers) = subscribers.matching(event).partition(_.onUi)
+    val (uiSubscribers, businessSubscribers) = subscriberRegistry.subscribersOf(event).partition(_.onUi)
     val stamp = cause
 
     if (uiSubscribers.nonEmpty) {
@@ -174,14 +174,14 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * published from now on.
    */
   def subscribeOnBusiness[E <: AnyRef](eventClass: Class[E])(handler: E => Unit): Subscription =
-    subscribers.register(eventClass, onUi = false, handler)
+    subscriberRegistry.register(eventClass, onUi = false, handler)
 
   /**
    * Subscribes a handler, which runs on the UI Thread, to the events of `eventClass` and of its subtypes published from
    * now on.
    */
   def subscribeOnUi[E <: AnyRef](eventClass: Class[E])(handler: E => Unit): Subscription =
-    subscribers.register(eventClass, onUi = true, handler)
+    subscriberRegistry.register(eventClass, onUi = true, handler)
 
   /**
    * Checks that the calling thread is the Business Thread.
