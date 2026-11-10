@@ -273,7 +273,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
       val (handlerReply, bodyFailure) = message match {
         case CommandMessage(command, handler, _) =>
           val outcome = runCommand(command, handler)
-          (outcome.toOption.flatten.map(command -> _), outcome.failed.toOption)
+          val handlerReply = outcome.toOption.flatten.map(command -> _)
+          (handlerReply, outcome.failed.toOption)
         case eventMessage: EventMessage => (None, deliver(eventMessage))
         case ContinuationMessage(runnable, _) =>
           runnable.run()
@@ -304,7 +305,11 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
                           handlerReply: Option[(Command, Future[Any])],
                           failure: Option[Throwable]): Unit = {
     for (reply <- cause.flatMap(_.reply); exception <- failure) {
-      val handlerFailure = handlerReply.flatMap { case (_, future) => future.value }.flatMap(_.failed.toOption)
+      val handlerFailure = for {
+        (_, future) <- handlerReply
+        outcome <- future.value
+        handlerException <- outcome.failed.toOption
+      } yield handlerException
       handlerFailure.foreach(suppress(exception, _))
       reply.tryFailure(exception)
     }

@@ -519,6 +519,23 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         log shouldBe empty
       }
 
+      "skip a subscriber that an earlier subscriber of the same event cancelled" in new Fixture {
+        // Given
+        private var later: Option[Subscription] = None
+        messageBus.subscribeOnBusiness(classOf[Dog]) { dog =>
+          log += s"first ${dog.name}"
+          later.foreach(_.cancel())
+        }
+        later = Some(messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += s"later ${dog.name}"))
+
+        // When
+        messageBus.publish(Dog("Rex"))
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("first Rex")
+      }
+
       "give a subscription made while delivering an event the events published after it" in new Fixture {
         // Given
         messageBus.subscribeOnBusiness(classOf[Wolf]) { _ =>
