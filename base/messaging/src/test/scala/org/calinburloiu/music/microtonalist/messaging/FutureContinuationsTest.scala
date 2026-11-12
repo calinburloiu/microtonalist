@@ -443,14 +443,16 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       }
 
       // When
-      private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
-        messageBus.ask(Later())
+      private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+        val reply = messageBus.ask(Later())
         runtime.drainAll()
         pending.success("late")
         runtime.drainAll()
+        reply
       }
 
       // Then
+      reply.value.get.failed.get.getMessage shouldEqual "boom"
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
     }
 
@@ -474,20 +476,27 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("elsewhere")))
     }
 
-    "refuse a Business continuation off the Business Thread" in new Fixture {
+    "refuse the Business continuations on a thread that runs no message" in new Fixture {
       // Given
       private val completed = Future.successful(1)
+
+      // When / Then
+      // The test's thread is the Business Thread only while a drain runs a Business message on it.
+      an[IllegalStateException] should be thrownBy completed.mapOnBusiness(identity)
+      an[IllegalStateException] should be thrownBy completed.flatMapOnBusiness(Future.successful)
+      an[IllegalStateException] should be thrownBy completed.onCompleteOnBusiness(_ => ())
+    }
+
+    "refuse a Business continuation on the UI Thread" in new Fixture {
+      // Given
       private var onUi: Option[Try[Future[Int]]] = None
-      messageBus.subscribeOnUi(classOf[Dog])(_ => onUi = Some(Try(completed.mapOnBusiness(identity))))
+      messageBus.subscribeOnUi(classOf[Dog])(_ => onUi = Some(Try(Future.successful(1).mapOnBusiness(identity))))
 
       // When
       messageBus.publish(Dog("Rex"))
       runtime.drainAll()
 
       // Then
-      an[IllegalStateException] should be thrownBy completed.mapOnBusiness(identity)
-      an[IllegalStateException] should be thrownBy completed.flatMapOnBusiness(Future.successful)
-      an[IllegalStateException] should be thrownBy completed.onCompleteOnBusiness(_ => ())
       onUi.get.failed.get shouldBe an[IllegalStateException]
     }
   }
@@ -583,20 +592,27 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       stamp shouldEqual Some(None)
     }
 
-    "refuse a UI continuation off the UI Thread" in new Fixture {
+    "refuse the UI continuations on a thread that runs no message" in new Fixture {
       // Given
       private val completed = Future.successful(1)
+
+      // When / Then
+      // The test's thread is the UI Thread only while a drain runs a UI message on it.
+      an[IllegalStateException] should be thrownBy completed.mapOnUi(identity)
+      an[IllegalStateException] should be thrownBy completed.flatMapOnUi(Future.successful)
+      an[IllegalStateException] should be thrownBy completed.onCompleteOnUi(_ => ())
+    }
+
+    "refuse a UI continuation on the Business Thread" in new Fixture {
+      // Given
       private var onBusiness: Option[Try[Future[Int]]] = None
-      messageBus.handleCommand(classOf[Retune])(_ => onBusiness = Some(Try(completed.mapOnUi(identity))))
+      messageBus.handleCommand(classOf[Retune])(_ => onBusiness = Some(Try(Future.successful(1).mapOnUi(identity))))
 
       // When
       messageBus.dispatch(Retune(1))
       runtime.drainAll()
 
       // Then
-      an[IllegalStateException] should be thrownBy completed.mapOnUi(identity)
-      an[IllegalStateException] should be thrownBy completed.flatMapOnUi(Future.successful)
-      an[IllegalStateException] should be thrownBy completed.onCompleteOnUi(_ => ())
       onBusiness.get.failed.get shouldBe an[IllegalStateException]
     }
   }

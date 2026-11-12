@@ -746,19 +746,22 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         stamp shouldEqual Some(None)
       }
 
-      "stamp nothing that the toolkit runs on the UI Thread outside a message" in withToolkitFixture { fixture =>
-        import fixture.*
-        // Given
-        askWithUiEvent()
+      "stamp nothing that the toolkit runs on the UI Thread after a command's message" in
+        withToolkitFixture { fixture =>
+          import fixture.*
+          // Given
+          // A request caused the UI Thread's last message, whose cause mustn't leak into the toolkit's code after it.
+          askWithUiEvent()
 
-        // When
-        val onUi = onToolkit(Try(messageBus.requireUiThread()).isSuccess)
-        val stamp = onToolkit(ManualMessagingRuntime.causingCommandId(using messageBus))
+          // When
+          val onUi = onToolkit(Try(messageBus.requireUiThread()).isSuccess)
+          val stamp = onToolkit(ManualMessagingRuntime.causingCommandId(using messageBus))
 
-        // Then
-        onUi shouldBe true
-        stamp shouldBe None
-      }
+          // Then
+          // The toolkit's thread counts as the UI Thread, so the stamp isn't None merely for being off both threads.
+          onUi shouldBe true
+          stamp shouldBe None
+        }
     }
 
     "asking a request" should {
