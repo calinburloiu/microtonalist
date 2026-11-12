@@ -47,7 +47,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   import CommandHandlerRegistry.CommandHandler
   import MessageBus.{
-    BusinessMessage, BusinessThreadName, Cause, CommandMessage, ContinuationMessage, EventMessage, UiMessage
+    BusinessMessage, BusinessRunningState, BusinessThreadName, Cause, CommandMessage, ContinuationMessage, EventMessage,
+    UiMessage, UiRunningState
   }
 
   private val commandHandlerRegistry: CommandHandlerRegistry = CommandHandlerRegistry()
@@ -56,17 +57,9 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   private val nextCommandId: AtomicLong = AtomicLong(1)
 
-  /** The cause of the running Business message, touched only on the Business Thread. */
-  private var businessCause: Option[Cause] = None
+  private val businessRunningState: BusinessRunningState = BusinessRunningState()
 
-  /** The cause of the running UI message, touched only on the UI Thread. */
-  private var uiCause: Option[Cause] = None
-
-  /** The events published by the running Business message, touched only on the Business Thread. */
-  private val localEvents: mutable.Queue[EventMessage] = mutable.Queue()
-
-  /** The failure reported by the running Business continuation, if any, touched only on the Business Thread. */
-  private var continuationFailure: Try[Unit] = Success(())
+  private val uiRunningState: UiRunningState = UiRunningState()
 
   private val businessBlockContext: BlockContext =
     refusingBlockContext(BusinessThreadName, "BusinessContinuations")
@@ -161,7 +154,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     if (businessSubscribers.nonEmpty) {
       val message = EventMessage(event, businessSubscribers, stamp)
       if (businessMailbox.isCurrentThread) {
-        localEvents.enqueue(message)
+        businessRunningState.localEvents.enqueue(message)
       } else {
         businessMailbox.enqueue(message)
       }
@@ -214,7 +207,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   private[messaging] def businessContinuationsExecutionContext: ExecutionContext =
     continuationsExecutionContext(businessMailbox, cause)(exception => {
       requireBusinessThread()
-      continuationFailure = continuationFailure.followedBy(Failure(exception))
+      businessRunningState.continuationFailure =
+        businessRunningState.continuationFailure.followedBy(Failure(exception))
     })
 
   /**
@@ -227,9 +221,9 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   /** The cause of the message that the calling thread runs, or `None` where [[causingCommandId]] is `None`. */
   private def cause: Option[Cause] = {
     if (businessMailbox.isCurrentThread) {
-      businessCause
+      businessRunningState.cause
     } else if (uiMailbox.isCurrentThread) {
-      uiCause
+      uiRunningState.cause
     } else {
       None
     }
@@ -270,7 +264,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   private def runBusinessMessage(message: BusinessMessage): Unit = BlockContext.withBlockContext(businessBlockContext) {
-    businessCause = message.cause
+    businessRunningState.cause = message.cause
     try {
       // Each case settles the reply inside the try, since continuing a pending handler's reply reads the cause.
       message match {
@@ -283,12 +277,10 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
           carryFailure(eventMessage.cause, deliver(eventMessage).followedBy(drainLocalEvents()))
         case ContinuationMessage(runnable, cause) =>
           runnable.run()
-          carryFailure(cause, continuationFailure.followedBy(drainLocalEvents()))
+          carryFailure(cause, businessRunningState.continuationFailure.followedBy(drainLocalEvents()))
       }
     } finally {
-      businessCause = None
-      localEvents.clear()
-      continuationFailure = Success(())
+      businessRunningState.reset()
     }
   }
 
@@ -298,6 +290,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    */
   private def drainLocalEvents(): Try[Unit] = {
     var outcome: Try[Unit] = Success(())
+    val localEvents = businessRunningState.localEvents
     while (localEvents.nonEmpty) {
       outcome = outcome.followedBy(deliver(localEvents.dequeue()))
     }
@@ -345,7 +338,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   }
 
   private def runUiMessage(message: UiMessage): Unit = BlockContext.withBlockContext(uiBlockContext) {
-    uiCause = message.cause
+    uiRunningState.cause = message.cause
     try {
       message match {
         case eventMessage: EventMessage => deliver(eventMessage)
@@ -353,7 +346,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
       }
     } finally {
       // The toolkit also runs code on this thread outside the messages, which no command caused.
-      uiCause = None
+      uiRunningState.reset()
     }
   }
 
@@ -398,7 +391,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 }
 
 /**
- * Holds the private message types of [[MessageBus]]'s mailboxes.
+ * Holds the private types of [[MessageBus]]: the messages of its mailboxes and the state of the message that each runs.
  */
 object MessageBus {
 
@@ -412,6 +405,34 @@ object MessageBus {
    * @param reply the reply of the `ask` that sent the command, or `None` for a dispatched command
    */
   private[messaging] final case class Cause(commandId: Long, reply: Option[Promise[Any]])
+
+  /** The state of the Business message that runs, touched only on the Business Thread and reset after each message. */
+  private final class BusinessRunningState {
+    /** The cause of the message. */
+    var cause: Option[Cause] = None
+
+    /** The events that the message published for Business subscribers, which its drain delivers. */
+    val localEvents: mutable.Queue[EventMessage] = mutable.Queue()
+
+    /** The failure that the message's continuation reported, if any. */
+    var continuationFailure: Try[Unit] = Success(())
+
+    def reset(): Unit = {
+      cause = None
+      localEvents.clear()
+      continuationFailure = Success(())
+    }
+  }
+
+  /** The state of the UI message that runs, touched only on the UI Thread and reset after each message. */
+  private final class UiRunningState {
+    /** The cause of the message. */
+    var cause: Option[Cause] = None
+
+    def reset(): Unit = {
+      cause = None
+    }
+  }
 
   /** A message of a mailbox, stamped with its cause, if a command caused it. */
   private[messaging] sealed trait StampedMessage {
