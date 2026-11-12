@@ -36,7 +36,7 @@ object BusinessContinuations {
      */
     def mapOnBusiness[U](f: T => U): Future[U] = {
       messageBus.requireBusinessThread()
-      future.map(f)(using messageBus.businessContinuations)
+      future.map(f)(using messageBus.businessContinuationsExecutionContext)
     }
 
     /**
@@ -49,7 +49,7 @@ object BusinessContinuations {
      */
     def flatMapOnBusiness[U](f: T => Future[U]): Future[U] = {
       messageBus.requireBusinessThread()
-      future.flatMap(f)(using messageBus.businessContinuations)
+      future.flatMap(f)(using messageBus.businessContinuationsExecutionContext)
     }
 
     /**
@@ -61,7 +61,7 @@ object BusinessContinuations {
      */
     def onCompleteOnBusiness(f: Try[T] => Unit): Unit = {
       messageBus.requireBusinessThread()
-      future.onComplete(f)(using messageBus.businessContinuations)
+      future.onComplete(f)(using messageBus.businessContinuationsExecutionContext)
     }
   }
 }
@@ -83,7 +83,7 @@ object UiContinuations {
      */
     def mapOnUi[U](f: T => U): Future[U] = {
       messageBus.requireUiThread()
-      future.map(f)(using messageBus.uiContinuations)
+      future.map(f)(using messageBus.uiContinuationsExecutionContext)
     }
 
     /**
@@ -96,7 +96,7 @@ object UiContinuations {
      */
     def flatMapOnUi[U](f: T => Future[U]): Future[U] = {
       messageBus.requireUiThread()
-      future.flatMap(f)(using messageBus.uiContinuations)
+      future.flatMap(f)(using messageBus.uiContinuationsExecutionContext)
     }
 
     /**
@@ -108,7 +108,7 @@ object UiContinuations {
      */
     def onCompleteOnUi(f: Try[T] => Unit): Unit = {
       messageBus.requireUiThread()
-      future.onComplete(f)(using messageBus.uiContinuations)
+      future.onComplete(f)(using messageBus.uiContinuationsExecutionContext)
     }
   }
 }

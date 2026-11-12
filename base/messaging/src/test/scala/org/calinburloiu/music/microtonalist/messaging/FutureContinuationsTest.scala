@@ -464,7 +464,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       // When
       private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
         // Scala reports a failure of the context's `execute` on the thread that completes the Future, such as this.
-        messageBus.businessContinuations.reportFailure(RuntimeException("elsewhere"))
+        messageBus.businessContinuationsExecutionContext.reportFailure(RuntimeException("elsewhere"))
         input.success("loaded")
         runtime.drainAll()
       }

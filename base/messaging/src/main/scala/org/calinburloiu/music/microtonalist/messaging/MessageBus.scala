@@ -74,10 +74,10 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   private val uiBlockContext: BlockContext = refusingBlockContext(MessagingRuntime.UiMailboxName, "UiContinuations")
 
-  private val business: Mailbox[BusinessMessage] =
+  private val businessMailbox: Mailbox[BusinessMessage] =
     runtime.startMailbox[BusinessMessage](BusinessThreadName, Thread.NORM_PRIORITY)(runBusinessMessage)
 
-  private val ui: Mailbox[UiMessage] = runtime.startUiMailbox[UiMessage](runUiMessage)
+  private val uiMailbox: Mailbox[UiMessage] = runtime.startUiMailbox[UiMessage](runUiMessage)
 
   /**
    * Queues a command to run on the Business Thread, after the messages already queued there, even when called from it.
@@ -86,7 +86,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    */
   def dispatch(command: Command): Unit = {
     val handler = commandHandlerRegistry.resolve(command.getClass)
-    business.enqueue(CommandMessage(command, handler, Some(Cause(nextCommandId.getAndIncrement(), None))))
+    businessMailbox.enqueue(CommandMessage(command, handler, Some(Cause(nextCommandId.getAndIncrement(), None))))
   }
 
   /**
@@ -122,7 +122,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     }
 
     val reply = Promise[Any]()
-    business.enqueue(CommandMessage(request, handler, Some(Cause(nextCommandId.getAndIncrement(), Some(reply)))))
+    businessMailbox.enqueue(CommandMessage(request, handler, Some(Cause(nextCommandId.getAndIncrement(), Some(reply)))))
     // The handler of `request`'s class replies with a `Future[R]`, save for a generic request class, whose one handler
     // serves every type argument (see `Request`).
     reply.future.asInstanceOf[Future[R]]
@@ -156,15 +156,15 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     val stamp = cause
 
     if (uiSubscribers.nonEmpty) {
-      ui.enqueue(EventMessage(event, uiSubscribers, stamp))
+      uiMailbox.enqueue(EventMessage(event, uiSubscribers, stamp))
     }
 
     if (businessSubscribers.nonEmpty) {
       val message = EventMessage(event, businessSubscribers, stamp)
-      if (business.isCurrentThread) {
+      if (businessMailbox.isCurrentThread) {
         localEvents.enqueue(message)
       } else {
-        business.enqueue(message)
+        businessMailbox.enqueue(message)
       }
     }
   }
@@ -189,7 +189,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * @throws IllegalStateException if it isn't
    */
   def requireBusinessThread(): Unit = {
-    requireThread(business)
+    requireThread(businessMailbox)
   }
 
   /**
@@ -198,7 +198,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * @throws IllegalStateException if it isn't
    */
   def requireUiThread(): Unit = {
-    requireThread(ui)
+    requireThread(uiMailbox)
   }
 
   /**
@@ -212,21 +212,24 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * that the calling thread runs. It logs a failure that a task reports as `A continuation failed.`, and keeps one
    * reported on the Business Thread to fail the reply of the causing `ask` once the message's drain is over.
    */
-  private[messaging] def businessContinuations: ExecutionContext =
-    continuations(business, cause)(exception =>
-      continuationFailure = combineFailures(continuationFailure, Some(exception)))
+  private[messaging] def businessContinuationsExecutionContext: ExecutionContext =
+    continuationsExecutionContext(businessMailbox, cause)(exception => {
+      requireBusinessThread()
+      continuationFailure = combineFailures(continuationFailure, Some(exception))
+    })
 
   /**
    * An `ExecutionContext` that runs each task in a UI message of its own, stamped with the cause of the message that
    * the calling thread runs. It only logs a failure that a task reports, as `A continuation failed.`.
    */
-  private[messaging] def uiContinuations: ExecutionContext = continuations(ui, cause)(_ => ())
+  private[messaging] def uiContinuationsExecutionContext: ExecutionContext =
+    continuationsExecutionContext(uiMailbox, cause)(_ => ())
 
   /** The cause of the message that the calling thread runs, or `None` where [[causingCommandId]] is `None`. */
   private def cause: Option[Cause] = {
-    if (business.isCurrentThread) {
+    if (businessMailbox.isCurrentThread) {
       businessCause
-    } else if (ui.isCurrentThread) {
+    } else if (uiMailbox.isCurrentThread) {
       uiCause
     } else {
       None
@@ -237,7 +240,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * An `ExecutionContext` that queues each task to `mailbox`, stamped with `stamp`, and logs the failure that a task
    * reports, then passes it to `keepFailure` if it is reported on the mailbox's thread.
    */
-  private def continuations(mailbox: Mailbox[ContinuationMessage], stamp: Option[Cause])(
+  private def continuationsExecutionContext(mailbox: Mailbox[ContinuationMessage], stamp: Option[Cause])(
       keepFailure: Throwable => Unit): ExecutionContext = new ExecutionContext {
     override def execute(runnable: Runnable): Unit = mailbox.enqueue(ContinuationMessage(runnable, stamp))
 
@@ -318,7 +321,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
       future.value match {
         case Some(outcome) => completeReply(cause, command, outcome)
         case None =>
-          future.onComplete(completeReply(cause, command, _))(using businessContinuations)
+          future.onComplete(completeReply(cause, command, _))(using businessContinuationsExecutionContext)
       }
     }
   }
@@ -428,6 +431,7 @@ object MessageBus {
     extends BusinessMessage with UiMessage
 
   /** A message, of either mailbox, that runs a task of a `Future`'s continuation. */
-  private[messaging] final case class ContinuationMessage(runnable: Runnable, cause: Option[Cause])
+  private[messaging] final case class ContinuationMessage(runnable: Runnable,
+                                                          override val cause: Option[Cause])
     extends BusinessMessage with UiMessage
 }
