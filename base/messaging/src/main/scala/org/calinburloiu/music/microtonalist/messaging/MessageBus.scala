@@ -22,8 +22,7 @@ import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.concurrent.ThreadSafe
 import scala.collection.mutable
 import scala.concurrent.{BlockContext, CanAwait, ExecutionContext, Future, Promise}
-import scala.util.Try
-import scala.util.control.NonFatal
+import scala.util.{Failure, Success, Try}
 
 /**
  * Runs the [[Command]]s dispatched from any thread on the Business Thread, the thread of the `Business` mailbox, which
@@ -66,8 +65,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   /** The events published by the running Business message, touched only on the Business Thread. */
   private val localEvents: mutable.Queue[EventMessage] = mutable.Queue()
 
-  /** The failure reported by the running Business continuation, touched only on the Business Thread. */
-  private var continuationFailure: Option[Throwable] = None
+  /** The failure reported by the running Business continuation, if any, touched only on the Business Thread. */
+  private var continuationFailure: Try[Unit] = Success(())
 
   private val businessBlockContext: BlockContext =
     refusingBlockContext(BusinessThreadName, "BusinessContinuations")
@@ -215,7 +214,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   private[messaging] def businessContinuationsExecutionContext: ExecutionContext =
     continuationsExecutionContext(businessMailbox, cause)(exception => {
       requireBusinessThread()
-      continuationFailure = combineFailures(continuationFailure, Some(exception))
+      continuationFailure = continuationFailure.followedBy(Failure(exception))
     })
 
   /**
@@ -273,56 +272,64 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   private def runBusinessMessage(message: BusinessMessage): Unit = BlockContext.withBlockContext(businessBlockContext) {
     businessCause = message.cause
     try {
-      val (handlerReply, bodyFailure) = message match {
-        case CommandMessage(command, handler, _) =>
-          val outcome = runCommand(command, handler)
-          val handlerReply = outcome.toOption.flatten.map(command -> _)
-          (handlerReply, outcome.failed.toOption)
-        case eventMessage: EventMessage => (None, deliver(eventMessage))
-        case ContinuationMessage(runnable, _) =>
+      // Each case settles the reply inside the try, since continuing a pending handler's reply reads the cause.
+      message match {
+        case CommandMessage(command, handler, cause) =>
+          runCommand(command, handler) match {
+            case Success(handlerReply) => settleReply(cause, command, handlerReply, drainLocalEvents())
+            case Failure(exception) => carryFailure(cause, Failure(exception).followedBy(drainLocalEvents()))
+          }
+        case eventMessage: EventMessage =>
+          carryFailure(eventMessage.cause, deliver(eventMessage).followedBy(drainLocalEvents()))
+        case ContinuationMessage(runnable, cause) =>
           runnable.run()
-          (None, continuationFailure)
+          carryFailure(cause, continuationFailure.followedBy(drainLocalEvents()))
       }
-
-      var failure = bodyFailure
-      while (localEvents.nonEmpty) {
-        val subscriberFailure = deliver(localEvents.dequeue())
-        failure = combineFailures(failure, subscriberFailure)
-      }
-
-      // Inside the try, since it reads the cause when it continues a pending handler's reply.
-      settleReply(message.cause, handlerReply, failure)
     } finally {
       businessCause = None
       localEvents.clear()
-      continuationFailure = None
+      continuationFailure = Success(())
     }
   }
 
   /**
-   * Fails the reply of `cause` with `failure`, if any, which suppresses the failure of a handler's reply that has
-   * already failed, then completes it with the outcome of the handler's reply, at once if it has completed, otherwise
-   * in a Business message of its own once it completes; the first outcome wins.
+   * Delivers the events published by the running Business message, then those that their subscribers publish, and
+   * returns the first failure of the subscribers, suppressing the rest.
    */
-  private def settleReply(cause: Option[Cause],
-                          handlerReply: Option[(Command, Future[Any])],
-                          failure: Option[Throwable]): Unit = {
-    for (reply <- cause.flatMap(_.reply); exception <- failure) {
-      val handlerFailure = for {
-        (_, future) <- handlerReply
-        outcome <- future.value
-        handlerException <- outcome.failed.toOption
-      } yield handlerException
-      handlerFailure.foreach(suppress(exception, _))
-      reply.tryFailure(exception)
+  private def drainLocalEvents(): Try[Unit] = {
+    var outcome: Try[Unit] = Success(())
+    while (localEvents.nonEmpty) {
+      outcome = outcome.followedBy(deliver(localEvents.dequeue()))
     }
 
-    for ((command, future) <- handlerReply) {
-      future.value match {
-        case Some(outcome) => completeReply(cause, command, outcome)
-        case None =>
-          future.onComplete(completeReply(cause, command, _))(using businessContinuationsExecutionContext)
-      }
+    outcome
+  }
+
+  /**
+   * Fails the reply of `cause` with the failure of `drained`, if any, which suppresses the failure of a handler's reply
+   * that has already failed, then completes it with the outcome of the handler's reply, at once if it has completed,
+   * otherwise in a Business message of its own once it completes; the first outcome wins.
+   */
+  private def settleReply(cause: Option[Cause],
+                          command: Command,
+                          handlerReply: Future[Any],
+                          drained: Try[Unit]): Unit = {
+    for (primary <- drained.failed; outcome <- handlerReply.value; other <- outcome.failed) {
+      suppress(primary, other)
+    }
+    carryFailure(cause, drained)
+
+    handlerReply.value match {
+      case Some(outcome) => completeReply(cause, command, outcome)
+      case None =>
+        handlerReply.onComplete(completeReply(cause, command, _))(using businessContinuationsExecutionContext)
+    }
+  }
+
+  /** Has the reply of `cause` carry the failure of `outcome`, if any, unless the reply has already completed. */
+  private def carryFailure(cause: Option[Cause], outcome: Try[Unit]): Unit = {
+    for (reply <- cause.flatMap(_.reply); exception <- outcome.failed) {
+      reply.tryFailure(exception)
     }
   }
 
@@ -350,8 +357,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     }
   }
 
-  /** Runs a command's handler, logging its failure, and returns the reply of a request handler. */
-  private def runCommand(command: Command, handler: CommandHandler): Try[Option[Future[Any]]] = {
+  /** Runs a command's handler, logging what it throws, and returns its reply. */
+  private def runCommand(command: Command, handler: CommandHandler): Try[Future[Any]] = {
     val outcome = Try(handler.run(command))
     outcome.failed.foreach(exception => logger.error(s"The handler of $command failed.", exception))
     outcome
@@ -360,28 +367,26 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   /**
    * Delivers an event to its active subscribers, logging their failures, and returns the first, suppressing the rest.
    */
-  private def deliver(message: EventMessage): Option[Throwable] = {
-    var failure: Option[Throwable] = None
+  private def deliver(message: EventMessage): Try[Unit] = {
+    var outcome: Try[Unit] = Success(())
     for (subscriber <- message.subscribers if subscriber.isActive) {
-      try {
-        subscriber.deliver(message.event)
-      } catch {
-        case NonFatal(exception) =>
-          logger.error(s"A subscriber of ${message.event} failed.", exception)
-          failure = combineFailures(failure, Some(exception))
-      }
+      val delivery = Try(subscriber.deliver(message.event))
+      delivery.failed.foreach(exception => logger.error(s"A subscriber of ${message.event} failed.", exception))
+      outcome = outcome.followedBy(delivery)
     }
 
-    failure
+    outcome
   }
 
-  /** Returns `first` if it is defined, having it suppress `later`, otherwise `later`. */
-  private def combineFailures(first: Option[Throwable], later: Option[Throwable]): Option[Throwable] = {
-    for (primary <- first; other <- later) {
-      suppress(primary, other)
-    }
+  extension (outcome: Try[Unit]) {
+    /** This outcome if it failed, otherwise `later`; a failure of this suppresses that of `later`. */
+    private def followedBy(later: Try[Unit]): Try[Unit] = {
+      for (primary <- outcome.failed; other <- later.failed) {
+        suppress(primary, other)
+      }
 
-    first.orElse(later)
+      if (outcome.isFailure) outcome else later
+    }
   }
 
   private def suppress(primary: Throwable, other: Throwable): Unit = {

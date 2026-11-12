@@ -72,22 +72,22 @@ private[messaging] object CommandHandlerRegistry {
 
   /** A registered handler, registered either with `handleCommand` or with `handleRequest`. */
   sealed trait CommandHandler {
-    /** Runs the handler on `command`, returning the reply of a request handler. */
-    def run(command: Command): Option[Future[Any]]
+    /** Runs the handler on `command`, returning its reply, or `Future.unit` for a handler that gives none. */
+    def run(command: Command): Future[Any]
   }
 
   object CommandHandler {
     /** A handler registered with `handleCommand`, which gives no reply. */
     final case class NonReplying(handler: Command => Unit) extends CommandHandler {
-      override def run(command: Command): Option[Future[Any]] = {
+      override def run(command: Command): Future[Any] = {
         handler(command)
-        None
+        Future.unit
       }
     }
 
     /** A handler registered with `handleRequest`, which replies with a `Future`. */
     final case class Replying(handler: Command => Future[Any]) extends CommandHandler {
-      override def run(command: Command): Option[Future[Any]] = Some(handler(command))
+      override def run(command: Command): Future[Any] = handler(command)
     }
   }
 
