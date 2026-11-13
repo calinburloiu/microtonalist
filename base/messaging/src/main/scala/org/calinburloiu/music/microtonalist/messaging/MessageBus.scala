@@ -144,7 +144,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
    * messages already queued on the UI Thread.
    */
   def publish(event: AnyRef): Unit = {
-    val (uiSubscribers, businessSubscribers) = subscriberRegistry.subscribersOf(event).partition(_.onUi)
+    val SubscriberRegistry.Matches(uiSubscribers, businessSubscribers) = subscriberRegistry.subscribersOf(event)
     val stamp = cause
 
     if (uiSubscribers.nonEmpty) {
@@ -279,6 +279,9 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
           runnable.run()
           carryFailure(cause, businessRunningState.continuationFailure.followedBy(drainLocalEvents()))
       }
+      // A callback that the reply runs in place, on an ExecutionContext such as `parasitic`, publishes after the drain.
+      // The reply has settled by then, so the failures of its events' subscribers are only logged.
+      drainLocalEvents()
     } finally {
       businessRunningState.reset()
     }
@@ -307,7 +310,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
                           command: Command,
                           handlerReply: Future[Any],
                           drained: Try[Unit]): Unit = {
-    for (primary <- drained.failed; outcome <- handlerReply.value; other <- outcome.failed) {
+    for (primary <- drained.failure; outcome <- handlerReply.value; other <- outcome.failure) {
       suppress(primary, other)
     }
     carryFailure(cause, drained)
@@ -321,7 +324,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
 
   /** Has the reply of `cause` carry the failure of `outcome`, if any, unless the reply has already completed. */
   private def carryFailure(cause: Option[Cause], outcome: Try[Unit]): Unit = {
-    for (reply <- cause.flatMap(_.reply); exception <- outcome.failed) {
+    for (reply <- cause.flatMap(_.reply); exception <- outcome.failure) {
       reply.tryFailure(exception)
     }
   }
@@ -333,7 +336,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   private def completeReply(cause: Option[Cause], command: Command, outcome: Try[Any]): Unit = {
     val isCarried = cause.flatMap(_.reply).exists(_.tryComplete(outcome))
     if (!isCarried) {
-      outcome.failed.foreach(exception => logger.error(s"The handler of $command failed.", exception))
+      outcome.failure.foreach(exception => logger.error("The handler of {} failed.", command, exception))
     }
   }
 
@@ -353,7 +356,7 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   /** Runs a command's handler, logging what it throws, and returns its reply. */
   private def runCommand(command: Command, handler: CommandHandler): Try[Future[Any]] = {
     val outcome = Try(handler.run(command))
-    outcome.failed.foreach(exception => logger.error(s"The handler of $command failed.", exception))
+    outcome.failure.foreach(exception => logger.error("The handler of {} failed.", command, exception))
     outcome
   }
 
@@ -364,7 +367,8 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
     var outcome: Try[Unit] = Success(())
     for (subscriber <- message.subscribers if subscriber.isActive) {
       val delivery = Try(subscriber.deliver(message.event))
-      delivery.failed.foreach(exception => logger.error(s"A subscriber of ${message.event} failed.", exception))
+      // SLF4J formats the event, and logs a placeholder for it if its `toString` throws.
+      delivery.failure.foreach(exception => logger.error("A subscriber of {} failed.", message.event, exception))
       outcome = outcome.followedBy(delivery)
     }
 
@@ -374,11 +378,19 @@ class MessageBus(runtime: MessagingRuntime) extends StrictLogging {
   extension (outcome: Try[Unit]) {
     /** This outcome if it failed, otherwise `later`; a failure of this suppresses that of `later`. */
     private def followedBy(later: Try[Unit]): Try[Unit] = {
-      for (primary <- outcome.failed; other <- later.failed) {
+      for (primary <- outcome.failure; other <- later.failure) {
         suppress(primary, other)
       }
 
       if (outcome.isFailure) outcome else later
+    }
+  }
+
+  extension (outcome: Try[?]) {
+    /** The exception of this outcome, if it failed; unlike `Try.failed`, it creates no exception for a success. */
+    private def failure: Option[Throwable] = outcome match {
+      case Failure(exception) => Some(exception)
+      case Success(_) => None
     }
   }
 

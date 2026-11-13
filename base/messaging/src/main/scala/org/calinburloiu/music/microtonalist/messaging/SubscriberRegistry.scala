@@ -28,7 +28,7 @@ import scala.collection.immutable.VectorMap
 @ThreadSafe
 private[messaging] final class SubscriberRegistry {
 
-  import SubscriberRegistry.{Snapshot, Subscriber}
+  import SubscriberRegistry.{Matches, Snapshot, Subscriber}
 
   private val snapshot: AtomicReference[Snapshot] = AtomicReference(Snapshot(VectorMap.empty))
 
@@ -44,9 +44,9 @@ private[messaging] final class SubscriberRegistry {
   }
 
   /**
-   * Returns the subscribers of the event's class or of one of its supertypes, in subscription order.
+   * Returns the subscribers of the event's class or of one of its supertypes, split by thread, in subscription order.
    */
-  def subscribersOf(event: AnyRef): Vector[Subscriber] = snapshot.get.matching(event.getClass)
+  def subscribersOf(event: AnyRef): Matches = snapshot.get.matching(event.getClass)
 
   private def unregister(subscriber: Subscriber): Unit = {
     snapshot.updateAndGet(current => Snapshot(current.subscribers.removed(subscriber)))
@@ -60,11 +60,23 @@ private[messaging] object SubscriberRegistry {
    * replaces the snapshot, so that no match against older subscribers outlives it.
    */
   private final class Snapshot(val subscribers: VectorMap[Subscriber, Unit]) {
-    private val matches: ConcurrentHashMap[Class[?], Vector[Subscriber]] = ConcurrentHashMap()
+    private val matches: ConcurrentHashMap[Class[?], Matches] = ConcurrentHashMap()
 
-    def matching(eventClass: Class[?]): Vector[Subscriber] = matches.computeIfAbsent(eventClass,
-      _ => subscribers.keysIterator.filter(_.eventClass.isAssignableFrom(eventClass)).toVector)
+    def matching(eventClass: Class[?]): Matches = matches.computeIfAbsent(eventClass,
+      _ => {
+        val (ui, business) =
+          subscribers.keysIterator.filter(_.eventClass.isAssignableFrom(eventClass)).toVector.partition(_.onUi)
+        Matches(ui, business)
+      })
   }
+
+  /**
+   * The subscribers that an event's class matches, each in subscription order.
+   *
+   * @param ui those that run on the UI Thread
+   * @param business those that run on the Business Thread
+   */
+  final case class Matches(ui: Vector[Subscriber], business: Vector[Subscriber])
 
   /**
    * A registered subscriber, which its [[Subscription]] deactivates before removing it from the registry, so that the

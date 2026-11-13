@@ -26,7 +26,8 @@ the group of its thread, and each method may be called on that thread only, so t
 
 **Runtime interface.** `MessagingRuntime` starts each `Mailbox`: one on a named thread of its own, at a given
 priority, and the UI toolkit's. A mailbox runs its messages one at a time, in arrival order, save that an `Urgent` one
-overtakes the others queued. `ManualMessagingRuntime`, in the test sources, implements it for tests.
+overtakes the others queued; the bus's own messages are never urgent. `ManualMessagingRuntime`, in the test sources,
+implements it for tests.
 
 Inside, `CommandHandlerRegistry` resolves a command's class to its handler, caching the resolution per class, and
 `SubscriberRegistry` holds the subscriptions, in copy-on-write snapshots that cache the matches per event class.
@@ -71,7 +72,7 @@ is skipped.
 Each `dispatch` and `ask` gives its command an id, from a counter per bus. The messages it causes carry the id: its
 handler's, the deliveries of the events published there and by their subscribers, and the continuations started
 there. What is published or started outside the messages, including by code that the toolkit runs on the UI Thread,
-carries none. The stamp is internal for now; tests read it with `ManualMessagingRuntime.causingCommandId`.
+carries none. The stamp is internal; tests read it with `ManualMessagingRuntime.causingCommandId`.
 
 ### Continuations
 
@@ -120,3 +121,5 @@ use it depends on `messaging` with `"compile->compile;test->test"`.
 
 - No module uses `messaging` yet: the modules move to it from `businessync` in #388.
 - The production runtime, on Pekko, is #387.
+- The tracks' mailboxes, the first with `Urgent` messages, are #390.
+- The pedal's track reads the stamp in #385.

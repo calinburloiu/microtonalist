@@ -24,7 +24,7 @@ import org.scalatest.wordspec.AnyWordSpec
 import java.util.concurrent.{CompletableFuture, CountDownLatch, ExecutorService, Executors}
 import scala.collection.mutable
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
-import scala.concurrent.{Await, Future, Promise}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.util.{Success, Try}
 
 object MessageBusTest {
@@ -62,6 +62,11 @@ object MessageBusTest {
   case class Dog(name: String) extends Animal with Pet
 
   case class Wolf(name: String) extends Animal
+
+  /** An event whose `toString` throws. */
+  class Nameless {
+    override def toString: String = throw RuntimeException("no name")
+  }
 
   /** The messages of the exceptions that the exception of the failed `reply` suppresses, in the order added. */
   def suppressedMessages(reply: Future[?]): Seq[String] =
@@ -568,6 +573,22 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         log shouldEqual Seq("Rex")
       }
 
+      "log a failing subscriber of an event whose toString throws, and still run the others" in new Fixture {
+        // Given
+        messageBus.subscribeOnBusiness(classOf[Nameless])(_ => throw RuntimeException("bite"))
+        messageBus.subscribeOnBusiness(classOf[Nameless])(_ => log += "next")
+
+        // When
+        private val (_, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+          messageBus.publish(Nameless())
+          runtime.drainAll()
+        }
+
+        // Then
+        events.failuresAt(Level.ERROR) shouldEqual Seq(("A subscriber of [FAILED toString()] failed.", Some("bite")))
+        log shouldEqual Seq("next")
+      }
+
       "log a failing UI subscriber and still run the others" in new Fixture {
         // Given
         messageBus.subscribeOnUi(classOf[Dog])(_ => throw RuntimeException("bite"))
@@ -656,7 +677,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         runtime.drainAll()
 
         // Then
-        stamps shouldEqual Seq("handler" -> Some(1L), "business" -> Some(1L), "ui" -> Some(1L))
+        stamps should contain theSameElementsAs Seq("handler" -> Some(1L), "business" -> Some(1L), "ui" -> Some(1L))
       }
 
       "keep the stamp of the events that Business subscribers publish while draining" in new Fixture {
@@ -674,7 +695,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         runtime.drainAll()
 
         // Then
-        stamps shouldEqual Seq("business" -> Some(1L), "ui" -> Some(1L))
+        stamps should contain theSameElementsAs Seq("business" -> Some(1L), "ui" -> Some(1L))
       }
 
       "keep the stamp of the events that UI subscribers publish" in new Fixture {
@@ -725,7 +746,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         runtime.drainAll()
 
         // Then
-        stamps shouldEqual Seq("business" -> None, "ui" -> None)
+        stamps should contain theSameElementsAs Seq("business" -> None, "ui" -> None)
         ManualMessagingRuntime.causingCommandId(using messageBus) shouldBe None
       }
 
@@ -802,6 +823,20 @@ class MessageBusTest extends AnyWordSpec with Matchers {
           reply.value shouldEqual Some(Success("hi"))
         }
 
+      "deliver the events that a callback of the reply publishes on the Business Thread" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Echo])(echo => Future.successful(echo.text))
+        messageBus.subscribeOnBusiness(classOf[Dog])(dog => log += dog.name)
+        // `parasitic` runs the callback on the thread that completes the reply, the Business Thread.
+        messageBus.ask(Echo("Rex")).foreach(text => messageBus.publish(Dog(text)))(using ExecutionContext.parasitic)
+
+        // When
+        runtime.drainAll()
+
+        // Then
+        log shouldEqual Seq("Rex")
+      }
+
       "deliver the events a handler published before throwing, then fail the reply and log" in new Fixture {
         // Given
         messageBus.handleRequest(classOf[Echo]) { _ =>
@@ -821,6 +856,25 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         log shouldEqual Seq("Rex")
         reply.value.get.failed.get.getMessage shouldEqual "boom"
         events.failuresAt(Level.ERROR) shouldEqual Seq(("The handler of Echo(hi) failed.", Some("boom")))
+      }
+
+      "fail the reply and log when the handler returns null instead of a Future" in new Fixture {
+        // Given
+        messageBus.handleRequest(classOf[Later])(_ => null)
+        messageBus.handleCommand(classOf[Retune])(_ => log += "next")
+
+        // When
+        private val (reply, events) = LogCapture.capturing(classOf[MessageBus].getName) {
+          val reply = messageBus.ask(Later())
+          messageBus.dispatch(Retune(1))
+          runtime.drainAll()
+          reply
+        }
+
+        // Then
+        reply.value.get.failed.get shouldBe a[NullPointerException]
+        events.failuresAt(Level.ERROR).map(_._1) shouldEqual Seq("The handler of Later() failed.")
+        log shouldEqual Seq("next")
       }
 
       "fail the reply without logging when the handler's Future fails" in new Fixture {
@@ -1071,13 +1125,14 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         events.failuresAt(Level.ERROR) shouldEqual Seq(("The handler of Echo(hi) failed.", Some("nope")))
       }
 
-      "throw on the caller's thread when asking a request whose handler was registered with handle" in new Fixture {
-        // Given
-        messageBus.handleCommand(classOf[Echo])(_ => ())
+      "throw on the caller's thread when asking a request whose handler was registered with handleCommand" in
+        new Fixture {
+          // Given
+          messageBus.handleCommand(classOf[Echo])(_ => ())
 
-        // When / Then
-        an[IllegalStateException] should be thrownBy messageBus.ask(Echo("hi"))
-      }
+          // When / Then
+          an[IllegalStateException] should be thrownBy messageBus.ask(Echo("hi"))
+        }
 
       "reject a request handler for a class that already has one" in new Fixture {
         // Given

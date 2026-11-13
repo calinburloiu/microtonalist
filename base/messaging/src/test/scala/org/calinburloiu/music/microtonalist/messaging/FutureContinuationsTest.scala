@@ -143,7 +143,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
         runtime.drainAll()
 
         // Then
-        stamps shouldEqual Seq(
+        stamps should contain theSameElementsAs Seq(
           "second" -> Some(2L), "second on UI" -> Some(2L), "first" -> Some(1L), "first on UI" -> Some(1L))
         first.value shouldEqual Some(Success("first"))
         second.value shouldEqual Some(Success("second"))

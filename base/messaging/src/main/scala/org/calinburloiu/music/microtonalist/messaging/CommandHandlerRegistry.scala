@@ -16,6 +16,7 @@
 
 package org.calinburloiu.music.microtonalist.messaging
 
+import java.util.Objects
 import java.util.concurrent.ConcurrentHashMap
 import javax.annotation.concurrent.ThreadSafe
 import scala.concurrent.Future
@@ -87,7 +88,8 @@ private[messaging] object CommandHandlerRegistry {
 
     /** A handler registered with `handleRequest`, which replies with a `Future`. */
     final case class Replying(handler: Command => Future[Any]) extends CommandHandler {
-      override def run(command: Command): Future[Any] = handler(command)
+      override def run(command: Command): Future[Any] =
+        Objects.requireNonNull(handler(command), "The handler returned null instead of a Future.")
     }
   }
 
