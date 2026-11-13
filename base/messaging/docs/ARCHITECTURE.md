@@ -58,9 +58,9 @@ sequenceDiagram
 3. **Reply.** An `ask`'s reply completes with the outcome of the handler's `Future` if it has completed by then;
    otherwise in a Business message of its own, once it completes. Either way, the events published up to the reply
    reach their Business subscribers first, and a `mapOnUi` continuation of the reply runs after the UI ones. A
-   continuation that the handler starts on the `Future` it returns may come after the reply, too late to fail it: the
-   reply's callback on that `Future` is registered last, and Scala runs a pending `Future`'s callbacks newest first.
-   So a handler that continues a `Future` returns the `Future` of its last continuation.
+   continuation that the handler starts on the `Future` it returns may come after the reply, too late to fail it,
+   since Scala doesn't order a `Future`'s `onComplete` callbacks. So a handler that continues a `Future` returns the
+   `Future` of its last continuation.
 
 An event published off the Business Thread is enqueued to the Business mailbox. Subscribers are matched when the event
 is published: a thread with no matching subscriber gets no message, and a subscription cancelled before its delivery

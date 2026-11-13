@@ -636,7 +636,7 @@ class MessageBusTest extends AnyWordSpec with Matchers {
         runtime.drainAll()
 
         // Then
-        ids.sorted shouldEqual (1L to (DispatcherCount * DispatchesPerThread).toLong)
+        ids should contain theSameElementsAs (1L to (DispatcherCount * DispatchesPerThread).toLong)
       }
 
       "stamp the events a handler publishes with its command's id, for Business and UI subscribers" in new Fixture {

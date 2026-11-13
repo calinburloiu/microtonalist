@@ -217,31 +217,6 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       reply.value shouldEqual Some(Success("Rex"))
     }
 
-    // TODO #386 Consider removing this case before merging. It fails, since a continuation that the handler starts on
-    //  the Future it returns may come after the reply, as MessageBus.ask documents.
-    "complete an ask's reply after the events of a continuation the handler started on the Future it returns" ignore
-      new Fixture {
-        // Given
-        private val input = Promise[String]()
-        private var reply: Future[String] = Future.never
-        private var completedAtDelivery: Option[Boolean] = None
-        messageBus.handleRequest(classOf[Later]) { _ =>
-          input.future.onCompleteOnBusiness(_ => messageBus.publish(Dog("Rex")))
-          input.future
-        }
-        messageBus.subscribeOnBusiness(classOf[Dog])(_ => completedAtDelivery = Some(reply.isCompleted))
-        reply = messageBus.ask(Later())
-        runtime.drainAll()
-
-        // When
-        input.success("loaded")
-        runtime.drainAll()
-
-        // Then
-        completedAtDelivery shouldEqual Some(false)
-        reply.value shouldEqual Some(Success("loaded"))
-      }
-
     "log the late failure of a dispatched request's Future" in new Fixture {
       // Given
       private val input = Promise[String]()
@@ -333,30 +308,6 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A continuation failed.", Some("boom")))
     }
 
-    // TODO #386 Consider removing this case before merging. It fails, since a continuation that the handler starts on
-    //  the Future it returns may come after the reply, as MessageBus.ask documents.
-    "fail an ask's reply when a continuation the handler started on the Future it returns throws" ignore
-      new Fixture {
-        // Given
-        private val input = Promise[String]()
-        messageBus.handleRequest(classOf[Later]) { _ =>
-          input.future.onCompleteOnBusiness(_ => throw RuntimeException("boom"))
-          input.future
-        }
-
-        // When
-        private val (reply, _) = LogCapture.capturing(classOf[MessageBus].getName) {
-          val reply = messageBus.ask(Later())
-          runtime.drainAll()
-          input.success("loaded")
-          runtime.drainAll()
-          reply
-        }
-
-        // Then
-        reply.value.get.failed.get.getMessage shouldEqual "boom"
-      }
-
     "fail each overlapping request's reply with the failure of its own continuation's subscriber" in new Fixture {
       // Given
       private val inputs = Map("first" -> Promise[String](), "second" -> Promise[String]())
@@ -369,7 +320,7 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       messageBus.subscribeOnBusiness(classOf[Dog])(dog => throw RuntimeException(s"bite ${dog.name}"))
 
       // When
-      private val ((first, second), _) = LogCapture.capturing(classOf[MessageBus].getName) {
+      private val ((first, second), events) = LogCapture.capturing(classOf[MessageBus].getName) {
         val first = messageBus.ask(Echo("first"))
         val second = messageBus.ask(Echo("second"))
         runtime.drainAll()
@@ -384,6 +335,9 @@ class FutureContinuationsTest extends AnyWordSpec with Matchers {
       second.value.get.failed.get.getMessage shouldEqual "bite second"
       suppressedMessages(first) shouldBe empty
       suppressedMessages(second) shouldBe empty
+      events.failuresAt(Level.ERROR) shouldEqual Seq(
+        ("A subscriber of Dog(second) failed.", Some("bite second")),
+        ("A subscriber of Dog(first) failed.", Some("bite first")))
     }
 
     "suppress in a continuation's failure the failures of the subscribers of its events" in new Fixture {
