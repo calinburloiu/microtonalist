@@ -36,13 +36,15 @@ import scala.util.control.NonFatal
  * @param name the name of the mailbox
  * @param spawn starts the mailbox's actor with the given behavior
  * @param onStart runs in the actor's setup, on its thread, once the mailbox has recorded that thread
+ * @param onStopped runs once the actor has stopped, on its thread, before the `Future` of [[stop]] completes
  * @param handler runs each message, on the actor's thread
  * @tparam M the type of the messages
  */
 @ThreadSafe
 private[pekko] final class PekkoMailbox[M <: AnyRef](override val name: String,
                                                      spawn: Behavior[AnyRef] => ActorRef[AnyRef],
-                                                     onStart: () => Unit)(handler: M => Unit)
+                                                     onStart: () => Unit,
+                                                     onStopped: () => Unit)(handler: M => Unit)
   extends Mailbox[M] with StrictLogging {
 
   // Declared before `actor`, whose setup may record the thread before the constructor goes on.
@@ -50,7 +52,8 @@ private[pekko] final class PekkoMailbox[M <: AnyRef](override val name: String,
   private val isStopping: AtomicBoolean = AtomicBoolean(false)
   private val stopped: Promise[Unit] = Promise()
 
-  private val actor: ActorRef[AnyRef] = spawn(PekkoMailbox.behavior(onStart, recordThread, runSafely, stopped))
+  private val actor: ActorRef[AnyRef] =
+    spawn(PekkoMailbox.behavior(onStart, recordThread, runSafely, onStopped, stopped))
 
   override def enqueue(message: M): Unit = {
     if (!isStopping.get()) {
@@ -97,23 +100,25 @@ private object PekkoMailbox {
   private case object Stop
 
   private def behavior[M <: AnyRef](onStart: () => Unit, recordThread: () => Unit, handler: M => Unit,
-                                    stopped: Promise[Unit]): Behavior[AnyRef] = Behaviors.setup { _ =>
-    recordThread()
-    onStart()
-    Behaviors.receiveMessage[AnyRef] {
-      case Stop => Behaviors.stopped
-      case received =>
-        val message = received match {
-          case UrgentEnvelope(urgent) => urgent
-          case normal => normal
-        }
-        // Only `enqueue` sends to the actor, with an `M`; a type test on `M` would be unchecked.
-        handler(message.asInstanceOf[M])
-        Behaviors.same
-    }.receiveSignal {
-      case (_, PostStop) =>
-        stopped.success(())
-        Behaviors.same
+                                    onStopped: () => Unit, stopped: Promise[Unit]): Behavior[AnyRef] =
+    Behaviors.setup { _ =>
+      recordThread()
+      onStart()
+      Behaviors.receiveMessage[AnyRef] {
+        case Stop => Behaviors.stopped
+        case received =>
+          val message = received match {
+            case UrgentEnvelope(urgent) => urgent
+            case normal => normal
+          }
+          // Only `enqueue` sends to the actor, with an `M`; a type test on `M` would be unchecked.
+          handler(message.asInstanceOf[M])
+          Behaviors.same
+      }.receiveSignal {
+        case (_, PostStop) =>
+          onStopped()
+          stopped.success(())
+          Behaviors.same
+      }
     }
-  }
 }

@@ -17,17 +17,21 @@
 package org.calinburloiu.music.microtonalist.messaging.pekko
 
 import ch.qos.logback.classic.Level
+import com.typesafe.config.{Config, ConfigFactory}
+import org.apache.pekko.Done
+import org.apache.pekko.actor.CoordinatedShutdown
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.calinburloiu.music.microtonalist.common.LogCapture.failuresAt
-import org.calinburloiu.music.microtonalist.messaging.{Mailbox, MessagingRuntime, Urgent}
+import org.calinburloiu.music.microtonalist.messaging.{Mailbox, MessagingRuntime, SynchronizedBuffer, Urgent}
 import org.calinburloiu.music.microtonalist.messaging.pekko.PekkoTestSupport.Timeout
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{CompletableFuture, CountDownLatch, LinkedBlockingQueue, TimeUnit}
-import scala.concurrent.Await
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.*
 import scala.util.Try
@@ -95,6 +99,17 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
    * A case's UI mailbox, which records as [[RecordingFixture]] does.
    */
   class UiFixture extends RecordingFixture(handler => runtime.startUiMailbox[Message](handler))
+
+  /**
+   * A case's own runtime, on an actor system of its own, since its shutdown terminates that system. Each case shuts it
+   * down.
+   *
+   * @param config the configuration of the actor system
+   */
+  class ShutdownFixture(config: Config = ConfigFactory.load("application-test")) {
+    /** The runtime under test. */
+    val started: PekkoMessagingRuntime = PekkoMessagingRuntime.start(config)
+  }
 
   "a pinned mailbox" should {
     "run its messages on one thread, named after the mailbox, at the given priority" in
@@ -264,6 +279,118 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
       attempt.failed.get shouldBe an[IllegalStateException]
     }
   }
+
+  "starting and shutting down" should {
+    "start an ActorSystem whose mailboxes run, and terminate it on shutdown" in new ShutdownFixture {
+      // Given
+      private val ran = CompletableFuture[String]()
+
+      // When
+      started.startMailbox[String]("Business", Thread.NORM_PRIORITY)(text => ran.complete(text)).enqueue("hello")
+
+      // Then
+      ran.get(Timeout.toMillis, TimeUnit.MILLISECONDS) shouldEqual "hello"
+
+      // When
+      Await.result(started.shutdown(), Timeout)
+
+      // Then
+      Await.result(started.system.whenTerminated, Timeout)
+    }
+
+    "run the FinishWork tasks, then the ReleaseResources ones, then stop the mailboxes" in
+      new ShutdownFixture(BeforeTerminationConfig) {
+        // Given
+        private val steps = SynchronizedBuffer[String]()
+        private val mailbox = started.startMailbox[Promise[Unit]]("Business", Thread.NORM_PRIORITY) { done =>
+          steps += "mailbox"
+          done.success(())
+        }
+        started.addShutdownTask(ShutdownPhase.ReleaseResources, "release") { () =>
+          steps += "release"
+          Future.unit
+        }
+        started.addShutdownTask(ShutdownPhase.FinishWork, "finish") { () =>
+          steps += "finish"
+          val done = Promise[Unit]()
+          mailbox.enqueue(done)
+          done.future
+        }
+        // Only the runtime can have stopped the mailboxes before the actor system's termination begins.
+        private val runningBeforeTermination = Promise[Seq[Mailbox[?]]]()
+        CoordinatedShutdown(started.system).addTask(BeforeTerminationPhase, "check-mailboxes") { () =>
+          runningBeforeTermination.success(started.runningMailboxes)
+          Future.successful(Done)
+        }
+
+        // When
+        Await.result(started.shutdown(), Timeout)
+
+        // Then
+        steps.toSeq shouldEqual Seq("finish", "mailbox", "release")
+        Await.result(runningBeforeTermination.future, Timeout) shouldBe empty
+        mailbox.stop().isCompleted shouldBe true
+      }
+
+    "run each task once when shut down twice" in new ShutdownFixture {
+      // Given
+      private val runs = AtomicInteger()
+      started.addShutdownTask(ShutdownPhase.FinishWork, "count") { () =>
+        runs.incrementAndGet()
+        Future.unit
+      }
+
+      // When
+      private val first = started.shutdown()
+      private val second = started.shutdown()
+
+      // Then
+      Await.result(first, Timeout)
+      Await.result(second, Timeout)
+      runs.get shouldEqual 1
+    }
+
+    "forget a pinned mailbox once it has stopped" in new ShutdownFixture {
+      // Given
+      private val mailbox = started.startMailbox[String]("Business", Thread.NORM_PRIORITY)(_ => ())
+
+      // Then
+      started.runningMailboxes shouldEqual Seq(mailbox)
+
+      // When
+      Await.result(mailbox.stop(), Timeout)
+
+      // Then
+      started.runningMailboxes shouldBe empty
+      Await.result(started.shutdown(), Timeout)
+    }
+
+    "stop the mailboxes last started first, each once the one after it has stopped" in {
+      // Given
+      val stops = SynchronizedBuffer[String]()
+      val first = FakeMailbox("first", stops)
+      val second = FakeMailbox("second", stops)
+
+      // When
+      val all = PekkoMessagingRuntime.stopLastStartedFirst(Seq(first, second))(using ExecutionContext.parasitic)
+
+      // Then
+      stops.toSeq shouldEqual Seq("second")
+
+      // When
+      second.stopped.success(())
+
+      // Then
+      stops.toSeq shouldEqual Seq("second", "first")
+      all.isCompleted shouldBe false
+
+      // When
+      first.stopped.success(())
+
+      // Then
+      all.isCompleted shouldBe true
+    }
+  }
 }
 
 /**
@@ -272,6 +399,16 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
 object PekkoMessagingRuntimeTest {
   /** The start timeout of a runtime whose UI mailbox can't start, which its case waits out. */
   val ShortUiStartTimeout: FiniteDuration = 200.millis
+
+  /** A shutdown phase that runs after the runtime has stopped the mailboxes and before the actor system terminates. */
+  val BeforeTerminationPhase: String = "test-before-termination"
+
+  /** The tests' configuration, with [[BeforeTerminationPhase]] added to the shutdown. */
+  val BeforeTerminationConfig: Config = ConfigFactory.parseString(
+    s"""pekko.coordinated-shutdown.phases {
+       |  $BeforeTerminationPhase.depends-on = [${CoordinatedShutdown.PhaseBeforeActorSystemTerminate}]
+       |  ${CoordinatedShutdown.PhaseActorSystemTerminate}.depends-on = [$BeforeTerminationPhase]
+       |}""".stripMargin).withFallback(ConfigFactory.load("application-test"))
 
   /** A message of the test mailboxes. */
   sealed trait Message
@@ -290,4 +427,25 @@ object PekkoMessagingRuntimeTest {
 
   /** A message that counts `entered` down, then holds the mailbox's thread until `release` is counted down. */
   case class Gate(entered: CountDownLatch, release: CountDownLatch) extends Message
+
+  /**
+   * A mailbox that only records its stops: [[stop]] adds its name to `stops` and returns the `Future` of [[stopped]],
+   * which the case completes.
+   *
+   * @param name the name of the mailbox
+   * @param stops records the name of each mailbox stopped, in the order stopped
+   */
+  class FakeMailbox(override val name: String, stops: SynchronizedBuffer[String]) extends Mailbox[AnyRef] {
+    /** Completes the `Future` that [[stop]] returns. */
+    val stopped: Promise[Unit] = Promise()
+
+    override def enqueue(message: AnyRef): Unit = ()
+
+    override def isCurrentThread: Boolean = false
+
+    override def stop(): Future[Unit] = {
+      stops += name
+      stopped.future
+    }
+  }
 }
