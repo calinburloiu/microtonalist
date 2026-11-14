@@ -18,18 +18,20 @@ package org.calinburloiu.music.microtonalist.messaging.pekko
 
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
-import org.apache.pekko.actor.typed.{ActorRef, Behavior}
+import org.apache.pekko.actor.typed.{ActorRef, Behavior, PostStop}
 import org.apache.pekko.dispatch.ControlMessage
 import org.calinburloiu.music.microtonalist.messaging.{Mailbox, Urgent}
 
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.annotation.concurrent.ThreadSafe
-import scala.concurrent.Future
+import scala.concurrent.{Future, Promise}
 import scala.util.control.NonFatal
 
 /**
  * A [[Mailbox]] over an actor that `spawn` starts, which runs its messages with `handler`. A non-fatal exception that
  * escapes `handler` is logged at ERROR and the mailbox goes on, so Pekko's supervision never stops it. An [[Urgent]]
- * message overtakes the queued normal ones, which requires `spawn` to use a control-aware mailbox.
+ * message overtakes the queued normal ones, which requires `spawn` to use a control-aware mailbox. Once [[stop]] is
+ * called, from any thread, [[enqueue]] drops its messages.
  *
  * @param name the name of the mailbox
  * @param spawn starts the mailbox's actor with the given behavior
@@ -45,17 +47,29 @@ private[pekko] final class PekkoMailbox[M <: AnyRef](override val name: String,
 
   // Declared before `actor`, whose setup may record the thread before the constructor goes on.
   @volatile private var thread: Option[Thread] = None
+  private val isStopping: AtomicBoolean = AtomicBoolean(false)
+  private val stopped: Promise[Unit] = Promise()
 
-  private val actor: ActorRef[AnyRef] = spawn(PekkoMailbox.behavior(onStart, recordThread, runSafely))
+  private val actor: ActorRef[AnyRef] = spawn(PekkoMailbox.behavior(onStart, recordThread, runSafely, stopped))
 
-  override def enqueue(message: M): Unit = message match {
-    case _: Urgent => actor ! PekkoMailbox.UrgentEnvelope(message)
-    case _ => actor ! message
+  override def enqueue(message: M): Unit = {
+    if (!isStopping.get()) {
+      message match {
+        case _: Urgent => actor ! PekkoMailbox.UrgentEnvelope(message)
+        case _ => actor ! message
+      }
+    }
   }
 
   override def isCurrentThread: Boolean = thread.exists(_ eq Thread.currentThread())
 
-  override def stop(): Future[Unit] = ???
+  override def stop(): Future[Unit] = {
+    // Only the first call sends `Stop`: the actor would never read a second one, which would go to dead letters.
+    if (isStopping.compareAndSet(false, true)) {
+      actor ! PekkoMailbox.Stop
+    }
+    stopped.future
+  }
 
   private def recordThread(): Unit = {
     thread = Some(Thread.currentThread())
@@ -79,18 +93,27 @@ private object PekkoMailbox {
    */
   private[pekko] final case class UrgentEnvelope(message: AnyRef) extends ControlMessage
 
-  private def behavior[M <: AnyRef](onStart: () => Unit, recordThread: () => Unit,
-                                    handler: M => Unit): Behavior[AnyRef] = Behaviors.setup { _ =>
+  /** Stops the actor once the messages queued before it have run. */
+  private case object Stop
+
+  private def behavior[M <: AnyRef](onStart: () => Unit, recordThread: () => Unit, handler: M => Unit,
+                                    stopped: Promise[Unit]): Behavior[AnyRef] = Behaviors.setup { _ =>
     onStart()
     recordThread()
-    Behaviors.receiveMessage { received =>
-      val message = received match {
-        case UrgentEnvelope(urgent) => urgent
-        case normal => normal
-      }
-      // Only `enqueue` sends to the actor, with an `M`; a type test on `M` would be unchecked.
-      handler(message.asInstanceOf[M])
-      Behaviors.same
+    Behaviors.receiveMessage[AnyRef] {
+      case Stop => Behaviors.stopped
+      case received =>
+        val message = received match {
+          case UrgentEnvelope(urgent) => urgent
+          case normal => normal
+        }
+        // Only `enqueue` sends to the actor, with an `M`; a type test on `M` would be unchecked.
+        handler(message.asInstanceOf[M])
+        Behaviors.same
+    }.receiveSignal {
+      case (_, PostStop) =>
+        stopped.success(())
+        Behaviors.same
     }
   }
 }

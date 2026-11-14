@@ -27,6 +27,8 @@ import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.concurrent.{CompletableFuture, CountDownLatch, LinkedBlockingQueue, TimeUnit}
+import scala.concurrent.Await
+import scala.jdk.CollectionConverters.*
 
 /**
  * Tests [[PekkoMessagingRuntime]] on one shared test kit.
@@ -176,6 +178,45 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
 
       // Then
       Seq.fill(4)(nextRun()._1) shouldEqual Seq("u1", "u2", "n1", "n2")
+    }
+
+    "run the messages queued before stop, then complete its Future" in new Fixture() {
+      // Given
+      private val release = hold()
+      mailbox.enqueue(Probe("a"))
+      mailbox.enqueue(Probe("b"))
+
+      // When
+      private val stopped = mailbox.stop()
+
+      // Then
+      stopped.isCompleted shouldBe false
+
+      // When
+      release.countDown()
+
+      // Then
+      Await.result(stopped, Timeout)
+      runs.asScala.toSeq.map(_._1) shouldEqual Seq("a", "b")
+    }
+
+    "drop a message enqueued after stop, before it reaches Pekko's dead letters" in new Fixture() {
+      // Given
+      private val deadLetters = testKit.createDeadLetterProbe()
+
+      // When
+      private val stopped = mailbox.stop()
+      mailbox.enqueue(Probe("late"))
+
+      // Then
+      Await.result(stopped, Timeout)
+      deadLetters.expectNoMessage()
+      runs.isEmpty shouldBe true
+    }
+
+    "return the same Future when stopped twice" in new Fixture() {
+      // When / Then
+      mailbox.stop() should be theSameInstanceAs mailbox.stop()
     }
   }
 }
