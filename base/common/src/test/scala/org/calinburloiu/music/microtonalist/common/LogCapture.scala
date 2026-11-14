@@ -22,6 +22,7 @@ import ch.qos.logback.core.AppenderBase
 import org.slf4j.LoggerFactory
 
 import java.util.concurrent.ConcurrentLinkedQueue
+import scala.collection.mutable
 import scala.jdk.CollectionConverters.*
 
 /**
@@ -33,8 +34,8 @@ object LogCapture {
    * Runs `body` with the logger named `loggerName` and its descendants enabled down to DEBUG, and returns the result of
    * `body` together with the events those loggers emitted meanwhile on the calling thread.
    *
-   * Suites may run in parallel in the same JVM, so the events of other threads are ignored, and each suite should
-   * capture a logger of its own, since the level of the logger is restored once `body` completes.
+   * Suites may run in parallel in the same JVM, so the events of other threads are ignored. Captures of one logger may
+   * overlap: its level is restored once the last of them completes.
    *
    * @param loggerName Name of the logger to capture, typically the fully qualified name of the class under test;
    *   logback treats the loggers of its nested classes as descendants, so they are captured too.
@@ -54,18 +55,36 @@ object LogCapture {
     appender.setContext(logger.getLoggerContext)
     appender.start()
 
-    val previousLevel = logger.getLevel
+    enableDebug(logger)
     logger.addAppender(appender)
-    logger.setLevel(Level.DEBUG)
     val result = try {
       body
     } finally {
-      logger.setLevel(previousLevel)
       logger.detachAppender(appender)
       appender.stop()
+      restoreLevel(logger)
     }
 
     (result, events.asScala.toSeq)
+  }
+
+  /** For each logger being captured, the number of its running captures and its level before the first of them. */
+  private val captures: mutable.Map[String, (Int, Level)] = mutable.Map()
+
+  private def enableDebug(logger: Logger): Unit = synchronized {
+    val (count, previousLevel) = captures.getOrElse(logger.getName, (0, logger.getLevel))
+    captures(logger.getName) = (count + 1, previousLevel)
+    logger.setLevel(Level.DEBUG)
+  }
+
+  private def restoreLevel(logger: Logger): Unit = synchronized {
+    captures(logger.getName) match {
+      case (1, previousLevel) =>
+        captures.remove(logger.getName)
+        logger.setLevel(previousLevel)
+      case (count, previousLevel) =>
+        captures(logger.getName) = (count - 1, previousLevel)
+    }
   }
 
   /**

@@ -41,6 +41,24 @@ case class Person(name: String, age: Int) {
 Enforced by the compiler flags `-no-indent` and `-old-syntax`, which make indentation syntax and `if … then` compile
 errors, and by scalafmt, which never removes braces.
 
+## Prefer idiomatic Scala
+
+Default to functional Scala: immutable values, pattern matching, `Option` over `null`, collection methods over index
+loops. Make a recursion that may run deep `@tailrec`, so it can't overflow the stack.
+
+Mutable state and imperative code are fine:
+
+* locally, in a method whose callers see no mutation, when clearer;
+* in a stateful class, such as a `Tuner` or `MessageBus`, whose state is `private`, confined to one thread or guarded
+  by a lock or an atomic, and whose API exposes immutable values;
+* on a hot path, such as per MIDI message (`Tuner.process`, `TuningChanger.decide`), when it measurably lowers latency
+  or allocations; measure, e.g. with the [performance tests](performance-tests.md), rather than assume.
+
+Idiomatic doesn't mean clever: prefer a named `val` to a long combinator chain, and a plain loop to an obscure fold.
+Write mutable collections as `mutable.Map`, so the mutation shows.
+
+Not enforced.
+
 ## Use `enum`
 
 Use Scala 3 `enum` instead of `sealed trait` for simple enumerations.
