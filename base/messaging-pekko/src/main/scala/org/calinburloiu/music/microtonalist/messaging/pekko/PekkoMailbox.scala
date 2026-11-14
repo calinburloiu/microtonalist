@@ -19,7 +19,8 @@ package org.calinburloiu.music.microtonalist.messaging.pekko
 import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
-import org.calinburloiu.music.microtonalist.messaging.Mailbox
+import org.apache.pekko.dispatch.ControlMessage
+import org.calinburloiu.music.microtonalist.messaging.{Mailbox, Urgent}
 
 import javax.annotation.concurrent.ThreadSafe
 import scala.concurrent.Future
@@ -27,7 +28,8 @@ import scala.util.control.NonFatal
 
 /**
  * A [[Mailbox]] over an actor that `spawn` starts, which runs its messages with `handler`. A non-fatal exception that
- * escapes `handler` is logged at ERROR and the mailbox goes on, so Pekko's supervision never stops it.
+ * escapes `handler` is logged at ERROR and the mailbox goes on, so Pekko's supervision never stops it. An [[Urgent]]
+ * message overtakes the queued normal ones, which requires `spawn` to use a control-aware mailbox.
  *
  * @param name the name of the mailbox
  * @param spawn starts the mailbox's actor with the given behavior
@@ -46,7 +48,10 @@ private[pekko] final class PekkoMailbox[M <: AnyRef](override val name: String,
 
   private val actor: ActorRef[AnyRef] = spawn(PekkoMailbox.behavior(onStart, recordThread, runSafely))
 
-  override def enqueue(message: M): Unit = actor ! message
+  override def enqueue(message: M): Unit = message match {
+    case _: Urgent => actor ! PekkoMailbox.UrgentEnvelope(message)
+    case _ => actor ! message
+  }
 
   override def isCurrentThread: Boolean = thread.exists(_ eq Thread.currentThread())
 
@@ -66,11 +71,23 @@ private[pekko] final class PekkoMailbox[M <: AnyRef](override val name: String,
 }
 
 private object PekkoMailbox {
+  /**
+   * Carries an [[Urgent]] message. As a [[ControlMessage]], it goes to the front of the control-aware mailbox, ahead of
+   * the queued normal messages.
+   *
+   * @param message the urgent message
+   */
+  private[pekko] final case class UrgentEnvelope(message: AnyRef) extends ControlMessage
+
   private def behavior[M <: AnyRef](onStart: () => Unit, recordThread: () => Unit,
                                     handler: M => Unit): Behavior[AnyRef] = Behaviors.setup { _ =>
     onStart()
     recordThread()
-    Behaviors.receiveMessage { message =>
+    Behaviors.receiveMessage { received =>
+      val message = received match {
+        case UrgentEnvelope(urgent) => urgent
+        case normal => normal
+      }
       // Only `enqueue` sends to the actor, with an `M`; a type test on `M` would be unchecked.
       handler(message.asInstanceOf[M])
       Behaviors.same

@@ -20,13 +20,13 @@ import ch.qos.logback.classic.Level
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.calinburloiu.music.microtonalist.common.LogCapture.failuresAt
-import org.calinburloiu.music.microtonalist.messaging.Mailbox
+import org.calinburloiu.music.microtonalist.messaging.{Mailbox, Urgent}
 import org.calinburloiu.music.microtonalist.messaging.pekko.PekkoTestSupport.Timeout
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
-import java.util.concurrent.{CompletableFuture, LinkedBlockingQueue, TimeUnit}
+import java.util.concurrent.{CompletableFuture, CountDownLatch, LinkedBlockingQueue, TimeUnit}
 
 /**
  * Tests [[PekkoMessagingRuntime]] on one shared test kit.
@@ -53,8 +53,25 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
     /** The mailbox under test. */
     val mailbox: Mailbox[Message] = runtime.startMailbox[Message](name, priority) {
       case Probe(probeName) => runs.put(probeName -> Thread.currentThread())
+      case UrgentProbe(probeName) => runs.put(probeName -> Thread.currentThread())
       case CheckThread(result) => result.complete(mailbox.isCurrentThread)
       case Fail(text) => throw IllegalStateException(text)
+      case Gate(entered, release) =>
+        entered.countDown()
+        release.await(Timeout.toMillis, TimeUnit.MILLISECONDS)
+    }
+
+    /**
+     * Occupies the mailbox's thread with a [[Gate]], once it has entered it, so that later messages queue up.
+     *
+     * @return the latch that frees the thread
+     */
+    def hold(): CountDownLatch = {
+      val entered = CountDownLatch(1)
+      val release = CountDownLatch(1)
+      mailbox.enqueue(Gate(entered, release))
+      entered.await(Timeout.toMillis, TimeUnit.MILLISECONDS) shouldBe true
+      release
     }
 
     /** Takes the next run from [[runs]], waiting up to [[PekkoTestSupport.Timeout]]; fails if none comes. */
@@ -145,6 +162,21 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
       next shouldEqual "next"
       events.failuresAt(Level.ERROR) shouldEqual Seq(("A message of mailbox Pinned failed.", Some("boom")))
     }
+
+    "run the urgent messages queued before the normal ones, each kind in arrival order" in new Fixture() {
+      // Given
+      private val release = hold()
+
+      // When
+      mailbox.enqueue(Probe("n1"))
+      mailbox.enqueue(UrgentProbe("u1"))
+      mailbox.enqueue(Probe("n2"))
+      mailbox.enqueue(UrgentProbe("u2"))
+      release.countDown()
+
+      // Then
+      Seq.fill(4)(nextRun()._1) shouldEqual Seq("u1", "u2", "n1", "n2")
+    }
   }
 }
 
@@ -163,4 +195,10 @@ object PekkoMessagingRuntimeTest {
 
   /** A message whose handler throws an exception with `text` as its message. */
   case class Fail(text: String) extends Message
+
+  /** An [[Urgent]] message that the mailbox records, by `name`, in its fixture's runs as a [[Probe]] is. */
+  case class UrgentProbe(name: String) extends Message with Urgent
+
+  /** A message that counts `entered` down, then holds the mailbox's thread until `release` is counted down. */
+  case class Gate(entered: CountDownLatch, release: CountDownLatch) extends Message
 }
