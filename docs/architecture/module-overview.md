@@ -38,6 +38,7 @@ package; the group's `CLAUDE.md` imports that README, so an agent gets it when w
 | `intonation` | `theory` | Interval math |
 | `sc-midi-javamidi` | `midi` | Java Sound implementation of `sc-midi`, with CoreMIDI4J |
 | `sc-midi` | `midi` | Scala-idiomatic MIDI API |
+| `messaging-pekko` | `base` | The Pekko Typed runtime of `messaging` |
 | `messaging` | `base` | Messaging and threading: commands, events and `Future` continuations on the Business and UI Threads |
 | `businessync` | `base` | Event bus and threading |
 | `common` | `base` | Shared utilities |
@@ -83,6 +84,7 @@ flowchart TD
     scMidi["sc-midi"]
   end
   subgraph baseGroup ["base/"]
+    messagingPekko["messaging-pekko"]
     messaging
     businessync
     common
@@ -100,5 +102,6 @@ flowchart TD
   scMidiJavamidi --> scMidi
   scMidi --> common
   config --> common
+  messagingPekko --> messaging
   messaging --> common
 ```

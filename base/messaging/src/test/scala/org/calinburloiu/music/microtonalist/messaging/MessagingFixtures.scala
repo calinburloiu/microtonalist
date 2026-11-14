@@ -64,6 +64,7 @@ trait MessagingFixtures extends TestSuite {
     /** The bus under test, on [[testRuntime]]. */
     val messageBus: MessageBus = MessageBus(testRuntime.runtime)
 
+    /** [[messageBus]], for the continuations and [[MessagingTestRuntime.causingCommandId]]. */
     given MessageBus = messageBus
 
     /** What the case's handlers and subscribers record, to be read after [[awaitIdle]]. */
@@ -106,33 +107,46 @@ object MessagingFixtures {
   /** How many threads dispatch at once in the concurrent-id test. */
   val DispatcherCount: Int = 8
 
-  /** How many commands each of those threads dispatches, kept under `ManualMessagingRuntime.MaxDrainedMessages`. */
+  /** How many commands each of those threads dispatches, few enough for any test runtime to run in one `awaitIdle`. */
   val DispatchesPerThread: Int = 500
 
+  /** A sealed family of commands, which one handler may serve. */
   sealed trait TunerCommand extends Command
 
+  /** A [[TunerCommand]] with a payload. */
   case class Retune(index: Int) extends TunerCommand
 
+  /** A [[TunerCommand]] with no payload. */
   case class Reset() extends TunerCommand
 
+  /** A family of commands unrelated to [[TunerCommand]]. */
   trait RigCommand extends Command
 
+  /** A command of both [[TunerCommand]] and [[RigCommand]], which matches a handler of each. */
   case class TuneRig() extends TunerCommand with RigCommand
 
+  /** A command that no case handles. */
   case class Unhandled() extends Command
 
+  /** A command whose handler throws. */
   case class Explode() extends Command
 
+  /** A request with a payload, typically replied with its `text`. */
   case class Echo(text: String) extends Request[String]
 
+  /** A request with no payload, whose reply may come later, or never. */
   case class Later() extends Request[String]
 
+  /** The base class of the events, matched by a subscription to a supertype. */
   abstract class Animal
 
+  /** A trait of some events, matched by a subscription to an interface. */
   trait Pet
 
+  /** An event that is both an [[Animal]] and a [[Pet]]. */
   case class Dog(name: String) extends Animal with Pet
 
+  /** An event that is an [[Animal]] only. */
   case class Wolf(name: String) extends Animal
 
   /** An event whose `toString` throws. */

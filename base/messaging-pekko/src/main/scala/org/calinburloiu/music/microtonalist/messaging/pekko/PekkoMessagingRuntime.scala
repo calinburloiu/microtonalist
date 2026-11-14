@@ -56,6 +56,8 @@ final class PekkoMessagingRuntime private[pekko] (
   }
 
   /**
+   * @inheritdoc
+   *
    * @throws IllegalArgumentException if `priority` is outside `Thread.MIN_PRIORITY..Thread.MAX_PRIORITY`
    */
   override def startMailbox[M <: AnyRef](name: String, priority: Int)(handler: M => Unit): Mailbox[M] = {
@@ -81,6 +83,8 @@ final class PekkoMessagingRuntime private[pekko] (
   }
 
   /**
+   * @inheritdoc
+   *
    * @throws IllegalStateException if the mailbox didn't record its thread within the start timeout, e.g. because the
    *   call ran on that thread
    */

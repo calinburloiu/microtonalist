@@ -61,6 +61,8 @@ final class PekkoTestRuntime(pekkoRuntime: PekkoMessagingRuntime,
   }
 
   /**
+   * @inheritdoc
+   *
    * @throws IllegalStateException if the mailboxes don't go idle within `idleTimeout`
    */
   override def awaitIdle(): Unit = idleness.synchronized {
