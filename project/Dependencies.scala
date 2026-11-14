@@ -28,13 +28,15 @@ object Dependencies {
   val jsr305Version = "3.0.2"
   val logbackVersion = "1.6.4"
   val mcpSdkVersion = "2.1.0"
+  val pekkoVersion = "1.7.1"
   val playJsonVersion = "3.0.6"
   val scalaLoggingVersion = "3.9.6"
   val scalaMockVersion = "7.6.0"
   val scalaTestVersion = "3.2.20"
   // A version "brought by" a library is the one that library depends on: keep them in step, so that declaring it
   // changes nothing.
-  val typesafeConfigVersion = "1.3.4" // Brought by ficus
+  // Brought by Pekko; ficus brings 1.3.4, which reads it too: see the config module's tests
+  val typesafeConfigVersion = "1.4.9"
 
   // # Dependency definitions
   val coreMidi4j = "uk.co.xfactory-librarians" % "coremidi4j" % coreMidi4jVersion
@@ -58,6 +60,9 @@ object Dependencies {
   // Not the `mcp` bundle, which brings Jackson 3: see docs/research/mcp.md#dependencies
   val mcpCore = "io.modelcontextprotocol.sdk" % "mcp-core" % mcpSdkVersion
   val mcpJsonJackson2 = "io.modelcontextprotocol.sdk" % "mcp-json-jackson2" % mcpSdkVersion
+  val pekkoActorTestkitTyped = "org.apache.pekko" %% "pekko-actor-testkit-typed" % pekkoVersion
+  val pekkoActorTyped = "org.apache.pekko" %% "pekko-actor-typed" % pekkoVersion
+  val pekkoSlf4j = "org.apache.pekko" %% "pekko-slf4j" % pekkoVersion
   val playJson = "org.playframework" %% "play-json" % playJsonVersion
   // ScalaTest's equality API (`org.scalactic.Equality`), released with each ScalaTest version.
   val scalactic = "org.scalactic" %% "scalactic" % scalaTestVersion
