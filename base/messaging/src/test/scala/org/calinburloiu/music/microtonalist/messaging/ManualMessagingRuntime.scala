@@ -103,19 +103,13 @@ final class ManualMessagingRuntime extends MessagingRuntime {
 }
 
 /**
- * Constants of [[ManualMessagingRuntime]] and helpers for the tests that run a [[MessageBus]] on it.
+ * Constants of [[ManualMessagingRuntime]].
  */
 object ManualMessagingRuntime {
   /**
    * The most messages that one drain runs before it fails, assuming that its messages keep enqueuing others.
    */
   val MaxDrainedMessages: Int = 10000
-
-  /**
-   * Returns the id of the command that caused the message of `messageBus` that the calling thread runs, or `None`
-   * outside its Business and UI messages or for a message that no command caused.
-   */
-  def causingCommandId(using messageBus: MessageBus): Option[Long] = messageBus.causingCommandId
 }
 
 /**
