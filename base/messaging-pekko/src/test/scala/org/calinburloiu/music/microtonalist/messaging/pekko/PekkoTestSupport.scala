@@ -18,12 +18,14 @@ package org.calinburloiu.music.microtonalist.messaging.pekko
 
 import com.typesafe.config.ConfigFactory
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
+import org.apache.pekko.actor.typed.{ActorSystem, DispatcherSelector}
 import org.slf4j.LoggerFactory
 
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, Future}
 
 /**
- * What the suites of `messaging-pekko` share: their test kit and their timeout.
+ * What the suites of `messaging-pekko` share: their test kit, their timeout and a way onto the UI dispatcher.
  */
 object PekkoTestSupport {
   /** How long a test waits for a mailbox's message or `Future`, which only a failing case waits out. */
@@ -39,5 +41,11 @@ object PekkoTestSupport {
     // Pekko's SLF4J logger, started with the system, must not get SLF4J's substitute loggers.
     LoggerFactory.getILoggerFactory
     ActorTestKit(name, ConfigFactory.load("application-test"))
+  }
+
+  /** Runs `body` on the UI dispatcher's thread, outside any actor's message, and returns its result. */
+  def onUiDispatcher[T](system: ActorSystem[?])(body: => T): T = {
+    val uiDispatcher = system.dispatchers.lookup(DispatcherSelector.fromConfig(PekkoMessagingRuntime.UiDispatcherPath))
+    Await.result(Future(body)(using uiDispatcher), Timeout)
   }
 }

@@ -21,15 +21,20 @@ import org.calinburloiu.music.microtonalist.messaging.{Mailbox, MessagingRuntime
 
 import java.util.concurrent.atomic.AtomicLong
 import javax.annotation.concurrent.ThreadSafe
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, Promise, TimeoutException}
 
 /**
  * The [[MessagingRuntime]] on Pekko Typed, which runs each mailbox in an actor of its own.
  *
  * @param system the actor system that runs the mailboxes' actors
+ * @param uiStartTimeout how long [[startUiMailbox]] waits for the UI mailbox to record its thread
  */
 @ThreadSafe
-final class PekkoMessagingRuntime private[pekko] (private[pekko] val system: ActorSystem[?])
-  extends MessagingRuntime {
+final class PekkoMessagingRuntime private[pekko] (
+    private[pekko] val system: ActorSystem[?],
+    uiStartTimeout: FiniteDuration = PekkoMessagingRuntime.UiStartTimeout
+) extends MessagingRuntime {
 
   /**
    * @throws IllegalArgumentException if `priority` is outside `Thread.MIN_PRIORITY..Thread.MAX_PRIORITY`
@@ -49,13 +54,36 @@ final class PekkoMessagingRuntime private[pekko] (private[pekko] val system: Act
       onStart)(handler)
   }
 
-  override def startUiMailbox[M <: AnyRef](handler: M => Unit): Mailbox[M] = ???
+  /**
+   * @throws IllegalStateException if the mailbox didn't record its thread within the start timeout, e.g. because the
+   *   call ran on that thread
+   */
+  override def startUiMailbox[M <: AnyRef](handler: M => Unit): Mailbox[M] = {
+    val props: Props = DispatcherSelector.fromConfig(PekkoMessagingRuntime.UiDispatcherPath)
+      .withMailboxFromConfig(PekkoMessagingRuntime.MailboxPath)
+    // The toolkit's thread isn't the runtime's to name or to prioritise.
+    val started = Promise[Unit]()
+    val mailbox = PekkoMailbox[M](MessagingRuntime.UiMailboxName,
+      behavior => system.systemActorOf(behavior, PekkoMessagingRuntime.nextActorName(), props),
+      () => started.success(()))(handler)
+
+    try {
+      Await.ready(started.future, uiStartTimeout)
+    } catch {
+      case _: TimeoutException => throw IllegalStateException(
+          s"The UI mailbox didn't start within $uiStartTimeout: startUiMailbox must not run on the UI toolkit's thread.")
+    }
+    mailbox
+  }
 }
 
 /**
- * The configuration paths of [[PekkoMessagingRuntime]].
+ * The configuration paths and defaults of [[PekkoMessagingRuntime]].
  */
 object PekkoMessagingRuntime {
+  /** How long [[PekkoMessagingRuntime.startUiMailbox]] waits, by default, for the UI mailbox to record its thread. */
+  val UiStartTimeout: FiniteDuration = 10.seconds
+
   private[pekko] val PinnedDispatcherPath: String = "microtonalist.messaging.pinned-dispatcher"
   private[pekko] val UiDispatcherPath: String = "microtonalist.messaging.ui-dispatcher"
   private[pekko] val MailboxPath: String = "microtonalist.messaging.mailbox"

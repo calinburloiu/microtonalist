@@ -20,7 +20,7 @@ import ch.qos.logback.classic.Level
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.calinburloiu.music.microtonalist.common.LogCapture.failuresAt
-import org.calinburloiu.music.microtonalist.messaging.{Mailbox, Urgent}
+import org.calinburloiu.music.microtonalist.messaging.{Mailbox, MessagingRuntime, Urgent}
 import org.calinburloiu.music.microtonalist.messaging.pekko.PekkoTestSupport.Timeout
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
@@ -28,7 +28,9 @@ import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.concurrent.{CompletableFuture, CountDownLatch, LinkedBlockingQueue, TimeUnit}
 import scala.concurrent.Await
+import scala.concurrent.duration.{DurationInt, FiniteDuration}
 import scala.jdk.CollectionConverters.*
+import scala.util.Try
 
 /**
  * Tests [[PekkoMessagingRuntime]] on one shared test kit.
@@ -43,17 +45,16 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
   override def afterAll(): Unit = testKit.shutdownTestKit()
 
   /**
-   * A case's pinned mailbox, whose handler records each [[Probe]] it runs, with its thread, in [[runs]].
+   * A case's mailbox, whose handler records each [[Probe]] it runs, with its thread, in [[runs]].
    *
-   * @param name the name of the mailbox
-   * @param priority the priority of the mailbox's thread
+   * @param start starts the mailbox with the given handler
    */
-  class Fixture(name: String = "Pinned", priority: Int = Thread.NORM_PRIORITY) {
+  abstract class RecordingFixture(start: (Message => Unit) => Mailbox[Message]) {
     /** The name of each probe run, with the thread it ran on, in the order run. */
     val runs: LinkedBlockingQueue[(String, Thread)] = LinkedBlockingQueue()
 
     /** The mailbox under test. */
-    val mailbox: Mailbox[Message] = runtime.startMailbox[Message](name, priority) {
+    val mailbox: Mailbox[Message] = start {
       case Probe(probeName) => runs.put(probeName -> Thread.currentThread())
       case UrgentProbe(probeName) => runs.put(probeName -> Thread.currentThread())
       case CheckThread(result) => result.complete(mailbox.isCurrentThread)
@@ -80,6 +81,20 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
     def nextRun(): (String, Thread) =
       Option(runs.poll(Timeout.toMillis, TimeUnit.MILLISECONDS)).getOrElse(fail(s"No message ran within $Timeout."))
   }
+
+  /**
+   * A case's pinned mailbox, which records as [[RecordingFixture]] does.
+   *
+   * @param name the name of the mailbox
+   * @param priority the priority of the mailbox's thread
+   */
+  class Fixture(name: String = "Pinned", priority: Int = Thread.NORM_PRIORITY)
+    extends RecordingFixture(handler => runtime.startMailbox[Message](name, priority)(handler))
+
+  /**
+   * A case's UI mailbox, which records as [[RecordingFixture]] does.
+   */
+  class UiFixture extends RecordingFixture(handler => runtime.startUiMailbox[Message](handler))
 
   "a pinned mailbox" should {
     "run its messages on one thread, named after the mailbox, at the given priority" in
@@ -219,12 +234,45 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
       mailbox.stop() should be theSameInstanceAs mailbox.stop()
     }
   }
+
+  "the UI mailbox" should {
+    "be named UI" in new UiFixture {
+      // Then
+      mailbox.name shouldEqual MessagingRuntime.UiMailboxName
+    }
+
+    "count the UI dispatcher's thread as its own once started, in its messages and outside them" in new UiFixture {
+      // When
+      private val (outside, toolkitThread) =
+        PekkoTestSupport.onUiDispatcher(testKit.system)(mailbox.isCurrentThread -> Thread.currentThread())
+      mailbox.enqueue(Probe("a"))
+
+      // Then
+      outside shouldBe true
+      nextRun()._2 should be theSameInstanceAs toolkitThread
+      mailbox.isCurrentThread shouldBe false
+    }
+
+    "throw IllegalStateException when started on the UI dispatcher's thread, which it waits for" in {
+      // Given
+      val impatient = PekkoMessagingRuntime(testKit.system, uiStartTimeout = ShortUiStartTimeout)
+
+      // When
+      val attempt = PekkoTestSupport.onUiDispatcher(testKit.system)(Try(impatient.startUiMailbox[Message](_ => ())))
+
+      // Then
+      attempt.failed.get shouldBe an[IllegalStateException]
+    }
+  }
 }
 
 /**
  * The messages of [[PekkoMessagingRuntimeTest]].
  */
 object PekkoMessagingRuntimeTest {
+  /** The start timeout of a runtime whose UI mailbox can't start, which its case waits out. */
+  val ShortUiStartTimeout: FiniteDuration = 200.millis
+
   /** A message of the test mailboxes. */
   sealed trait Message
 

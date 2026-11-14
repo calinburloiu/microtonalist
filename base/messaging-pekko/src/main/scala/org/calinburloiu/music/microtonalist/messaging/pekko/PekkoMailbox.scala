@@ -35,7 +35,7 @@ import scala.util.control.NonFatal
  *
  * @param name the name of the mailbox
  * @param spawn starts the mailbox's actor with the given behavior
- * @param onStart runs in the actor's setup, on its thread, before the mailbox records that thread
+ * @param onStart runs in the actor's setup, on its thread, once the mailbox has recorded that thread
  * @param handler runs each message, on the actor's thread
  * @tparam M the type of the messages
  */
@@ -98,8 +98,8 @@ private object PekkoMailbox {
 
   private def behavior[M <: AnyRef](onStart: () => Unit, recordThread: () => Unit, handler: M => Unit,
                                     stopped: Promise[Unit]): Behavior[AnyRef] = Behaviors.setup { _ =>
-    onStart()
     recordThread()
+    onStart()
     Behaviors.receiveMessage[AnyRef] {
       case Stop => Behaviors.stopped
       case received =>
