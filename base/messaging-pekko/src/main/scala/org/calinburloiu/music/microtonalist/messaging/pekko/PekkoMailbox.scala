@@ -16,15 +16,18 @@
 
 package org.calinburloiu.music.microtonalist.messaging.pekko
 
+import com.typesafe.scalalogging.StrictLogging
 import org.apache.pekko.actor.typed.scaladsl.Behaviors
 import org.apache.pekko.actor.typed.{ActorRef, Behavior}
 import org.calinburloiu.music.microtonalist.messaging.Mailbox
 
 import javax.annotation.concurrent.ThreadSafe
 import scala.concurrent.Future
+import scala.util.control.NonFatal
 
 /**
- * A [[Mailbox]] over an actor that `spawn` starts, which runs its messages with `handler`.
+ * A [[Mailbox]] over an actor that `spawn` starts, which runs its messages with `handler`. A non-fatal exception that
+ * escapes `handler` is logged at ERROR and the mailbox goes on, so Pekko's supervision never stops it.
  *
  * @param name the name of the mailbox
  * @param spawn starts the mailbox's actor with the given behavior
@@ -36,12 +39,12 @@ import scala.concurrent.Future
 private[pekko] final class PekkoMailbox[M <: AnyRef](override val name: String,
                                                      spawn: Behavior[AnyRef] => ActorRef[AnyRef],
                                                      onStart: () => Unit)(handler: M => Unit)
-  extends Mailbox[M] {
+  extends Mailbox[M] with StrictLogging {
 
   // Declared before `actor`, whose setup may record the thread before the constructor goes on.
   @volatile private var thread: Option[Thread] = None
 
-  private val actor: ActorRef[AnyRef] = spawn(PekkoMailbox.behavior(onStart, recordThread, handler))
+  private val actor: ActorRef[AnyRef] = spawn(PekkoMailbox.behavior(onStart, recordThread, runSafely))
 
   override def enqueue(message: M): Unit = actor ! message
 
@@ -51,6 +54,14 @@ private[pekko] final class PekkoMailbox[M <: AnyRef](override val name: String,
 
   private def recordThread(): Unit = {
     thread = Some(Thread.currentThread())
+  }
+
+  private def runSafely(message: M): Unit = {
+    try {
+      handler(message)
+    } catch {
+      case NonFatal(exception) => logger.error("A message of mailbox {} failed.", name, exception)
+    }
   }
 }
 

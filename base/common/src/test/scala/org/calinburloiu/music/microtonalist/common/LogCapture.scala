@@ -34,20 +34,29 @@ object LogCapture {
    * Runs `body` with the logger named `loggerName` and its descendants enabled down to DEBUG, and returns the result of
    * `body` together with the events those loggers emitted meanwhile on the calling thread.
    *
-   * Suites may run in parallel in the same JVM, so the events of other threads are ignored. Captures of one logger may
-   * overlap: its level is restored once the last of them completes.
+   * Suites may run in parallel in the same JVM, so the events of other threads are ignored; to capture those of other
+   * threads, see the overload that takes a thread filter. Captures of one logger may overlap: its level is restored
+   * once the last of them completes.
    *
    * @param loggerName Name of the logger to capture, typically the fully qualified name of the class under test;
    *   logback treats the loggers of its nested classes as descendants, so they are captured too.
    */
   def capturing[R](loggerName: String)(body: => R): (R, Seq[ILoggingEvent]) = {
+    val callingThread = Thread.currentThread()
+    capturing(loggerName, _ eq callingThread)(body)
+  }
+
+  /**
+   * As `capturing(loggerName)`, but keeps the events logged on the threads that `isCaptured` accepts, evaluated on the
+   * logging thread when it logs.
+   */
+  def capturing[R](loggerName: String, isCaptured: Thread => Boolean)(body: => R): (R, Seq[ILoggingEvent]) = {
     awaitSlf4jInitialization()
     val logger = LoggerFactory.getLogger(loggerName).asInstanceOf[Logger]
-    val threadName = Thread.currentThread.getName
     val events = ConcurrentLinkedQueue[ILoggingEvent]()
     val appender = new AppenderBase[ILoggingEvent] {
       override def append(event: ILoggingEvent): Unit = {
-        if (event.getThreadName == threadName) {
+        if (isCaptured(Thread.currentThread())) {
           events.add(event)
         }
       }

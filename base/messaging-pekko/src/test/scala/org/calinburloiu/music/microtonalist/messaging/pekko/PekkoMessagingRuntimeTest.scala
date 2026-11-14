@@ -16,7 +16,10 @@
 
 package org.calinburloiu.music.microtonalist.messaging.pekko
 
+import ch.qos.logback.classic.Level
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
+import org.calinburloiu.music.microtonalist.common.LogCapture
+import org.calinburloiu.music.microtonalist.common.LogCapture.failuresAt
 import org.calinburloiu.music.microtonalist.messaging.Mailbox
 import org.calinburloiu.music.microtonalist.messaging.pekko.PekkoTestSupport.Timeout
 import org.scalatest.BeforeAndAfterAll
@@ -51,6 +54,7 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
     val mailbox: Mailbox[Message] = runtime.startMailbox[Message](name, priority) {
       case Probe(probeName) => runs.put(probeName -> Thread.currentThread())
       case CheckThread(result) => result.complete(mailbox.isCurrentThread)
+      case Fail(text) => throw IllegalStateException(text)
     }
 
     /** Takes the next run from [[runs]], waiting up to [[PekkoTestSupport.Timeout]]; fails if none comes. */
@@ -124,6 +128,23 @@ class PekkoMessagingRuntimeTest extends AnyWordSpec with Matchers with BeforeAnd
       an[IllegalArgumentException] should be thrownBy
         runtime.startMailbox[Message]("High", Thread.MAX_PRIORITY + 1)(_ => ())
     }
+
+    "log a message whose handler throws, and go on with the next" in new Fixture() {
+      // Given
+      mailbox.enqueue(Probe("first"))
+      private val (_, thread) = nextRun()
+
+      // When
+      private val ((next, _), events) = LogCapture.capturing(classOf[PekkoMailbox[?]].getName, _ eq thread) {
+        mailbox.enqueue(Fail("boom"))
+        mailbox.enqueue(Probe("next"))
+        nextRun()
+      }
+
+      // Then
+      next shouldEqual "next"
+      events.failuresAt(Level.ERROR) shouldEqual Seq(("A message of mailbox Pinned failed.", Some("boom")))
+    }
   }
 }
 
@@ -139,4 +160,7 @@ object PekkoMessagingRuntimeTest {
 
   /** A message that completes `result` with whether the mailbox counts its running thread as its own. */
   case class CheckThread(result: CompletableFuture[Boolean]) extends Message
+
+  /** A message whose handler throws an exception with `text` as its message. */
+  case class Fail(text: String) extends Message
 }
