@@ -72,5 +72,23 @@ class LogCaptureTest extends AnyWordSpec with Matchers {
       otherEvents.get(TimeoutSeconds, TimeUnit.SECONDS).messagesAt(Level.DEBUG) shouldEqual
         Seq("after the first capture")
     }
+
+    "capture the events of the threads that its filter accepts, and only those" in {
+      // Given
+      val loggerName = s"${getClass.getName}.filtered"
+      val accepted = Thread(() => Logger(loggerName).debug("accepted"))
+      val rejected = Thread(() => Logger(loggerName).debug("rejected"))
+
+      // When
+      val (_, events) = LogCapture.capturing(loggerName, _ eq accepted) {
+        accepted.start()
+        rejected.start()
+        accepted.join(TimeoutSeconds * 1000)
+        rejected.join(TimeoutSeconds * 1000)
+      }
+
+      // Then
+      events.messagesAt(Level.DEBUG) shouldEqual Seq("accepted")
+    }
   }
 }

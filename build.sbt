@@ -59,6 +59,7 @@ lazy val root = (project in file("."))
     businessyncModule,
     commonModule,
     messagingModule,
+    messagingPekkoModule,
     compositionModule,
     compositionFormatModule,
     intonationModule,
@@ -128,6 +129,25 @@ lazy val messagingModule = (project in file("base/messaging"))
     commonSettings,
     libraryDependencies ++= Seq(
       jsr305,
+    ),
+    coverageSettings(stmt = 80, branch = 80),
+  )
+
+lazy val messagingPekkoModule = (project in file("base/messaging-pekko"))
+  .withId("messaging-pekko")
+  .dependsOn(
+    commonModule % "test->test",
+    messagingModule % "compile->compile;test->test",
+  )
+  .disablePlugins(AssemblyPlugin)
+  .settings(
+    name := "microtonalist-messaging-pekko",
+    commonSettings,
+    libraryDependencies ++= Seq(
+      jsr305,
+      pekkoActorTyped,
+      pekkoSlf4j,
+      pekkoActorTestkitTyped % Test,
     ),
     coverageSettings(stmt = 80, branch = 80),
   )
