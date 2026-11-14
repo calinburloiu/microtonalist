@@ -23,16 +23,16 @@ import org.apache.pekko.actor.CoordinatedShutdown
 import org.apache.pekko.actor.testkit.typed.scaladsl.ActorTestKit
 import org.calinburloiu.music.microtonalist.common.LogCapture
 import org.calinburloiu.music.microtonalist.common.LogCapture.failuresAt
-import org.calinburloiu.music.microtonalist.messaging.{Mailbox, MessagingRuntime, SynchronizedBuffer, Urgent}
 import org.calinburloiu.music.microtonalist.messaging.pekko.PekkoTestSupport.Timeout
+import org.calinburloiu.music.microtonalist.messaging.{Mailbox, MessagingRuntime, SynchronizedBuffer, Urgent}
 import org.scalatest.BeforeAndAfterAll
 import org.scalatest.matchers.should.Matchers
 import org.scalatest.wordspec.AnyWordSpec
 
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.{CompletableFuture, CountDownLatch, LinkedBlockingQueue, TimeUnit}
-import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.concurrent.duration.{DurationInt, FiniteDuration}
+import scala.concurrent.{Await, ExecutionContext, Future, Promise}
 import scala.jdk.CollectionConverters.*
 import scala.util.Try
 

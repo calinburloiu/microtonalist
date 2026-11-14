@@ -102,7 +102,8 @@ final class PekkoMessagingRuntime private[pekko] (
       Await.ready(started.future, uiStartTimeout)
     } catch {
       case _: TimeoutException => throw IllegalStateException(
-          s"The UI mailbox didn't start within $uiStartTimeout: startUiMailbox must not run on the UI toolkit's thread.")
+          s"The UI mailbox didn't start within $uiStartTimeout: " +
+            "startUiMailbox must not run on the UI toolkit's thread.")
     }
     mailbox
   }
